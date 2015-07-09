@@ -48,8 +48,8 @@ set(c.parent, 'ResizeFcn', @resizeUI_Callback);
 
 % AXES =====
 c.axesMode = 0;     % 0:Both, 1:Upper, 2:Lower
-c.upperAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Title', 'Overview',      'ButtonDownFcn', @graphSwitch_Callback);
-c.lowerAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Title', 'Current Scan',  'ButtonDownFcn', @graphSwitch_Callback);
+c.upperAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual',      'ButtonDownFcn', @graphSwitch_Callback);
+c.lowerAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual',  'ButtonDownFcn', @graphSwitch_Callback);
 
 % PANEL ====
 c.controlPanel =    uitabgroup('Units', 'pixels');
