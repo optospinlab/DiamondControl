@@ -295,31 +295,31 @@ function status_x_CreateFcn(hObject, eventdata, handles)
 
 %----From Ian's GUI design------------------------------------------------
 %--------------------------------------------------------------------------
-% --- Executes on button press in checkbox1.
-function checkbox1_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox1 (see GCBO)
+% --- Executes on button press in enable_mouse.
+function enable_mouse_Callback(hObject, eventdata, handles)
+% hObject    handle to enable_mouse (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox1
+% Hint: get(hObject,'Value') returns toggle state of enable_mouse
 
 
-% --- Executes on button press in checkbox2.
-function checkbox2_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox2 (see GCBO)
+% --- Executes on button press in enable_kb.
+function enable_kb_Callback(hObject, eventdata, handles)
+% hObject    handle to enable_kb (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox2
+% Hint: get(hObject,'Value') returns toggle state of enable_kb
 
 
-% --- Executes on button press in checkbox3.
-function checkbox3_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox3 (see GCBO)
+% --- Executes on button press in enable_jstick.
+function enable_jstick_Callback(hObject, eventdata, handles)
+% hObject    handle to enable_jstick (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox3
+% Hint: get(hObject,'Value') returns toggle state of enable_jstick
 
 
 % --- Executes on button press in setbox_tl.
