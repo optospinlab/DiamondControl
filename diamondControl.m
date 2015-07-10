@@ -8,7 +8,7 @@ function varargout = diamondControl(varargin)
         c = diamondControlGUI('Parent', f);
     end
     
-global pw; global puh; global plh; global bp; global bw; global bh; global gp;
+global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
     set(c.boxTL, 'Callback', @box_Callback);
     set(c.boxTR, 'Callback', @box_Callback);
@@ -210,8 +210,9 @@ global pw; global puh; global plh; global bp; global bw; global bh; global gp;
         end
 
         % Panel Position =====
-        set(c.controlPanel,     'Position', [w-pw h-puh pw puh]);
-        set(c.automationPanel,  'Position', [w-pw h-puh-plh pw plh]);
+        set(c.statusPanel,      'Position', [w-pw h-puh pw puh]);
+        set(c.controlPanel,     'Position', [w-pw h-puh-pmh pw pmh]);
+        set(c.automationPanel,  'Position', [w-pw h-puh-pmh-plh pw plh]);
     end
 end
 
