@@ -5,3 +5,7 @@ function varargout = diamondControlWrapper(varargin)
 
     diamondControl('Parent', f);
 end
+
+
+
+

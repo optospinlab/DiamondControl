@@ -31,8 +31,10 @@ end
 c.running = true;
 c.xMax = 25;
 c.yMax = 25;
+c.linAct = [0 0];
 
 % Helper variables for GUI setup =====
+global pw; global puh; global plh; global bp; global bw; global bh; global gp;
 pw = 250;           % Panel Width, the width of the side panel
 puh = 150;          % Upper Panel Height
 plh = 250;          % Lower Panel Height
@@ -43,13 +45,10 @@ bh = 18;            % Button Height, the height of a button/object
 
 gp = 25;            % Graph  Padding
 
-% We do resizing programatically =====
-set(c.parent, 'ResizeFcn', @resizeUI_Callback);
-
 % AXES =====
 c.axesMode = 0;     % 0:Both, 1:Upper, 2:Lower
-c.upperAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual',      'ButtonDownFcn', @graphSwitch_Callback);
-c.lowerAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual',  'ButtonDownFcn', @graphSwitch_Callback);
+c.upperAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
+c.lowerAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
 
 % PANEL ====
 c.controlPanel =    uitabgroup('Units', 'pixels');
@@ -60,11 +59,14 @@ c.gotoTab =         uitab(c.controlPanel, 'Title', 'Goto');
     c.gotoY =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0, 'Position', [2*bp+bw puh-bp-4*bh bw bh], 'Callback', @limit_Callback);
     c.gotoButton =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!', 'Position', [bp puh-bp-6*bh bp+2*bw bh]);
 
-c.keymouseTab =     uitab(c.controlPanel, 'Title', 'Keyboard/Mouse');
-    c.keymouseEnabled = uicontrol('Parent', c.keymouseTab, 'Style', 'checkbox', 'String', 'Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh bw bh]); 
+c.mouseTab =     uitab(c.controlPanel, 'Title', 'Mouse');
+    c.mouseEnabled = uicontrol('Parent', c.mouseTab, 'Style', 'checkbox', 'String', 'Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
+
+c.keyTab =     uitab(c.controlPanel, 'Title', 'Keyboard');
+    c.keyEnabled = uicontrol('Parent', c.keyTab, 'Style', 'checkbox', 'String', 'Enable Arrow Keys?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
 
 c.joystickTab =     uitab(c.controlPanel, 'Title', 'Joystick!');
-    c.joystickEnabled = uicontrol('Parent', c.joystickTab, 'Style', 'checkbox', 'String', 'Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh bw bh]); 
+    c.joystickEnabled = uicontrol('Parent', c.joystickTab, 'Style', 'checkbox', 'String', 'Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
 
 c.automationPanel = uitabgroup('Units', 'pixels');
 c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
@@ -74,10 +76,10 @@ c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
     c.boxTR =       uicontrol('Parent', c.boxTab, 'Style', 'pushbutton', 'String', 'Top Right',    'Position', [2*bp+bw    plh-bp-6*bh bw bh]);
     c.boxBL =       uicontrol('Parent', c.boxTab, 'Style', 'pushbutton', 'String', 'Bottom Left',  'Position', [bp         plh-bp-7*bh bw bh]);
     c.boxBR =       uicontrol('Parent', c.boxTab, 'Style', 'pushbutton', 'String', 'Bottom Right', 'Position', [2*bp+bw    plh-bp-7*bh bw bh]);
-    c.boxPrev = [0 0 0];	% Previous vector and type for the box. Types - 0:empty, 1:TL, 2:TR, 3:BR, 4:BL
-    c.boxCurr = [0 0 0];    % Current vector and type for the box.
-    c.boxX = [0 0 0 0 0];
-    c.boxY = [0 0 0 0 0];
+    c.boxPrev = [-1 -1 0];	% [x,y,t] Previous vector [x,y] and type [t] for the box. Types - 0:empty, 1:TL, 2:TR, 3:BR, 4:BL
+    c.boxCurr = [-1 -1 0];    % [x,y,t] Current vector [x,y] and type [t] for the box.
+    c.boxX = [-1 -1 -1 -1 -1];   % Actual Box for graphing.
+    c.boxY = [-1 -1 -1 -1 -1];   % Actual Box for graphing.
     
 c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
 
@@ -87,12 +89,9 @@ c.automationTab =   uitab(c.automationPanel, 'Title', 'Automation!');
 % A list of all buttons to disable when a scan/etc is running.
 c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
-% After everything is done, make the figure visible.
-set(c.parent, 'Visible', 'on');
-
 % UI-only functions =====
     function limit_Callback(hObject, ~)
-        val = str2double(get(hObject,'String'));
+        val = str2double(get(hObject, 'String'));
         
         if isnan(val) % ~isa(val,'double') % If it's NaN, check if it's an equation
             try
@@ -118,56 +117,8 @@ set(c.parent, 'Visible', 'on');
         
         set(hObject, 'String', val);
     end
-
-    function graphSwitch_Callback(hObject, ~)
-        if c.axesMode == 0
-            if hObject == c.upperAxes
-                c.axesMode = 1;
-                set(c.lowerAxes, 'Visible', 'Off');
-            else
-                c.axesMode = 2;
-                set(c.upperAxes, 'Visible', 'Off');
-            end
-        else
-            c.axesMode = 0;
-            set(c.upperAxes, 'Visible', 'On');
-            set(c.lowerAxes, 'Visible', 'On');
-        end
-
-        resizeUI_Callback();
-    end
-
-    function resizeUI_Callback(~, ~)
-        p = get(c.parent, 'Position');
-        w = p(3); h = p(4);
-
-        % Axes Position =====
-        if c.axesMode == 0 % Both
-            if (w-pw-2*gp < (h-3*gp)/2) % If Width is limiting
-                S = w-pw-2*gp;
-                set(c.lowerAxes,    'Position', [gp ((h/4)-(S/2)) S S]);
-                set(c.upperAxes,    'Position', [gp ((3*h/4)-(S/2)) S S]);
-            else                        % If Height is limiting
-                S = (h-3*gp)/2;
-                set(c.lowerAxes,    'Position', [(w-pw-S)/2 gp S S]);
-                set(c.upperAxes,    'Position', [(w-pw-S)/2 2*gp+S S S]);
-            end
-        else
-            if (w-pw-2*gp < h-2*gp)     % If Width is limiting
-                S = w-pw-2*gp;
-            else                        % If Height is limiting
-                S = h-2*gp;
-            end
-
-            if c.axesMode == 1  % Upper only
-                set(c.upperAxes,    'Position', [(w-pw-S)/2 (h-S)/2 S S]);
-            else                % Lower only
-                set(c.lowerAxes,    'Position', [(w-pw-S)/2 (h-S)/2 S S]);
-            end
-        end
-
-        % Panel Position =====
-        set(c.controlPanel,     'Position', [w-pw h-puh pw puh]);
-        set(c.automationPanel,  'Position', [w-pw h-puh-plh pw plh]);
-    end
 end
+
+
+
+
