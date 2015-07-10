@@ -356,3 +356,13 @@ function setbox_br_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of setbox_br
+
+% --- Executes on mouse press over axes background.
+function axes1_ButtonDownFcn(hObject, eventdata, handles)
+if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'normal')
+    x = get(hObject, 'CurrentPoint');
+    toVector = x(1,1:2)
+end
+% hObject    handle to axes1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)

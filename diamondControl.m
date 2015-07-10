@@ -8,7 +8,8 @@ function varargout = diamondControl(varargin)
         c = diamondControlGUI('Parent', f);
     end
     
-global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
+    
+    global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
     set(c.boxTL, 'Callback', @box_Callback);
     set(c.boxTR, 'Callback', @box_Callback);

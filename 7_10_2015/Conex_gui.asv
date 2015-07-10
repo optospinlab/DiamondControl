@@ -27,6 +27,7 @@ end
 function Conex_gui_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for Conex_gui
 global active; active=0;
+% set(axes1, 'ButtonDownFcn', @click_Callback);
 handles.output = hObject;
 guidata(hObject, handles);
 %--------------------------------------------------------------------------
@@ -68,10 +69,10 @@ while ~0
         disp('GUI CLOSED');
         % Should I move to zero position before shutdown??
         try %to stop error when we close gui without initialization
-            fprintf(sx,[device_xaddr 'RS']); %Reset X-Axis
+            cmd(sx,device_xaddr,'RS'); %Reset X-Axis
             fclose(sx); delete(sx); clear sx;
 
-            fprintf(sy,[device_yaddr 'RS']); %Reset Y-Axis
+            cmd(sy,device_yaddr,'RS'); %Reset Y-Axis
             fclose(sy); delete(sy); clear sy;
             disp('Serial connections closed')
         catch
@@ -89,8 +90,8 @@ global sx; global sy;global device_xaddr; global device_yaddr;
 global xin; global yin;global active; global init_done;
 button_state = get(hObject,'Value');
 if button_state==1 && active==0 && init_done==1
-	fprintf(sx,[device_xaddr 'SE' xin]); %Queue X-Axis
-    fprintf(sy,[device_yaddr 'SE' yin]); %Queue Y-Axis
+	cmd(sx,device_xaddr,['SE' xin]); %Queue X-Axis
+    cmd(sy,device_yaddr,['SE' yin]); %Queue Y-Axis
     %start simultaneous move
     fprintf(sx,'SE'); fprintf(sy,'SE');
     stx=status(sx,device_xaddr);
@@ -293,30 +294,76 @@ function status_x_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
 
 
-%----From Ian's Guid design------------------------------------------------
+%----From Ian's GUI design------------------------------------------------
 %--------------------------------------------------------------------------
-% --- Executes on button press in checkbox1.
-function checkbox1_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox1 (see GCBO)
+% --- Executes on button press in enable_mouse.
+function enable_mouse_Callback(hObject, eventdata, handles)
+% hObject    handle to enable_mouse (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox1
+% Hint: get(hObject,'Value') returns toggle state of enable_mouse
 
 
-% --- Executes on button press in checkbox2.
-function checkbox2_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox2 (see GCBO)
+% --- Executes on button press in enable_kb.
+function enable_kb_Callback(hObject, eventdata, handles)
+% hObject    handle to enable_kb (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox2
+% Hint: get(hObject,'Value') returns toggle state of enable_kb
 
 
-% --- Executes on button press in checkbox3.
-function checkbox3_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox3 (see GCBO)
+% --- Executes on button press in enable_jstick.
+function enable_jstick_Callback(hObject, eventdata, handles)
+% hObject    handle to enable_jstick (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox3
+% Hint: get(hObject,'Value') returns toggle state of enable_jstick
+
+
+% --- Executes on button press in setbox_tl.
+function setbox_tl_Callback(hObject, eventdata, handles)
+% hObject    handle to setbox_tl (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of setbox_tl
+
+
+% --- Executes on button press in setbox_tr.
+function setbox_tr_Callback(hObject, eventdata, handles)
+% hObject    handle to setbox_tr (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of setbox_tr
+
+
+% --- Executes on button press in setbox_bl.
+function setbox_bl_Callback(hObject, eventdata, handles)
+% hObject    handle to setbox_bl (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of setbox_bl
+
+
+% --- Executes on button press in setbox_br.
+function setbox_br_Callback(hObject, eventdata, handles)
+% hObject    handle to setbox_br (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of setbox_br
+
+% --- Executes on mouse press over axes background.
+function axes1_ButtonDownFcn(hObject, eventdata, handles)
+if strcmp(get(ancestor(hObject), 'SelectionType'), 'normal')
+    x = get(c,'CurrentPoint');
+    toVector = x(1,1:2)
+end
+% hObject    handle to axes1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
