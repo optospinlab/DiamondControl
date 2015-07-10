@@ -68,10 +68,10 @@ while ~0
         disp('GUI CLOSED');
         % Should I move to zero position before shutdown??
         try %to stop error when we close gui without initialization
-            cmd(sx,device_xaddr,'RS'); %Reset X-Axis
+            fprintf(sx,[device_xaddr 'RS']); %Reset X-Axis
             fclose(sx); delete(sx); clear sx;
 
-            cmd(sy,device_yaddr,'RS'); %Reset Y-Axis
+            fprintf(sy,[device_yaddr 'RS']); %Reset Y-Axis
             fclose(sy); delete(sy); clear sy;
             disp('Serial connections closed')
         catch
@@ -89,8 +89,8 @@ global sx; global sy;global device_xaddr; global device_yaddr;
 global xin; global yin;global active; global init_done;
 button_state = get(hObject,'Value');
 if button_state==1 && active==0 && init_done==1
-	cmd(sx,device_xaddr,['SE' xin]); %Queue X-Axis
-    cmd(sy,device_yaddr,['SE' yin]); %Queue Y-Axis
+	fprintf(sx,[device_xaddr 'SE' xin]); %Queue X-Axis
+    fprintf(sy,[device_yaddr 'SE' yin]); %Queue Y-Axis
     %start simultaneous move
     fprintf(sx,'SE'); fprintf(sy,'SE');
     stx=status(sx,device_xaddr);
@@ -293,7 +293,7 @@ function status_x_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
 
 
-%----From Ian's GUI design------------------------------------------------
+%----From Ian's Guid design------------------------------------------------
 %--------------------------------------------------------------------------
 % --- Executes on button press in checkbox1.
 function checkbox1_Callback(hObject, eventdata, handles)
@@ -320,39 +320,3 @@ function checkbox3_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of checkbox3
-
-
-% --- Executes on button press in setbox_tl.
-function setbox_tl_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_tl (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_tl
-
-
-% --- Executes on button press in setbox_tr.
-function setbox_tr_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_tr (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_tr
-
-
-% --- Executes on button press in setbox_bl.
-function setbox_bl_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_bl (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_bl
-
-
-% --- Executes on button press in setbox_br.
-function setbox_br_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_br (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_br
