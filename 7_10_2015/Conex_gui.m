@@ -35,17 +35,18 @@ guidata(hObject, handles);
 % --- Outputs from this function are returned to the command line.
 function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles) 
 
-%Refresh Device Status
+%Global variables
 global sx; global sy; global device_xaddr; global device_yaddr;
-global init_first;global init_done;
+global init_first;global init_done;global kb_enable; global set_m;
+global coord_in; 
 
-init_first=0;
-init_done=0;
-stx='Not Connected';
-sty='Not Connected';
-xpos='Null';
-ypos='Null';
+init_first=0; init_done=0;
+stx='Not Connected'; sty='Not Connected';
+xpos='Null'; ypos='Null';
+kb_enable=1;
+set_m=5; coord_in=[NaN NaN, NaN NaN, NaN NaN, NaN NaN];
 
+%Refresh Device Status
 while ~0 
     try
         if init_first==1 
@@ -256,8 +257,8 @@ set(hObject,'Value',0); %Reset the button state
 % --- Executes on key press with focus on figure1 or any of its controls.
 function figure1_WindowKeyPressFcn(hObject, eventdata, handles)
 global sx; global device_xaddr; global sy; global device_yaddr;global step;
-global init_done;
-if init_done==1
+global init_done; global kb_enable;
+if init_done==1 && kb_enable==1
     switch eventdata.Key
     case 'uparrow'
         disp('up')
@@ -295,23 +296,19 @@ function status_x_CreateFcn(hObject, eventdata, handles)
 
 %----From Ian's GUI design------------------------------------------------
 %--------------------------------------------------------------------------
-% --- Executes on button press in enable_mouse.
-function enable_mouse_Callback(hObject, eventdata, handles)
-% hObject    handle to enable_mouse (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of enable_mouse
-
 
 % --- Executes on button press in enable_kb.
 function enable_kb_Callback(hObject, eventdata, handles)
-% hObject    handle to enable_kb (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of enable_kb
-
+global kb_enable;
+kb_en=get(hObject,'Value');
+if kb_en==0 && kb_enable==1
+    disp('Keyboard input disabled');
+    kb_enable=kb_en;
+end   
+if kb_en==1 && kb_enable==0
+    disp('Keyboard input enabled');
+    kb_enable=kb_en;
+end   
 
 % --- Executes on button press in enable_jstick.
 function enable_jstick_Callback(hObject, eventdata, handles)
@@ -322,47 +319,27 @@ function enable_jstick_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of enable_jstick
 
 
-% --- Executes on button press in setbox_tl.
-function setbox_tl_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_tl (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+% --- Executes on button press in setbox.
+function setbox_Callback(hObject, eventdata, handles)
+global set_m;
+button_state = get(hObject,'Value');
+if button_state==1
+    cla(handles.axes1); %not sure if this works
+    set_m=1;
+end
+set(hObject,'Value',0); %Reset the button state
 
-% Hint: get(hObject,'Value') returns toggle state of setbox_tl
-
-
-% --- Executes on button press in setbox_tr.
-function setbox_tr_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_tr (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_tr
-
-
-% --- Executes on button press in setbox_bl.
-function setbox_bl_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_bl (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_bl
-
-
-% --- Executes on button press in setbox_br.
-function setbox_br_Callback(hObject, eventdata, handles)
-% hObject    handle to setbox_br (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of setbox_br
 
 % --- Executes on mouse press over axes background.
 function axes1_ButtonDownFcn(hObject, eventdata, handles)
-if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'normal')
+global coord_in; global set_m; 
+if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'normal') && set_m<5
     x = get(hObject, 'CurrentPoint');
-    toVector = x(1,1:2)
+    coord_in(set_m,1) = x(1,1); coord_in(set_m,2) = x(1,2);
+    plot(coord_in(set_m,1),coord_in(set_m,2),'.','color','r','MarkerSize', 15);
+   set_m=set_m+1;
 end
-% hObject    handle to axes1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+if set_m==5
+    fill(coord_in(:,1)',coord_in(:,2)','r')
+end
+    
