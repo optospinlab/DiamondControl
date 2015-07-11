@@ -38,14 +38,14 @@ function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles)
 %Global variables
 global sx; global sy; global device_xaddr; global device_yaddr;
 global init_first;global init_done;global kb_enable; global set_m;
-global coord_in; 
+global coord_in; global popout1; global popout2;
 
 init_first=0; init_done=0;
 stx='Not Connected'; sty='Not Connected';
 xpos='Null'; ypos='Null';
 kb_enable=1;
 set_m=5; coord_in=[NaN NaN, NaN NaN, NaN NaN, NaN NaN];
-
+popout1=0;popout2=0;
 %Refresh Device Status
 while ~0 
     try
@@ -330,9 +330,9 @@ end
 set(hObject,'Value',0); %Reset the button state
 
 
-% --- Executes on mouse press over axes background.
+% --- Executes on mouse press over axes1 background.
 function axes1_ButtonDownFcn(hObject, eventdata, handles)
-global coord_in; global set_m; 
+global coord_in; global set_m; global popout1;
 if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'normal') && set_m<5
     x = get(hObject, 'CurrentPoint');
     coord_in(set_m,1) = x(1,1); coord_in(set_m,2) = x(1,2);
@@ -341,5 +341,28 @@ if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'normal') && set_m<
 end
 if set_m==5
     fill(coord_in(:,1)',coord_in(:,2)','r')
+    set_m=set_m+1;
+end
+if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'alt') && popout1==0
+    popout1=1;
+    pop1=figure;
+    h=handles.axes1; 
+    hc = copyobj(h, gcf);
+    set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
+    uiwait(pop1);
+    popout1=0;
 end
     
+
+% --- Executes on mouse press over axes background.
+function axes2_ButtonDownFcn(hObject, eventdata, handles)
+global popout2;
+if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'alt') && popout2==0
+    popout2=1;
+    pop2=figure;
+    h=handles.axes2; 
+    hc = copyobj(h, gcf);
+    set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
+    uiwait(pop2);
+    popout2=0;
+end
