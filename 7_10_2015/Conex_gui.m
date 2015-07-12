@@ -89,20 +89,20 @@ function move_btn_Callback(hObject, eventdata, handles)
 global sx; global sy;global device_xaddr; global device_yaddr;
 global xin; global yin;global active; global init_done;
 button_state = get(hObject,'Value');
-if button_state==1 && active==0 && init_done==1
+if button_state==1 && init_done==1
 	cmd(sx,device_xaddr,['SE' xin]); %Queue X-Axis
     cmd(sy,device_yaddr,['SE' yin]); %Queue Y-Axis
     %start simultaneous move
     fprintf(sx,'SE'); fprintf(sy,'SE');
-    stx=status(sx,device_xaddr);
-    sty=status(sy,device_yaddr);
+    %stx=status(sx,device_xaddr);
+   % sty=status(sy,device_yaddr);
     disp('Started move'); %Debug
     %Only one move command should be passed to the device
-    while ~strcmp([stx(last-1) stx(last)],'33') && ~strcmp([sty(last-1) sty(last)],'33')
-        active=1;
-        stx=status(sx,device_xaddr);
-        sty=status(sy,device_yaddr);
-    end    
+   % while ~strcmp([stx(end-1) stx(end)],'33') && ~strcmp([sty(end-1) sty(end)],'33')
+     %   active=1;
+     %   stx=status(sx,device_xaddr);
+     %   sty=status(sy,device_yaddr);
+   % end    
     disp('Finished move'); %Debug
     active=0;  
 end
@@ -141,7 +141,7 @@ if button_state==1 && init_done==0 && init_first==0
 	display('Starting Initialization Sequence');
     
         %X-axis actuator
-        device_port='COM17';
+        device_port='COM5';
         device_xaddr='1';
     try
         sx = serial(device_port); 
@@ -154,7 +154,7 @@ if button_state==1 && init_done==0 && init_first==0
         display('Done Initializing X Axis');
 
         %Y-axis actuator
-        device_port='COM18';
+        device_port='COM6';
         device_yaddr='1';
         
         sy = serial(device_port);
