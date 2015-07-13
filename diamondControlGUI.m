@@ -27,6 +27,8 @@ else
     c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none');
 end
 
+set(c.parent, 'defaulttextinterpreter', 'latex');
+
 % 'Global' Variables stored in the GUI object, in the style of Todd
 c.running = true;
 c.xMax = 25;
@@ -36,7 +38,7 @@ c.linAct = [0 0];
 % Helper variables for GUI setup =====
 global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
 pw = 250;           % Panel Width, the width of the side panel
-puh = 350;          % Upper Panel Height
+puh = 150;          % Upper Panel Height
 pmh = 150;          % Middle Panel Height
 plh = 250;          % Lower Panel Height
 
@@ -52,31 +54,27 @@ c.upperAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'
 c.lowerAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
 
 % PANEL ====
-c.statusPanel =    uitabgroup('Units', 'pixels');
-c.microTab =        uitab(c.statusPanel, 'Title', 'Micrometer');
+c.ioPanel =    uitabgroup('Units', 'pixels');
+c.microTab =        uitab(c.ioPanel, 'Title', 'Micrometer');
+    c.microInit =  uicontrol('Parent', c.microTab, 'Style', 'pushbutton', 'String', 'Initiate!', 'Position', [bp puh-bp-3*bh bw bh]);
 
+c.galvoTab =        uitab(c.ioPanel, 'Title', 'Galvometer');
 
-c.galvoTab =        uitab(c.statusPanel, 'Title', 'Galvometer');
-
-
-c.controlPanel =    uitabgroup('Units', 'pixels');
-c.gotoTab =         uitab(c.controlPanel, 'Title', 'Goto');
-    c.gotoXLabel =  uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', ['X (0-' num2str(c.xMax) ' mm): '], 'Position', [bp pmh-bp-3*bh bw bh], 'HorizontalAlignment', 'right');
-    c.gotoX =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0, 'Position', [2*bp+bw pmh-bp-3*bh bw bh], 'Callback', @limit_Callback);
-    c.gotoYLabel =  uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', ['Y (0-' num2str(c.xMax) ' mm): '], 'Position', [bp pmh-bp-4*bh bw bh], 'HorizontalAlignment', 'right');
-    c.gotoY =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0, 'Position', [2*bp+bw pmh-bp-4*bh bw bh], 'Callback', @limit_Callback);
-    c.gotoButton =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!', 'Position', [bp pmh-bp-6*bh bp+2*bw bh]);
-
-c.mouseTab =     uitab(c.controlPanel, 'Title', 'Mouse');
-    c.mouseEnabled = uicontrol('Parent', c.mouseTab, 'Style', 'checkbox', 'String', 'Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-3*bh 2*bw bh]); 
-
-c.keyTab =     uitab(c.controlPanel, 'Title', 'Keyboard');
-    c.keyEnabled = uicontrol('Parent', c.keyTab, 'Style', 'checkbox', 'String', 'Enable Arrow Keys?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-3*bh 2*bw bh]); 
-
-c.joystickTab =     uitab(c.controlPanel, 'Title', 'Joystick!');
-    c.joystickEnabled = uicontrol('Parent', c.joystickTab, 'Style', 'checkbox', 'String', 'Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-3*bh 2*bw bh]); 
+c.inputsTab =     uitab(c.ioPanel, 'Title', 'Inputs');
+    c.mouseEnabled =    uicontrol('Parent', c.inputsTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-3*bh 2*bw bh]); 
+    c.keyEnabled =      uicontrol('Parent', c.inputsTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable Arrow Keys?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-4*bh 2*bw bh]); 
+    c.joystickEnabled = uicontrol('Parent', c.inputsTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?',            'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-5*bh 2*bw bh]); 
 
 c.automationPanel = uitabgroup('Units', 'pixels');
+c.gotoTab =         uitab(c.automationPanel, 'Title', 'Goto');
+    c.gotoXLabel =  uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp        plh-bp-3*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoX =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2   plh-bp-3*bh bw/2 bh],    'Callback', @limit_Callback);
+    c.gotoYLabel =  uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [bp+bw     plh-bp-3*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoY =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+3*bw/2 plh-bp-3*bh bw/2 bh],    'Callback', @limit_Callback);
+    c.gotoButton =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp        plh-bp-6*bh bp+2*bw bh]);
+
+c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
+
 c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
     c.boxInfo =     uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'This draws a box on the screen, depending upon the given points.', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-4*bh 2*bw 2*bh]);
     c.boxLabel =    uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'Save Current Position As...', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-5*bh 2*bw bh]);
@@ -89,7 +87,6 @@ c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
     c.boxX = [-1 -1 -1 -1 -1];   % Actual Box for graphing.
     c.boxY = [-1 -1 -1 -1 -1];   % Actual Box for graphing.
     
-c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
 
 c.automationTab =   uitab(c.automationPanel, 'Title', 'Automation!');
 

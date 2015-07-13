@@ -1,3 +1,5 @@
+function final = galvoScan(range, upspeed, downspeed)    % range in microns, speed in microns per second (up is upscan; down is downscan)
+
 close all
 clear all
 
@@ -5,29 +7,53 @@ clear all
 %min step of DAQ = 20/2^16 = 3.052e-4V
 %min step of Galvo = 8e-4Deg
 %for galvo [1V->1Deg], 8e-4V->8e-4Deg
-x= -5:8e-4:5;%For testing not using full range
-y= -5:8e-4:5;
 
+mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
+step = 8e-4;
+stepFast = step*(upspeed/downspeed);
 
-%Initialize the DAQ
-s = daq.createSession('ni');
-%s.Rate = 1000;
-addAnalogOutputChannel(s,'cDAQ1Mod1', 0:1, 'Voltage');
+maxGalvoRange = 5; % This is a likely-incorrect assumption.
 
-Galvox_ch0 = 0;
-Galvoy_ch1 = 0;
-
-
-for i=1:length(y)
-   for j=1:length(x) 
-       Galvox_ch0 = x(j);
-       Galvoy_ch1 = y(i);
-       %outputSingleScan(s,[Galvox_ch0 Galvoy_ch1]);
-       queueOutputData(s,[Galvox_ch0 Galvoy_ch1]);
-       s.startForeground();
-       pause(0.01); %Allow for settling time
-   end
+if mvConv*range > maxGalvoRange
+    display('Galvo scanrange too large! Reducing to maximum.');
+    range = maxGalvoRange/mvConv;
 end
 
-s.wait()
-s.release;
+up = -(mvConv*range/2):step:(mvConv*range/2);%For testing not using full range
+down = -(mvConv*range/2):stepFast:(mvConv*range/2);
+
+final = ones(length(up));
+prev = 0;
+i = 1;
+
+% Initialize the DAQ
+s = daq.createSession('ni');
+s.Rate = upspeed*length(up)/range;
+s.addAnalogOutputChannel('cDAQ1Mod1', 0:1, 'Voltage');
+s.addCounterInputChannel('Dev1', 'ctr1', 'EdgeCount');
+
+queueOutputData(s, [(0:stepFast:-(mvConv*range/2))'     (0:stepFast:-(mvConv*range/2))']);
+s.startForeground();    % Goto starting point from 0,0
+
+for y = up  % For y in up. We 
+    queueOutputData(s, [up'      y*ones(1,length(up))']);
+    [out] = s.startForeground();
+    queueOutputData(s, [down'    linspace(y, y + step, length(down))']);
+	s.startBackground();
+    
+    final(i,:) = [(out(1)-prev) diff(out)];
+    
+    plot(UNNAMEDAXES, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+    
+    i = i + 1;
+    
+    prev = out(length(up));
+    
+    s.wait();
+end
+
+queueOutputData(s, [(-(mvConv*range/2):stepFast:0)'     ((mvConv*range/2):stepFast:0)']);
+s.startForeground();    % Go back to 0,0 from finishing point
+
+s.release();    % release DAQ
+end

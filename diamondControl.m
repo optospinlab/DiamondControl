@@ -44,6 +44,60 @@ function varargout = diamondControl(varargin)
 %         renderUpper();
 %     end
 
+    % Micrometer Stuff =====
+    function out = pos(serial_obj, device_addr)
+        fprintf(serial_obj, [device_addr 'TP']);	% Get device state
+        out = fscanf(serial_obj);
+    end
+    function out = status(serial_obj, device_addr)
+        fprintf(serial_obj, [device_addr 'TS']); %Get device state
+        out = fscanf(serial_obj);
+    end
+    function cmd(serial_obj, device_addr,c)
+        fprintf(serial_obj, [device_addr c]); 
+        % out = fscanf(serial_obj);
+        % if ~isempty(out)
+        %     disp(['ERR' out])
+        % end
+    end
+    function microInit_Callback(hObject, ~)
+        button_state = get(hObject,'Value');
+        if button_state==1 && init_done==0 && init_first==0
+            display('Starting Initialization Sequence');
+
+            %X-axis actuator
+            device_port='COM17';
+            device_xaddr='1';
+            try
+                sx = serial(device_port); 
+                set(sx,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
+                    'FlowControl', 'software','Terminator', 'CR/LF');
+                fopen(sx);
+                pause(1); 
+                cmd(sx,device_xaddr,'OR'); %Get to home state (reset position)
+
+                display('Done Initializing X Axis');
+
+                %Y-axis actuator
+                device_port='COM18';
+                device_yaddr='1';
+
+                sy = serial(device_port);
+                set(sy,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
+                    'FlowControl', 'software','Terminator', 'CR/LF');
+                fopen(sy);
+                pause(1); cmd(sy,device_yaddr,'OR'); %Go to home state
+                display('Done Initializing Y Axis');
+
+            init_done = 1; init_first=1;
+            guidata(hObject,handles);
+
+            catch
+                disp('Controller Disconnected !!!');
+            end   
+        end
+    end
+
     % Box Stuff =====
     function mouseEnabled_Callback(hObject, ~)
         if get(c.mouseEnabled, 'Value')
@@ -63,16 +117,16 @@ function varargout = diamondControl(varargin)
         if strcmp(get(c.parent, 'SelectionType'), 'alt')
             if c.axesMode == 0
                 if hObject == c.upperAxes
-                    c.axesMode = 1
+                    c.axesMode = 1;
                     set(c.lowerAxes, 'Visible', 'Off');
                     set(get(c.lowerAxes,'Children'), 'Visible', 'Off');
                 else
-                    c.axesMode = 2
+                    c.axesMode = 2;
                     set(c.upperAxes, 'Visible', 'Off');
                     set(get(c.upperAxes,'Children'), 'Visible', 'Off');
                 end
             else
-                c.axesMode = 0
+                c.axesMode = 0;
                 set(c.upperAxes, 'Visible', 'On');
                 set(c.lowerAxes, 'Visible', 'On');
                 set(get(c.upperAxes,'Children'), 'Visible', 'On');
@@ -158,7 +212,8 @@ function varargout = diamondControl(varargin)
         end
         
         renderUpper();
-    end    
+    end
+
     function renderUpper()
         if c.axesMode ~= 2
 %             if sum(c.boxX ~= -1) ~= 0 % If the vals are not all -1...
@@ -179,6 +234,7 @@ function varargout = diamondControl(varargin)
             ylim(c.upperAxes, [0 25]);
         end
     end
+
     function resizeUI_Callback(~, ~)
         display('here');
         p = get(c.parent, 'Position');
@@ -211,9 +267,8 @@ function varargout = diamondControl(varargin)
         end
 
         % Panel Position =====
-        set(c.statusPanel,      'Position', [w-pw h-puh pw puh]);
-        set(c.controlPanel,     'Position', [w-pw h-puh-pmh pw pmh]);
-        set(c.automationPanel,  'Position', [w-pw h-puh-pmh-plh pw plh]);
+        set(c.ioPanel,      'Position', [w-pw h-puh pw puh]);
+        set(c.automationPanel,  'Position', [w-pw h-puh-plh pw plh]);
     end
 end
 
