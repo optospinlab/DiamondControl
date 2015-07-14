@@ -1,15 +1,24 @@
-
-
+% This is the main fucntion of the DiamondControl program. It provides an
+% interface for controlling the automated setup of optospinlab's QIP
+% project. This interface includes:
+%  - joystick/mouse/keyboard control of linear actuators for X and Y 
+%    movement over a sample,
+%  - the ability to XY scan the exitiation beam with Galvometers while
+%    collecting from the same spot,
+%  - control of the peizo stage for precise Z (soon XY) positioning, and
+%  - (soon) basic automation protocols for preforming simple testing.
 function varargout = diamondControl(varargin)
-    if ~isempty(varargin)
-        c = diamondControlGUI(varargin);
-    else
+    if isempty(varargin)    % If no variables have been given, make the figure
         f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none');
         c = diamondControlGUI('Parent', f);
+    else                    % Otherwise pass the variables on.
+        c = diamondControlGUI(varargin);
     end
     
+    % Helper Global variables for UI construction
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
+    % CALLBACKS ===========================================================
     set(c.boxTL, 'Callback', @box_Callback);
     set(c.boxTR, 'Callback', @box_Callback);
     set(c.boxBL, 'Callback', @box_Callback);
@@ -34,35 +43,38 @@ function varargout = diamondControl(varargin)
     
     set(c.microInit, 'Callback', @microInit_Callback);
     
+    % Create joystick object =====
     c.joy = vrjoystick(1);
     
-    % We do resizing programatically =====
+    % We do resizing programatically
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
     
+    % Initial rendering
     renderUpper();
     setGalvoAxesLimits();
     
     set(c.parent, 'Visible', 'On');
     
+    % Start main loop
     main();
     
     function main()
-        while c.running
+        while c.running     % c.running is currently unused, but likely will be used.
             try
-                pause(.12);
+                pause(.12); % 30 Hz
                 [outputXY, outputZ] = readJoystick();
 
-                if outputXY
+                if outputXY % If X or Y have been changed
                     setPos();
                 end
 
-                if outputZ
+                if outputZ  % If Z has been changed
                     piezoZOut();
                 end
 
-                getPos();
+                getPos();   % Find out where the micrometers actually are
                 renderUpper();
-            catch
+            catch           % If something goes wrong (likely the figure is destroyed), deinitialize the Galvos
                 cmd(c.microXSerial, c.microXAddr, 'RS');
                 fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
                 
@@ -80,16 +92,26 @@ function varargout = diamondControl(varargin)
     % INPUTS ==============================================================
     function [outputXY, outputZ] = readJoystick()
         [a, b, p] = read(c.joy);
+        % a - axes (vector of values -1 to 1),
+        % b - buttons (vector of 0s or 1s)
+        % p - povs (vector, but with our joystick there is only one
+        %     element, of angles \in { -1, 0, 45, 90, ... } where -1 is 
+        %     unset and any other value is the direction the pov is facing.
         
-        prevX = c.micro(1);
+        prevX = c.micro(1); % For comparison later
         prevY = c.micro(2);
         prevZ = c.piezoZ;
         
-        c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep/(c.joyXYPadding*c.joyXYPadding*c.joyXYPadding);
-        c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep/(c.joyXYPadding*c.joyXYPadding*c.joyXYPadding);
+        % Add the joystick offset to the target vector. The microscope
+        % attempts to go to the target vector.
+        joyMult = c.microStep/(c.joyXYPadding*c.joyXYPadding*c.joyXYPadding);
+        c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*joyMult;
+        c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*joyMult;
         
+        % Same for Z; the third axis is the twisting axis
         c.piezoZ = c.piezoZ + c.piezoStep*4*c.joyZDir*joystickAxesFunc(a(3), c.joyZPadding);
         
+        % Plot the XY offset on the graph in the Joystick tab
         scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
 %         set(c.joyAxes, 'xtick', []);
 %         set(c.joyAxes, 'xticklabel', []);
@@ -98,7 +120,7 @@ function varargout = diamondControl(varargin)
         xlim(c.joyAxes, [-1 1]);
         ylim(c.joyAxes, [-1 1]);
         
-        
+        % Logic for whether a button has changed since last time and is on.
         buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
         
         if buttonDown(6)
@@ -108,12 +130,14 @@ function varargout = diamondControl(varargin)
             c.piezoZ = c.piezoZ - c.joyZDir*c.piezoStep;
         end
         
+        % From the pov angle, compute the direction of movement in XY
         if p ~= -1
             pov = [dir(sin(p)) (-dir(cos(p)))];
         else
             pov = [0 0];
         end
         
+        % Logic for whether a pov axis has changed since last time and is on.
         povDown = (pov ~= 0 & pov ~= c.joyPovPrev);
         
         if povDown(1)
@@ -123,10 +147,11 @@ function varargout = diamondControl(varargin)
             c.micro(2) = c.micro(2) + c.joyYDir*pov(2)*c.microStep;
         end
         
-        
+        % Save for next time
         c.joyButtonPrev = b;
         c.joyPovPrev = pov;
         
+        % Limit values
         if c.micro(1) < 0
             c.microX = 0;
 %             display('X min');
@@ -154,10 +179,12 @@ function varargout = diamondControl(varargin)
 %             display('Z max');
         end
         
+        % Decide whether things have changed
         outputXY =  (prevX ~= c.micro(1) || prevY ~= c.micro(2));
         outputZ =   (prevZ ~= c.piezoZ);
     end
-    function speed = joystickAxesFunc(num, ignore)  % Input a number for -1 to 1, get the 'speed' to drive the micrometers/piezo
+    function speed = joystickAxesFunc(num, ignore) 
+        % Input a number for -1 to 1, get the 'speed' to drive the micrometers/piezo
         if abs(num) < ignore % Ignore small movements of the joystick
             speed = 0;
         else
@@ -166,6 +193,7 @@ function varargout = diamondControl(varargin)
         end
     end
     function out = dir(num)
+        % Returns the DIRection of a NUMber as OUT = 1, 0 ,-1. e.g. dir(3) = 1, dir(-3) = -1
         if num == 0
             out = 0;
         elseif num > 0
@@ -181,11 +209,11 @@ function varargout = diamondControl(varargin)
         out = fscanf(serial_obj);
     end
     function out = status(serial_obj, device_addr)
-        fprintf(serial_obj, [device_addr 'TS']); %Get device state
+        fprintf(serial_obj, [device_addr 'TS']);    % Get device state
         out = fscanf(serial_obj);
     end
     function cmd(serial_obj, device_addr, c)
-        fprintf(serial_obj, [device_addr c]); 
+        fprintf(serial_obj, [device_addr c]);       % Send a CoMmanD
         % out = fscanf(serial_obj);
         % if ~isempty(out)
         %     disp(['ERR' out])
@@ -242,6 +270,7 @@ function varargout = diamondControl(varargin)
         end
     end
     function getPos()
+        % Gets the current postition from the linear actuators
         if c.outputEnabled && c.microInitiated
             str1 = pos(c.microXSerial, c.microXAddr);
             str2 = pos(c.microYSerial, c.microYAddr);
@@ -254,28 +283,37 @@ function varargout = diamondControl(varargin)
         end
     end
     function setPos()
+        % Set the position of the micrometers if the micrometers are
+        % initiated and output is enabled.
         if c.outputEnabled && c.microInitiated
-            cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.micro(1)/1000)]);
+            cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.micro(1)/1000)]); % Remember that c.micro is in um and we must convert to mm
             cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.micro(2)/1000)]);
             fprintf(c.microXSerial, 'SE'); fprintf(c.microYSerial, 'SE');
         end
     end
     function goto_Callback(hObject, ~)
+        % Set the micrometers to the XY values in the goto box
         c.micro = [str2double(get(c.gotoX, 'String')) str2double(get(c.gotoY, 'String'))];
         setPos();
         renderUpper();
     end
     function gotoActual_Callback(hObject, ~)
+        % Sets the goto box to the current 'actual' position of the
+        % micrometers
         set(c.gotoX, 'String', c.microActual(1));
         set(c.gotoY, 'String', c.microActual(2));
     end
     function gotoTarget_Callback(hObject, ~)
+        % Sets the goto box to the current 'target' position of the
+        % micrometers. The target position is changed with joy/mouse/key,
+        % and the actual micrometer position should follow close behind
+        % this.
         set(c.gotoX, 'String', c.micro(1));
         set(c.gotoY, 'String', c.micro(2));
     end
     function piezoZOut()
         if c.outputEnabled
-            s = daq.createSession('ni');
+            s = daq.createSession('ni');    % Currently creates the session each time. This probably should change in the future.
             s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoZ,      'Voltage');
             s.outputSingleScan(c.piezoZ);
             s.release();
