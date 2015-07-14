@@ -62,20 +62,20 @@ c.joyZDir = 1;
 c.joyXYPadding = .1;
 c.joyZPadding = .25;
 
-c.outputEnabled = 0;
+c.outputEnabled = 1;
 
-c.microInit = 0;
+c.microInitiated = false;
 c.microStep = .080; % 80 nm
 
 c.micro = [0 0];
 c.microActual = [0 0];
 
 c.microXSerial = 0;     % Empty variable for the X micrometer serial connection
-c.microXPort = 'COM17'; % This will be overwritten later (or should we define here?)
+c.microXPort = 'COM5'; % This will be overwritten later (or should we define here?)
 c.microXAddr = '1';
 
 c.microYSerial = 0;     % Empty variable for the Y micrometer serial connection
-c.microYPort = 'COM18'; % This will be overwritten later
+c.microYPort = 'COM6'; % This will be overwritten later
 c.microYAddr = '1';
 
 

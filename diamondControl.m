@@ -32,6 +32,8 @@ function varargout = diamondControl(varargin)
     
     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
+    set(c.microInit, 'Callback', @microInit_Callback);
+    
     c.joy = vrjoystick(1);
     
     % We do resizing programatically =====
@@ -46,20 +48,27 @@ function varargout = diamondControl(varargin)
     
     function main()
         while c.running
-            pause(.12);
-            [outputXY, outputZ] = readJoystick();
-            
-            if outputXY
-                setPos();
-            end
+            try
+                pause(.12);
+                [outputXY, outputZ] = readJoystick();
 
-            if outputZ
-                piezoZOut();
+                if outputXY
+                    setPos();
+                end
+
+                if outputZ
+                    piezoZOut();
+                end
+
+                getPos();
+                renderUpper();
+            catch
+                cmd(c.microXSerial, c.microXAddr, 'RS');
+                fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
+                
+                cmd(c.microYSerial, c.microYAddr, 'RS');
+                fclose(c.microYSerial); delete(c.microYSerial); clear c.microYSerial;
             end
-            
-            getPos();
-            renderUpper();
-            
         end
     end
 
@@ -82,10 +91,10 @@ function varargout = diamondControl(varargin)
         c.piezoZ = c.piezoZ + c.piezoStep*4*c.joyZDir*joystickAxesFunc(a(3), c.joyZPadding);
         
         scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
-        set(c.joyAxes, 'xtick', []);
-        set(c.joyAxes, 'xticklabel', []);
-        set(c.joyAxes, 'ytick', []);
-        set(c.joyAxes, 'yticklabel', []);
+%         set(c.joyAxes, 'xtick', []);
+%         set(c.joyAxes, 'xticklabel', []);
+%         set(c.joyAxes, 'ytick', []);
+%         set(c.joyAxes, 'yticklabel', []);
         xlim(c.joyAxes, [-1 1]);
         ylim(c.joyAxes, [-1 1]);
         
@@ -100,7 +109,7 @@ function varargout = diamondControl(varargin)
         end
         
         if p ~= -1
-            pov = [-dir(cos(p)) dir(sin(p))];
+            pov = [dir(sin(p)) (-dir(cos(p)))];
         else
             pov = [0 0];
         end
@@ -120,29 +129,29 @@ function varargout = diamondControl(varargin)
         
         if c.micro(1) < 0
             c.microX = 0;
-            display('X min');
+%             display('X min');
         end
         if c.micro(1) > c.xMax
             c.microX = c.xMax;
-            display('X max');
+%             display('X max');
         end
         
         if c.micro(2) < 0
             c.microY = 0;
-            display('Y min');
+%             display('Y min');
         end
         if c.micro(2) > c.yMax
             c.microY = c.yMax;
-            display('Y max');
+%             display('Y max');
         end
         
         if c.piezoZ < 0
             c.piezoZ = 0;
-            display('Z min');
+%             display('Z min');
         end
         if c.piezoZ > c.zMax
             c.piezoZ = c.zMax;
-            display('Z max');
+%             display('Z max');
         end
         
         outputXY =  (prevX ~= c.micro(1) || prevY ~= c.micro(2));
@@ -183,13 +192,16 @@ function varargout = diamondControl(varargin)
         % end
     end
     function microInit_Callback(hObject, ~)
+%         clear c.microXSerial
+%         clear c.microYSerial
+        
         button_state = get(hObject,'Value');
-        if button_state == 1 && init_done == 0 && init_first == 0
+        if button_state == 1 && c.microInitiated == 0
             display('Starting Initialization Sequence');
 
-            try
+%             try
                 % X-axis actuator =====
-                c.microXPort = 'COM17'; % USB Port that X is connected to (we view it as a serial port)
+                c.microXPort = 'COM5'; % USB Port that X is connected to (we view it as a serial port)
                 c.microXAddr = '1';
                 
                 c.microXSerial = serial(c.microXPort);
@@ -205,10 +217,10 @@ function varargout = diamondControl(varargin)
                 
                 
                 % Y-axis actuator =====
-                c.microYPort = 'COM18'; % USB Port that Y is connected to (we view it as a serial port)
+                c.microYPort = 'COM6'; % USB Port that Y is connected to (we view it as a serial port)
                 c.microYAddr = '1';
 
-                c.microYSerial = serial(device_port);
+                c.microYSerial = serial(c.microYPort);
                 set(c.microYSerial,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
                     'FlowControl', 'software','Terminator', 'CR/LF');
                 fopen(c.microYSerial);
@@ -221,24 +233,31 @@ function varargout = diamondControl(varargin)
                 
                 c.microX = 0;
                 c.microY = 0;
-            catch
-                disp('Controller Disconnected !!!');
-            end   
+                
+                pause(1); 
+                c.microInitiated = true;
+%             catch
+%                 disp('Controller Disconnected !!!');
+%             end   
         end
     end
     function getPos()
-        if c.outputEnabled && c.microInit
-            c.microActual(1) = 1000*str2double(pos(c.microXSerial, c.microXAddr));
-            c.microActual(2) = 1000*str2double(pos(c.microYSerial, c.microYAddr));
+        if c.outputEnabled && c.microInitiated
+            str1 = pos(c.microXSerial, c.microXAddr);
+            str2 = pos(c.microYSerial, c.microYAddr);
+            
+            c.microActual(1) = 1000*str2double(str1(4:end));
+            c.microActual(2) = 1000*str2double(str2(4:end));
 
             set(c.microXX, 'String', c.microActual(1));
             set(c.microYY, 'String', c.microActual(2));
         end
     end
     function setPos()
-        if c.outputEnabled && c.microInit
-            cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.microActual(1)/1000)]);
-            cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.microActual(2)/1000)]);
+        if c.outputEnabled && c.microInitiated
+            cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.micro(1)/1000)]);
+            cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.micro(2)/1000)]);
+            fprintf(c.microXSerial, 'SE'); fprintf(c.microYSerial, 'SE');
         end
     end
     function goto_Callback(hObject, ~)
@@ -257,7 +276,7 @@ function varargout = diamondControl(varargin)
     function piezoZOut()
         if c.outputEnabled
             s = daq.createSession('ni');
-            s.addAnalogOutputChannel(c.devPiezoZ,   c.chnPiezoZ,      'Voltage');
+            s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoZ,      'Voltage');
             s.outputSingleScan(c.piezoZ);
             s.release();
         end
