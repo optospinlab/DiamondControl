@@ -38,14 +38,16 @@ function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles)
 %Global variables
 global sx; global sy; global device_xaddr; global device_yaddr;
 global init_first;global init_done;global kb_enable; global set_m;
-global coord_in; global popout1; global popout2;
+global coord_in; global popout1; global popout2; global zstep;
+global z_obj;
 
-init_first=0; init_done=0;
+init_first=0; init_done=0; z_obj='Null';
 stx='Not Connected'; sty='Not Connected';
 xpos='Null'; ypos='Null';
 kb_enable=1;
 set_m=5; coord_in=[NaN NaN, NaN NaN, NaN NaN, NaN NaN];
 popout1=0;popout2=0;
+zstep=0;
 %Refresh Device Status
 while ~0 
     try
@@ -75,8 +77,17 @@ while ~0
             cmd(sy,device_yaddr,'RS'); %Reset Y-Axis
             fclose(sy); delete(sy); clear sy;
             disp('Serial connections closed')
+            
+            z_obj.release();
+            disp('Released Z-Piezo')
         catch
             disp('No serial connections were made')
+            try
+                z_obj.release();
+                disp('Released Z-Piezo')
+            catch
+                disp('Z-Piezo connection not made')
+            end
         end
         break;
     end  
@@ -149,7 +160,16 @@ if button_state==1 && init_done==0 && init_first==0
             'FlowControl', 'software','Terminator', 'CR/LF');
         fopen(sx);
         pause(1); 
-        cmd(sx,device_xaddr,'OR'); %Get to home state (reset position)
+        
+        %Save previous Xposition
+        cmd(sx,device_xaddr,'PW1'); 
+        cmd(sx,device_xaddr,'HT1'); 
+        cmd(sx,device_xaddr,'SL-5');  % negative software limit x=-5
+        cmd(sx,device_xaddr,'BA0.005');% backlash compensation
+        cmd(sx,device_xaddr,'PW0');
+        pause(2);
+        
+        cmd(sx,device_xaddr,'OR'); %Get to home state (should retain position)
 
         display('Done Initializing X Axis');
 
@@ -161,8 +181,21 @@ if button_state==1 && init_done==0 && init_first==0
         set(sy,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
             'FlowControl', 'software','Terminator', 'CR/LF');
         fopen(sy);
-        pause(1); cmd(sy,device_yaddr,'OR'); %Go to home state
+        pause(1); 
+        
+        %Save previous Yposition
+        cmd(sy,device_yaddr,'PW1'); 
+        cmd(sy,device_yaddr,'HT1'); 
+        cmd(sy,device_yaddr,'SL-5');   % negative software limit y=-5
+        cmd(sy,device_yaddr,'BA0.005'); % backlash compensation
+        cmd(sy,device_yaddr,'PW0');
+        pause(2);
+        
+        cmd(sy,device_yaddr,'OR'); %Go to home state
         display('Done Initializing Y Axis');
+        
+        z_init();
+        display('Done Initializing Z-Piezo');
         
     init_done = 1; init_first=1;
     guidata(hObject,handles);
@@ -257,22 +290,29 @@ set(hObject,'Value',0); %Reset the button state
 % --- Executes on key press with focus on figure1 or any of its controls.
 function figure1_WindowKeyPressFcn(hObject, eventdata, handles)
 global sx; global device_xaddr; global sy; global device_yaddr;global step;
-global init_done; global kb_enable;
+global init_done; global kb_enable; global z_obj; global zstep; global zout;
 if init_done==1 && kb_enable==1
+    disp(eventdata.Key)
     switch eventdata.Key
     case 'uparrow'
-        disp('up')
+        %disp('up')
         cmd(sy,device_yaddr,['PR' step]);
     case 'downarrow'
-        disp('down')
+        %disp('down')
         cmd(sy,device_yaddr,['PR' '-' step]);
     case 'leftarrow'
-        disp('left')
-        cmd(sx,device_xaddr,['PR' '-' step]);
-    case 'rightarrow'
-        disp('right')
+        %disp('left')
         cmd(sx,device_xaddr,['PR' step]);
-    end
+    case 'rightarrow'
+        %disp('right')
+        cmd(sx,device_xaddr,['PR' '-' step]);
+    case 'pageup'
+        zout=zout+zstep;
+        z_obj.outputSingleScan(zout);
+    case 'pagedown'
+        zout=zout-zstep;
+        z_obj.outputSingleScan(zout);
+    end    
 end
 
 
@@ -365,4 +405,206 @@ if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'alt') && popout2==
     set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
     uiwait(pop2);
     popout2=0;
+end
+
+
+%Z-axis control
+function Zstep_Callback(hObject, eventdata, handles)
+global zstep;
+zstep = str2num(get(hObject,'String'));
+
+
+% --- Executes during object creation, after setting all properties.
+function Zstep_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+    set(hObject,'String','0');
+end
+
+
+% --- Executes on button press in Zminus.
+function Zminus_Callback(hObject, eventdata, handles)
+global zout; global zstep;global z_obj;
+button_state = get(hObject,'Value');
+if button_state==1
+    if strcmp(z_obj,'Null')
+        z_init();
+    end
+    zout = zout - zstep;
+    if zout < -10
+        zout = -10;
+    end
+    z_obj.outputSingleScan(zout);
+end
+set(hObject,'Value',0); %Reset the button state
+
+
+% --- Executes on button press in Zplus.
+function Zplus_Callback(hObject, eventdata, handles)
+global zout; global zstep; global zinit;global z_obj;
+button_state = get(hObject,'Value');
+if button_state==1
+    if strcmp(z_obj,'Null')
+        z_init();
+    end
+    zout = zout + zstep;
+    if zout > 10
+        zout = 10;
+    end
+    z_obj.outputSingleScan(zout);
+end
+set(hObject,'Value',0); %Reset the button state
+
+% --- Executes on button press in Zmove.
+function Zmove_Callback(hObject, eventdata, handles)
+global zm; global zout; global zstep; global zinit;global z_obj;
+button_state = get(hObject,'Value');
+if button_state==1
+    if strcmp(z_obj,'Null')
+        z_init();
+    end
+    zout=zm;
+    z_obj.outputSingleScan(zout);
+end
+set(hObject,'Value',0); %Reset the button state
+
+
+function Zedit_Callback(hObject, eventdata, handles)
+global zm;
+zm = str2double(get(hObject,'String'));
+if zm > 10
+    zm = 10;
+end
+if zm < -10
+    zm = -10;
+end
+
+function z_init()
+global z_obj;
+z_obj = daq.createSession('ni');
+z_obj.addAnalogOutputChannel('Dev1', 'ao2', 'Voltage');
+disp('Initialized Z-Axis Piezo')
+
+
+% --- Executes during object creation, after setting all properties.
+function Zedit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+%Galvo Stuff
+% --- Executes on button press in startScan.
+function startScan_Callback(hObject, eventdata, handles)
+%Scan the Galvo +/- 5 deg
+%min step of DAQ = 20/2^16 = 3.052e-4V
+%min step of Galvo = 8e-4Deg
+%for galvo [1V->1Deg], 8e-4V->8e-4Deg
+
+global range;
+global upspeed;
+
+downspeed = upspeed/8;
+
+mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
+step = 8e-4;
+stepFast = step*(upspeed/downspeed);
+
+range
+mvConv
+
+maxGalvoRange = 5; % This is a likely-incorrect assumption.
+
+if mvConv*range > maxGalvoRange
+    display('Galvo scanrange too large! Reducing to maximum.');
+    range = maxGalvoRange/mvConv;
+end
+
+up = -(mvConv*range/2):step:(mvConv*range/2) %For testing not using full range
+down = -(mvConv*range/2):stepFast:(mvConv*range/2);
+
+final = ones(length(up));
+prev = 0;
+i = 1;
+
+% Initialize the DAQ
+s = daq.createSession('ni');
+s.Rate = upspeed*length(up)/range;
+s.addAnalogOutputChannel('cDAQ1Mod1', 'ao0', 'Voltage');
+s.addAnalogOutputChannel('cDAQ1Mod1', 'ao1', 'Voltage');
+s.addCounterInputChannel('Dev1', 'ctr1', 'EdgeCount');
+
+queueOutputData(s, [(0:-stepFast:-(mvConv*range/2))'     (0:-stepFast:-(mvConv*range/2))']);
+s.startForeground();    % Goto starting point from 0,0
+
+for y = up  % For y in up. We 
+    queueOutputData(s, [up'      y*ones(1,length(up))']);
+    [out] = s.startForeground();
+    queueOutputData(s, [down'    linspace(y, y + step, length(down))']);
+	s.startBackground();
+    
+    final(i,:) = [(out(1)-prev) diff(out)];
+    
+    plot(handles.axes2, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+    
+    i = i + 1;
+    
+    prev = out(length(up));
+    
+    s.wait();
+end
+
+queueOutputData(s, [(-(mvConv*range/2):stepFast:0)'     ((mvConv*range/2):stepFast:0)']);
+s.startForeground();    % Go back to 0,0 from finishing point
+
+s.release();    % release DAQ
+
+
+
+function galvoScanRange_Callback(hObject, eventdata, handles)
+global range;
+range = str2num(get(hObject,'String'));
+% hObject    handle to galvoScanRange (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of galvoScanRange as text
+%        str2double(get(hObject,'String')) returns contents of galvoScanRange as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function galvoScanRange_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to galvoScanRange (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function galvoScanSpeed_Callback(hObject, eventdata, handles)
+global upspeed;
+upspeed = str2num(get(hObject,'String'));
+% hObject    handle to galvoScanSpeed (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of galvoScanSpeed as text
+%        str2double(get(hObject,'String')) returns contents of galvoScanSpeed as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function galvoScanSpeed_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to galvoScanSpeed (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
