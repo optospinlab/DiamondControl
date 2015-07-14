@@ -39,7 +39,8 @@ function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles)
 global sx; global sy; global device_xaddr; global device_yaddr;
 global init_first;global init_done;global kb_enable; global set_m;
 global coord_in; global popout1; global popout2; global zstep;
-global z_obj;
+global z_obj; global upspeed; global range;
+
 
 init_first=0; init_done=0; z_obj='Null';
 stx='Not Connected'; sty='Not Connected';
@@ -48,6 +49,7 @@ kb_enable=1;
 set_m=5; coord_in=[NaN NaN, NaN NaN, NaN NaN, NaN NaN];
 popout1=0;popout2=0;
 zstep=0;
+upspeed =0; range=0;
 %Refresh Device Status
 while ~0 
     try
@@ -292,7 +294,6 @@ function figure1_WindowKeyPressFcn(hObject, eventdata, handles)
 global sx; global device_xaddr; global sy; global device_yaddr;global step;
 global init_done; global kb_enable; global z_obj; global zstep; global zout;
 if init_done==1 && kb_enable==1
-    disp(eventdata.Key)
     switch eventdata.Key
     case 'uparrow'
         %disp('up')
@@ -384,6 +385,7 @@ if set_m==5
     set_m=set_m+1;
 end
 if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'alt') && popout1==0
+    disp('creating new figure')
     popout1=1;
     pop1=figure;
     h=handles.axes1; 
@@ -398,6 +400,7 @@ end
 function axes2_ButtonDownFcn(hObject, eventdata, handles)
 global popout2;
 if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'alt') && popout2==0
+    disp('creating new figure')
     popout2=1;
     pop2=figure;
     h=handles.axes2; 
@@ -496,90 +499,101 @@ end
 %Galvo Stuff
 % --- Executes on button press in startScan.
 function startScan_Callback(hObject, eventdata, handles)
-%Scan the Galvo +/- 5 deg
+global range;global upspeed;
+
+% xlim(handles.axes1, [-range/2, range/2]);
+% ylim(handles.axes1, [-range/2, range/2]);
+%   
+% range in microns, speed in microns per second (up is upscan; down is downscan)
+%Scan the Galvo +/- mvConv*range/2 deg
 %min step of DAQ = 20/2^16 = 3.052e-4V
 %min step of Galvo = 8e-4Deg
 %for galvo [1V->1Deg], 8e-4V->8e-4Deg
+button_state = get(hObject,'Value');
+if button_state==1
+    downspeed = upspeed/8;
 
-global range;
-global upspeed;
+    mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
+    step = 8e-4;
+    stepFast = step*(upspeed/downspeed);
 
-downspeed = upspeed/8;
+    maxGalvoRange = 5; % This is a likely-incorrect assumption.
 
-mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
-step = 8e-4;
-stepFast = step*(upspeed/downspeed);
+    if mvConv*range > maxGalvoRange
+        display('Galvo scanrange too large! Reducing to maximum.');
+        range = maxGalvoRange/mvConv;
+    end
 
-range
-mvConv
+    up = -(mvConv*range/2):step:(mvConv*range/2);%For testing not using full range
+    down = (mvConv*range/2):-stepFast:-(mvConv*range/2);
 
-maxGalvoRange = 5; % This is a likely-incorrect assumption.
+    final = ones(length(up));
+    prev = 0;
+    i = 1;
 
-if mvConv*range > maxGalvoRange
-    display('Galvo scanrange too large! Reducing to maximum.');
-    range = maxGalvoRange/mvConv;
+    % Initialize the DAQ
+    s = daq.createSession('ni');
+    s.Rate = upspeed*length(up)/range;
+
+    s2 = daq.createSession('ni');
+    s2.Rate = upspeed*length(up)/range;
+
+    s.addAnalogOutputChannel('cDAQ1Mod1',   'ao0',    'Voltage');
+    s.addAnalogOutputChannel('cDAQ1Mod1',   'ao1',    'Voltage');
+
+    s2.addCounterInputChannel('Dev1',    'ctr1',      'EdgeCount');
+    s2.addAnalogInputChannel('Dev1',     'ai0',      'Voltage');
+
+    queueOutputData(s, [(0:-stepFast:-(mvConv*range/2))'    (0:-stepFast:-(mvConv*range/2))']);
+    s.startForeground();    % Goto starting point from 0,0
+
+    for y = up  % For y in up. We 
+        queueOutputData(s, [up'      y*ones(1,length(up))']);
+        s.startBackground();
+        [out, ~] = s2.startForeground();
+
+        queueOutputData(s, [down'    linspace(y, y + step, length(down))']);
+        s.startBackground();
+
+        final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)')];
+
+    %             display('up');
+    %             up
+    %             display('up(1:i)');
+    %             up(1:i)
+    %             display('final(1:i,:)');
+    %             final(1:i,:)
+
+        if i > 1
+            surf(handles.axes1, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+            view(handles.axes1,2);
+            colormap('gray');
+            xlim(handles.axes1, [-mvConv*range/2  mvConv*range/2]);
+            ylim(handles.axes1, [-mvConv*range/2  mvConv*range/2]);
+    %                 zlim(handles.axes1, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
+        end
+
+        i = i + 1;
+
+        prev = out(end);
+
+        s.wait();
+    end
+
+    queueOutputData(s, [(-(mvConv*range/2):stepFast:0)'     ((mvConv*range/2):-stepFast:0)']);
+    s.startForeground();    % Go back to 0,0 from finishing point
+
+    s.release();    % release DAQ
 end
-
-up = -(mvConv*range/2):step:(mvConv*range/2) %For testing not using full range
-down = -(mvConv*range/2):stepFast:(mvConv*range/2);
-
-final = ones(length(up));
-prev = 0;
-i = 1;
-
-% Initialize the DAQ
-s = daq.createSession('ni');
-s.Rate = upspeed*length(up)/range;
-s.addAnalogOutputChannel('cDAQ1Mod1', 'ao0', 'Voltage');
-s.addAnalogOutputChannel('cDAQ1Mod1', 'ao1', 'Voltage');
-s.addCounterInputChannel('Dev1', 'ctr1', 'EdgeCount');
-
-queueOutputData(s, [(0:-stepFast:-(mvConv*range/2))'     (0:-stepFast:-(mvConv*range/2))']);
-s.startForeground();    % Goto starting point from 0,0
-
-for y = up  % For y in up. We 
-    queueOutputData(s, [up'      y*ones(1,length(up))']);
-    [out] = s.startForeground();
-    queueOutputData(s, [down'    linspace(y, y + step, length(down))']);
-	s.startBackground();
+set(hObject,'Value',0); %Reset the button state
     
-    final(i,:) = [(out(1)-prev) diff(out)];
-    
-    plot(handles.axes2, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
-    
-    i = i + 1;
-    
-    prev = out(length(up));
-    
-    s.wait();
-end
-
-queueOutputData(s, [(-(mvConv*range/2):stepFast:0)'     ((mvConv*range/2):stepFast:0)']);
-s.startForeground();    % Go back to 0,0 from finishing point
-
-s.release();    % release DAQ
-
-
 
 function galvoScanRange_Callback(hObject, eventdata, handles)
 global range;
-range = str2num(get(hObject,'String'));
-% hObject    handle to galvoScanRange (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of galvoScanRange as text
-%        str2double(get(hObject,'String')) returns contents of galvoScanRange as a double
-
+range = str2double(get(hObject,'String'));
 
 % --- Executes during object creation, after setting all properties.
 function galvoScanRange_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to galvoScanRange (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
@@ -588,23 +602,10 @@ end
 
 function galvoScanSpeed_Callback(hObject, eventdata, handles)
 global upspeed;
-upspeed = str2num(get(hObject,'String'));
-% hObject    handle to galvoScanSpeed (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of galvoScanSpeed as text
-%        str2double(get(hObject,'String')) returns contents of galvoScanSpeed as a double
-
+upspeed = str2double(get(hObject,'String'));
 
 % --- Executes during object creation, after setting all properties.
 function galvoScanSpeed_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to galvoScanSpeed (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
