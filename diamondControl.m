@@ -8,7 +8,6 @@ function varargout = diamondControl(varargin)
         c = diamondControlGUI('Parent', f);
     end
     
-    
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
     set(c.boxTL, 'Callback', @box_Callback);
@@ -16,7 +15,17 @@ function varargout = diamondControl(varargin)
     set(c.boxBL, 'Callback', @box_Callback);
     set(c.boxBR, 'Callback', @box_Callback);
     
+    set(c.gotoX, 'Callback', @limit_Callback);
+    set(c.gotoY, 'Callback', @limit_Callback);
+    set(c.galvoS, 'Callback', @limit_Callback);
+    
+    set(c.galvoR, 'Callback', @range_Callback);
+    
+    set(c.galvoButton, 'Callback', @galvoScan_Callback);
+    
     set(c.gotoButton, 'Callback', @goto_Callback);
+    set(c.gotoActual, 'Callback', @gotoActual_Callback);
+    set(c.gotoTarget, 'Callback', @gotoTarget_Callback);
     
     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
@@ -29,6 +38,7 @@ function varargout = diamondControl(varargin)
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
     
     renderUpper();
+    setGalvoAxesLimits();
     
     set(c.parent, 'Visible', 'On');
     
@@ -39,21 +49,17 @@ function varargout = diamondControl(varargin)
             pause(.12);
             [outputXY, outputZ] = readJoystick();
             
-            if c.outputEnabled
-                if outputXY
-                    setPos();
-                end
+            if outputXY
+                setPos();
+            end
 
-                if outputZ
-                    piezoZOut();
-                end
+            if outputZ
+                piezoZOut();
             end
             
+            getPos();
             renderUpper();
             
-            if c.outputEnabled
-                getPos();
-            end
         end
     end
 
@@ -62,7 +68,7 @@ function varargout = diamondControl(varargin)
 %         renderUpper();
 %     end
 
-    % INPUTS =====
+    % INPUTS ==============================================================
     function [outputXY, outputZ] = readJoystick()
         [a, b, p] = read(c.joy);
         
@@ -160,7 +166,7 @@ function varargout = diamondControl(varargin)
         end
     end
 
-    % OUTPUTS =====
+    % OUTPUTS =============================================================
     function out = pos(serial_obj, device_addr)
         fprintf(serial_obj, [device_addr 'TP']);	% Get device state
         out = fscanf(serial_obj);
@@ -221,23 +227,120 @@ function varargout = diamondControl(varargin)
         end
     end
     function getPos()
-        set(c.microXX, 'String', pos(c.microXSerial, c.microXAddr));
-        set(c.microYY, 'String', pos(c.microYSerial, c.microYAddr));
+        if c.outputEnabled && c.microInit
+            c.microActual(1) = 1000*str2double(pos(c.microXSerial, c.microXAddr));
+            c.microActual(2) = 1000*str2double(pos(c.microYSerial, c.microYAddr));
+
+            set(c.microXX, 'String', c.microActual(1));
+            set(c.microYY, 'String', c.microActual(2));
+        end
     end
     function setPos()
-        cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.micro(1)/1000)]);
-        cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.micro(2)/1000)]);
+        if c.outputEnabled && c.microInit
+            cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.microActual(1)/1000)]);
+            cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.microActual(2)/1000)]);
+        end
     end
     function goto_Callback(hObject, ~)
         c.micro = [str2double(get(c.gotoX, 'String')) str2double(get(c.gotoY, 'String'))];
         setPos();
         renderUpper();
     end
+    function gotoActual_Callback(hObject, ~)
+        set(c.gotoX, 'String', c.microActual(1));
+        set(c.gotoY, 'String', c.microActual(2));
+    end
+    function gotoTarget_Callback(hObject, ~)
+        set(c.gotoX, 'String', c.micro(1));
+        set(c.gotoY, 'String', c.micro(2));
+    end
     function piezoZOut()
-        
+        if c.outputEnabled
+            s = daq.createSession('ni');
+            s.addAnalogOutputChannel(c.devPiezoZ,   c.chnPiezoZ,      'Voltage');
+            s.outputSingleScan(c.piezoZ);
+            s.release();
+        end
     end
 
-    % BOX =====
+    % GALVO ===============================================================
+    function galvoScan_Callback()
+        galvoScan()
+    end
+    function galvoScan()    % range in microns, speed in microns per second (up is upscan; down is downscan)
+        %Scan the Galvo +/- mvConv*range/2 deg
+        %min step of DAQ = 20/2^16 = 3.052e-4V
+        %min step of Galvo = 8e-4Deg
+        %for galvo [1V->1Deg], 8e-4V->8e-4Deg
+        
+        range = str2double(get(c.galvoR, 'String'));
+        upspeed = str2double(get(c.galvoR, 'String'));
+        downspeed = upspeed/8;
+
+        mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
+        step = 8e-4;
+        stepFast = step*(upspeed/downspeed);
+
+        maxGalvoRange = 5; % This is a likely-incorrect assumption.
+
+        if mvConv*range > maxGalvoRange
+            display('Galvo scanrange too large! Reducing to maximum.');
+            range = maxGalvoRange/mvConv;
+        end
+
+        up = -(mvConv*range/2):step:(mvConv*range/2);%For testing not using full range
+        down = -(mvConv*range/2):stepFast:(mvConv*range/2);
+
+        final = ones(length(up));
+        prev = 0;
+        i = 1;
+
+        % Initialize the DAQ
+        s = daq.createSession('ni');
+        s.Rate = upspeed*length(up)/range;
+        
+        s.addAnalogOutputChannel(c.devGalvo,    c.chnGalvoX,    'Voltage');
+        s.addAnalogOutputChannel(c.devGalvo,    c.chnGalvoY,    'Voltage');
+        s.addCounterInputChannel(c.devSPCM,     c.chnSPCM,      'EdgeCount');
+
+        queueOutputData(s, [(0:-stepFast:-(mvConv*range/2))'     (0:-stepFast:-(mvConv*range/2))']);
+        s.startForeground();    % Goto starting point from 0,0
+
+        for y = up  % For y in up. We 
+            queueOutputData(s, [up'      y*ones(1,length(up))']);
+            [out] = s.startForeground();
+            queueOutputData(s, [down'    linspace(y, y + step, length(down))']);
+            s.startBackground();
+
+            final(i,:) = [(out(1)-prev) diff(out)];
+
+            plot(c.axesLower, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+            xlim(c.axesLower, [-mvConv*range/2  mvConv*range/2]);
+            ylim(c.axesLower, [-mvConv*range/2  mvConv*range/2]);
+
+            i = i + 1;
+
+            prev = out(length(out));
+
+            s.wait();
+        end
+
+        queueOutputData(s, [(-(mvConv*range/2):stepFast:0)'     ((mvConv*range/2):-stepFast:0)']);
+        s.startForeground();    % Go back to 0,0 from finishing point
+
+        s.release();    % release DAQ
+    end
+    function setGalvoAxesLimits()
+        xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
+        ylim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
+    end
+    function range_Callback(hObject, ~)
+        limit_Callback(hObject,0);
+        c.galvoRange = str2double(get(hObject, 'String'));
+        setGalvoAxesLimits();
+    end
+
+    % BOX =================================================================
     function mouseEnabled_Callback(hObject, ~)
         if get(c.mouseEnabled, 'Value')
             set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
@@ -352,11 +455,11 @@ function varargout = diamondControl(varargin)
         renderUpper();
     end
 
-    % RENDERING =====
+    % UI ==================================================================
     function renderUpper()
         if c.axesMode ~= 2
 %             if sum(c.boxX ~= -1) ~= 0 % If the vals are not all -1...
-                p = plot(c.upperAxes, c.micro(1), c.micro(2), 'dk'); % , c.boxX, c.boxY, ':r', c.boxPrev(1), c.boxPrev(2), 'pr', c.boxCurr(1), c.boxCurr(2), 'hr');
+                plot(c.upperAxes, c.microActual(1), c.microActual(2), 'dr', c.micro(1), c.micro(2), 'dk'); % , c.boxX, c.boxY, ':r', c.boxPrev(1), c.boxPrev(2), 'pr', c.boxCurr(1), c.boxCurr(2), 'hr');
 %                 set(c.upperAxes, 'HitTest', 'off');
                 if get(c.mouseEnabled, 'Value')
                     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
@@ -407,6 +510,37 @@ function varargout = diamondControl(varargin)
         % Panel Position =====
         set(c.ioPanel,      'Position', [w-pw h-puh pw puh]);
         set(c.automationPanel,  'Position', [w-pw h-puh-plh pw plh]);
+    end
+    function limit_Callback(hObject, ~)
+        val = str2double(get(hObject, 'String'));
+        
+        if isnan(val) % ~isa(val,'double') % If it's NaN, check if it's an equation
+            try
+                val = eval(get(hObject,'String'));
+            catch
+                val = 0;
+            end
+        end
+        
+        if isnan(val)   % If it's still NaN, set to zero
+            val = 0;
+        end
+        
+        if val < 0      % Apply limits
+            val = 0;
+        else
+            if      hObject == c.gotoX && val > c.xMax
+                val = c.xMax;
+            elseif  hObject == c.gotoY && val > c.yMax
+                val = c.yMax;
+            elseif  hObject == c.galvoR && val > c.galvoRangeMax
+                val = c.galvoRangeMax;
+            elseif  hObject == c.galvoS && val > c.galvoSpeedMax
+                val = c.galvoSpeedMax;
+            end
+        end
+        
+        set(hObject, 'String', val);
     end
 end
 

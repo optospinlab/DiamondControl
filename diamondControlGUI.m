@@ -68,6 +68,7 @@ c.microInit = 0;
 c.microStep = .080; % 80 nm
 
 c.micro = [0 0];
+c.microActual = [0 0];
 
 c.microXSerial = 0;     % Empty variable for the X micrometer serial connection
 c.microXPort = 'COM17'; % This will be overwritten later (or should we define here?)
@@ -113,7 +114,7 @@ c.microTab =       uitab(c.ioPanel, 'Title', 'Micrometers');
 %     c.piezoText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Peizos (nothing to see):', 'Position', [bp puh-bp-6*bh 2*bw bh]);
 
 c.joyTab =          uitab(c.ioPanel, 'Title', 'Joystick!');
-    c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-5*bh bw bh]); 
+    c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp pmh-bp-3*bh bw bh]); 
     c.joyAxes =     axes('Parent', c.joyTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [bp+bw bp bw bw-bp]);
     
 c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Mouse/Key');
@@ -124,13 +125,23 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Mouse/Key');
 c.automationPanel = uitabgroup('Units', 'pixels');
 c.gotoTab =         uitab(c.automationPanel, 'Title', 'Goto');
     c.gotoXLabel =  uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp        plh-bp-3*bh bw/2 bh],         'HorizontalAlignment', 'right');
-    c.gotoX =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2   plh-bp-3*bh bw/2 bh],    'Callback', @limit_Callback);
+    c.gotoX =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2   plh-bp-3*bh bw/2 bh]);
     c.gotoYLabel =  uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [bp+bw     plh-bp-3*bh bw/2 bh],         'HorizontalAlignment', 'right');
-    c.gotoY =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+3*bw/2 plh-bp-3*bh bw/2 bh],    'Callback', @limit_Callback);
-    c.gotoCurrent = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Current','Position', [bp        plh-bp-5*bh bw bh]);
+    c.gotoY =       uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+3*bw/2 plh-bp-3*bh bw/2 bh]);
+    c.gotoActual =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Actual','Position', [2*bp+bw	plh-bp-5*bh bw bh]);
+    c.gotoTarget =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position', [bp    plh-bp-5*bh bw bh]);
     c.gotoButton =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp        plh-bp-6*bh bp+2*bw bh]);
 
 c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
+    c.galvoRange =  5;      % 5 um
+    c.galvoRangeMax =  50;  % 50 um
+    c.galvoRLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp        plh-bp-3*bh bw bh],         'HorizontalAlignment', 'right');
+    c.galvoR =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoRange,     'Position', [bp+bw   plh-bp-3*bh bw/2 bh]);
+    c.galvoSpeed =  5; % 5 um/sec
+    c.galvoSpeedMax =  50;  % 50 um/sec
+    c.galvoSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plh-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
+    c.galvoS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plh-bp-4*bh bw/2 bh]);
+    c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plh-bp-6*bh bp+2*bw bh]);
 
 c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
     c.boxInfo =     uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'This draws a box on the screen, depending upon the given points.', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-4*bh 2*bw 2*bh]);
@@ -150,34 +161,6 @@ c.automationTab =   uitab(c.automationPanel, 'Title', 'Automation!');
 % A list of all buttons to disable when a scan/etc is running.
 c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
-% UI-only functions =======================================================
-    function limit_Callback(hObject, ~)
-        val = str2double(get(hObject, 'String'));
-        
-        if isnan(val) % ~isa(val,'double') % If it's NaN, check if it's an equation
-            try
-                val = eval(get(hObject,'String'));
-            catch
-                val = 0;
-            end
-        end
-        
-        if isnan(val)   % If it's still NaN, set to zero
-            val = 0;
-        end
-        
-        if val < 0      % Apply limits
-            val = 0;
-        else
-            if      hObject == c.gotoX && val > c.xMax
-                val = c.xMax;
-            elseif  hObject == c.gotoY && val > c.yMax
-                val = c.yMax;
-            end
-        end
-        
-        set(hObject, 'String', val);
-    end
 end
 
 

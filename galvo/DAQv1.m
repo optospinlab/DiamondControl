@@ -43,7 +43,9 @@ for y = up  % For y in up. We
     
     final(i,:) = [(out(1)-prev) diff(out)];
     
-    plot(UNNAMEDAXES, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+    plot(c.axesLower, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+    xlim(c.axesLower, [-mvConv*range/2  mvConv*range/2]);
+    ylim(c.axesLower, [-mvConv*range/2  mvConv*range/2]);
     
     i = i + 1;
     
