@@ -23,6 +23,8 @@ function varargout = diamondControl(varargin)
     
     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
+    c.joy = vrjoystick(1);
+    
     % We do resizing programatically =====
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
     
@@ -30,21 +32,135 @@ function varargout = diamondControl(varargin)
     
     set(c.parent, 'Visible', 'On');
     
-%     main();
-%     
-%     function main()
-%         while c.running
-%             pause(.5);
-%             tick();
-%         end
-%     end
-% 
+    main();
+    
+    function main()
+        while c.running
+            pause(.12);
+            [outputXY, outputZ] = readJoystick();
+            
+            if c.outputEnabled
+                if outputXY
+                    setPos();
+                end
+
+                if outputZ
+                    piezoZOut();
+                end
+            end
+            
+            renderUpper();
+            
+            if c.outputEnabled
+                getPos();
+            end
+        end
+    end
+
 %     function tick()
 %         display('here');
 %         renderUpper();
 %     end
 
-    % Micrometer Stuff =====
+    % INPUTS =====
+    function [outputXY, outputZ] = readJoystick()
+        [a, b, p] = read(c.joy);
+        
+        prevX = c.micro(1);
+        prevY = c.micro(2);
+        prevZ = c.piezoZ;
+        
+        c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep/(c.joyXYPadding*c.joyXYPadding*c.joyXYPadding);
+        c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep/(c.joyXYPadding*c.joyXYPadding*c.joyXYPadding);
+        
+        c.piezoZ = c.piezoZ + c.piezoStep*4*c.joyZDir*joystickAxesFunc(a(3), c.joyZPadding);
+        
+        scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
+        set(c.joyAxes, 'xtick', []);
+        set(c.joyAxes, 'xticklabel', []);
+        set(c.joyAxes, 'ytick', []);
+        set(c.joyAxes, 'yticklabel', []);
+        xlim(c.joyAxes, [-1 1]);
+        ylim(c.joyAxes, [-1 1]);
+        
+        
+        buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
+        
+        if buttonDown(6)
+            c.piezoZ = c.piezoZ + c.joyZDir*c.piezoStep;
+        end
+        if buttonDown(4)
+            c.piezoZ = c.piezoZ - c.joyZDir*c.piezoStep;
+        end
+        
+        if p ~= -1
+            pov = [-dir(cos(p)) dir(sin(p))];
+        else
+            pov = [0 0];
+        end
+        
+        povDown = (pov ~= 0 & pov ~= c.joyPovPrev);
+        
+        if povDown(1)
+            c.micro(1) = c.micro(1) + c.joyXDir*pov(1)*c.microStep;
+        end
+        if povDown(2)
+            c.micro(2) = c.micro(2) + c.joyYDir*pov(2)*c.microStep;
+        end
+        
+        
+        c.joyButtonPrev = b;
+        c.joyPovPrev = pov;
+        
+        if c.micro(1) < 0
+            c.microX = 0;
+            display('X min');
+        end
+        if c.micro(1) > c.xMax
+            c.microX = c.xMax;
+            display('X max');
+        end
+        
+        if c.micro(2) < 0
+            c.microY = 0;
+            display('Y min');
+        end
+        if c.micro(2) > c.yMax
+            c.microY = c.yMax;
+            display('Y max');
+        end
+        
+        if c.piezoZ < 0
+            c.piezoZ = 0;
+            display('Z min');
+        end
+        if c.piezoZ > c.zMax
+            c.piezoZ = c.zMax;
+            display('Z max');
+        end
+        
+        outputXY =  (prevX ~= c.micro(1) || prevY ~= c.micro(2));
+        outputZ =   (prevZ ~= c.piezoZ);
+    end
+    function speed = joystickAxesFunc(num, ignore)  % Input a number for -1 to 1, get the 'speed' to drive the micrometers/piezo
+        if abs(num) < ignore % Ignore small movements of the joystick
+            speed = 0;
+        else
+%             speed = (num - .1*(num/abs(num)))*(num - .1*(num/abs(num))); % Continuous
+            speed = num*num*num; % *dir(num);
+        end
+    end
+    function out = dir(num)
+        if num == 0
+            out = 0;
+        elseif num > 0
+            out = 1;
+        elseif num < 0
+            out = -1;
+        end
+    end
+
+    % OUTPUTS =====
     function out = pos(serial_obj, device_addr)
         fprintf(serial_obj, [device_addr 'TP']);	% Get device state
         out = fscanf(serial_obj);
@@ -53,7 +169,7 @@ function varargout = diamondControl(varargin)
         fprintf(serial_obj, [device_addr 'TS']); %Get device state
         out = fscanf(serial_obj);
     end
-    function cmd(serial_obj, device_addr,c)
+    function cmd(serial_obj, device_addr, c)
         fprintf(serial_obj, [device_addr c]); 
         % out = fscanf(serial_obj);
         % if ~isempty(out)
@@ -62,53 +178,72 @@ function varargout = diamondControl(varargin)
     end
     function microInit_Callback(hObject, ~)
         button_state = get(hObject,'Value');
-        if button_state==1 && init_done==0 && init_first==0
+        if button_state == 1 && init_done == 0 && init_first == 0
             display('Starting Initialization Sequence');
 
-            %X-axis actuator
-            device_port='COM17';
-            device_xaddr='1';
             try
-                sx = serial(device_port); 
-                set(sx,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
-                    'FlowControl', 'software','Terminator', 'CR/LF');
-                fopen(sx);
-                pause(1); 
-                cmd(sx,device_xaddr,'OR'); %Get to home state (reset position)
+                % X-axis actuator =====
+                c.microXPort = 'COM17'; % USB Port that X is connected to (we view it as a serial port)
+                c.microXAddr = '1';
+                
+                c.microXSerial = serial(c.microXPort);
+                set(c.microXSerial, 'BaudRate', 921600, 'DataBits', 8, 'Parity', 'none', 'StopBits', 1, ...
+                    'FlowControl', 'software', 'Terminator', 'CR/LF');
+                fopen(c.microXSerial);
+                
+                pause(1);
+                
+                cmd(c.microXSerial, c.microXAddr, 'OR'); % Go to home state (reset position)
 
                 display('Done Initializing X Axis');
+                
+                
+                % Y-axis actuator =====
+                c.microYPort = 'COM18'; % USB Port that Y is connected to (we view it as a serial port)
+                c.microYAddr = '1';
 
-                %Y-axis actuator
-                device_port='COM18';
-                device_yaddr='1';
-
-                sy = serial(device_port);
-                set(sy,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
+                c.microYSerial = serial(device_port);
+                set(c.microYSerial,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
                     'FlowControl', 'software','Terminator', 'CR/LF');
-                fopen(sy);
-                pause(1); cmd(sy,device_yaddr,'OR'); %Go to home state
+                fopen(c.microYSerial);
+                
+                pause(1); 
+                
+                cmd(c.microYSerial, c.microYAddr, 'OR'); % Go to home state
+                
                 display('Done Initializing Y Axis');
-
-            init_done = 1; init_first=1;
-            guidata(hObject,handles);
-
+                
+                c.microX = 0;
+                c.microY = 0;
             catch
                 disp('Controller Disconnected !!!');
             end   
         end
     end
+    function getPos()
+        set(c.microXX, 'String', pos(c.microXSerial, c.microXAddr));
+        set(c.microYY, 'String', pos(c.microYSerial, c.microYAddr));
+    end
+    function setPos()
+        cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.micro(1)/1000)]);
+        cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.micro(2)/1000)]);
+    end
+    function goto_Callback(hObject, ~)
+        c.micro = [str2double(get(c.gotoX, 'String')) str2double(get(c.gotoY, 'String'))];
+        setPos();
+        renderUpper();
+    end
+    function piezoZOut()
+        
+    end
 
-    % Box Stuff =====
+    % BOX =====
     function mouseEnabled_Callback(hObject, ~)
         if get(c.mouseEnabled, 'Value')
             set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
         else
             set(c.upperAxes, 'ButtonDownFcn', '');
         end
-    end
-    function goto_Callback(hObject, ~)
-        c.linAct = [str2double(get(c.gotoX, 'String')) str2double(get(c.gotoY, 'String'))];
-        renderUpper();
     end
     function click_Callback(hObject, ~)
         set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
@@ -136,7 +271,10 @@ function varargout = diamondControl(varargin)
             resizeUI_Callback();
         elseif strcmp(get(c.parent, 'SelectionType'), 'normal') && hObject == c.upperAxes
             x = get(c.upperAxes,'CurrentPoint');
-            c.linAct = x(1,1:2);
+            c.micro = x(1,1:2);
+            if c.outputEnabled
+                setPos();
+            end
             renderUpper();
         end
     end
@@ -214,10 +352,11 @@ function varargout = diamondControl(varargin)
         renderUpper();
     end
 
+    % RENDERING =====
     function renderUpper()
         if c.axesMode ~= 2
 %             if sum(c.boxX ~= -1) ~= 0 % If the vals are not all -1...
-                p = plot(c.upperAxes, c.boxX, c.boxY, ':r', c.linAct(1), c.linAct(2), 'dk', c.boxPrev(1), c.boxPrev(2), 'pr', c.boxCurr(1), c.boxCurr(2), 'hr');
+                p = plot(c.upperAxes, c.micro(1), c.micro(2), 'dk'); % , c.boxX, c.boxY, ':r', c.boxPrev(1), c.boxPrev(2), 'pr', c.boxCurr(1), c.boxCurr(2), 'hr');
 %                 set(c.upperAxes, 'HitTest', 'off');
                 if get(c.mouseEnabled, 'Value')
                     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
@@ -230,11 +369,10 @@ function varargout = diamondControl(varargin)
 %                 plot(c.upperAxes, c.linAct(1), c.linAct(2), 'd');
 %             end
 
-            xlim(c.upperAxes, [0 25]);
-            ylim(c.upperAxes, [0 25]);
+            xlim(c.upperAxes, [0 25000]);
+            ylim(c.upperAxes, [0 25000]);
         end
     end
-
     function resizeUI_Callback(~, ~)
         display('here');
         p = get(c.parent, 'Position');
