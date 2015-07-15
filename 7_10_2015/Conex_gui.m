@@ -308,6 +308,9 @@ if init_done==1 && kb_enable==1
         %disp('right')
         cmd(sx,device_xaddr,['PR' '-' step]);
     case 'pageup'
+        if strcmp(z_obj,'Null')
+            disp('not init')
+        end
         zout=zout+zstep;
         z_obj.outputSingleScan(zout);
     case 'pagedown'
@@ -511,6 +514,9 @@ global range;global upspeed;
 %for galvo [1V->1Deg], 8e-4V->8e-4Deg
 button_state = get(hObject,'Value');
 if button_state==1
+    upspeed = double(upspeed);
+    range = double(range);
+    
     downspeed = upspeed/8;
 
     mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
@@ -548,9 +554,13 @@ if button_state==1
     s.startForeground();    % Goto starting point from 0,0
 
     for y = up  % For y in up. We 
+        s2.NumberOfScans = length(up);
+        
         queueOutputData(s, [up'      y*ones(1,length(up))']);
         s.startBackground();
         [out, ~] = s2.startForeground();
+        
+        s.wait();
 
         queueOutputData(s, [down'    linspace(y, y + step, length(down))']);
         s.startBackground();
@@ -590,7 +600,7 @@ set(hObject,'Value',0); %Reset the button state
 
 function galvoScanRange_Callback(hObject, eventdata, handles)
 global range;
-range = str2double(get(hObject,'String'));
+range = str2double(get(hObject,'String'))
 
 % --- Executes during object creation, after setting all properties.
 function galvoScanRange_CreateFcn(hObject, eventdata, handles)
