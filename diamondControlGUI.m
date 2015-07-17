@@ -49,9 +49,10 @@ bh = 18;            % Button Height, the height of a button/object
 gp = 25;            % Graph  Padding
 
 % AXES =====
-c.axesMode = 0;     % 0:Both, 1:Upper, 2:Lower
-c.upperAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
-c.lowerAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
+c.axesMode =    0;     % 0:Both, 1:Upper, 2:Lower
+c.upperAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
+c.lowerAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
+c.image =       
 
 % PANEL ====
 c.ioPanel =    uitabgroup('Units', 'pixels');

@@ -31,16 +31,30 @@ handles.output = hObject;
 guidata(hObject, handles);
 %--------------------------------------------------------------------------
 
-%%% Edited 7/10/2015 Srivatsa
+%%% Edited 7/17/2015 Srivatsa
 % --- Outputs from this function are returned to the command line.
+% function mypreview_fcn(obj,event,himage)
+% % Update preview window function
+% % sharpen the image
+% % Display image data.
+% himage.CData = imsharpen(image(event.Data))
+
 function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles) 
 
 %Global variables
 global sx; global sy; global device_xaddr; global device_yaddr;
 global init_first;global init_done;global kb_enable; global set_m;
 global coord_in; global popout1; global popout2; global zstep;
-global z_obj; global upspeed; global range;
+global z_obj; global upspeed; global range; global zout;
 
+%Config for axes1-preview from blue camera
+vid = videoinput('avtmatlabadaptor64_r2009b', 1);
+vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
+closepreview;  %close preview if still running
+axes(handles.axes1);
+hImage = image( zeros(vidRes(2), vidRes(1), nBands));
+%setappdata(hImage,'UpdatePreviewWindowFcn',@mypreview_fcn)
+preview(vid, hImage);
 
 init_first=0; init_done=0; z_obj='Null';
 stx='Not Connected'; sty='Not Connected';
@@ -50,6 +64,8 @@ set_m=5; coord_in=[NaN NaN, NaN NaN, NaN NaN, NaN NaN];
 popout1=0;popout2=0;
 zstep=0;
 upspeed =0; range=0;
+zout=0;
+ 
 %Refresh Device Status
 while ~0 
     try
@@ -67,7 +83,11 @@ while ~0
         set(handles.status_y,'String',sty);
         set(handles.ypos,'String',ypos);
         
-        guidata(hObject, handles);
+        set(handles.zpos,'String',zout);
+        
+        guidata(hObject, handles); %update the text fields in the gui
+        
+        %colormap('Gray');
         
     catch
         disp('GUI CLOSED');
@@ -293,6 +313,7 @@ set(hObject,'Value',0); %Reset the button state
 function figure1_WindowKeyPressFcn(hObject, eventdata, handles)
 global sx; global device_xaddr; global sy; global device_yaddr;global step;
 global init_done; global kb_enable; global z_obj; global zstep; global zout;
+%disp(eventdata.Key)
 if init_done==1 && kb_enable==1
     switch eventdata.Key
     case 'uparrow'
@@ -314,6 +335,9 @@ if init_done==1 && kb_enable==1
         zout=zout+zstep;
         z_obj.outputSingleScan(zout);
     case 'pagedown'
+        if strcmp(z_obj,'Null')
+            disp('not init')
+        end
         zout=zout-zstep;
         z_obj.outputSingleScan(zout);
     end    
@@ -503,10 +527,6 @@ end
 % --- Executes on button press in startScan.
 function startScan_Callback(hObject, eventdata, handles)
 global range;global upspeed;
-
-% xlim(handles.axes1, [-range/2, range/2]);
-% ylim(handles.axes1, [-range/2, range/2]);
-%   
 % range in microns, speed in microns per second (up is upscan; down is downscan)
 %Scan the Galvo +/- mvConv*range/2 deg
 %min step of DAQ = 20/2^16 = 3.052e-4V
@@ -534,7 +554,6 @@ if button_state==1
     down = (mvConv*range/2):-stepFast:-(mvConv*range/2);
 
     final = ones(length(up));
-    prev = 0;
     i = 1;
 
     % Initialize the DAQ
@@ -567,26 +586,15 @@ if button_state==1
 
         final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)')];
 
-    %             display('up');
-    %             up
-    %             display('up(1:i)');
-    %             up(1:i)
-    %             display('final(1:i,:)');
-    %             final(1:i,:)
-
         if i > 1
-            surf(handles.axes1, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
-            view(handles.axes1,2);
+            surf(handles.axes2, up, up(1:i), final(1:i,:));   % Display the graph on the backscan
+            view(handles.axes2,2);
             colormap('gray');
-            xlim(handles.axes1, [-mvConv*range/2  mvConv*range/2]);
-            ylim(handles.axes1, [-mvConv*range/2  mvConv*range/2]);
-    %                 zlim(handles.axes1, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
+            xlim(handles.axes2, [-mvConv*range/2  mvConv*range/2]);
+            ylim(handles.axes2, [-mvConv*range/2  mvConv*range/2]);
         end
 
         i = i + 1;
-
-        prev = out(end);
-
         s.wait();
     end
 
