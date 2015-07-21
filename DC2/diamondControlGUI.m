@@ -51,6 +51,7 @@ gp = 25;            % Graph  Padding
 c.vid = 0;              % Empty variable for video input
 
 c.joy = 0;              % Empty variable for the joystick
+c.joystickEnabled = 0;
 
 c.focusing = false;
 
@@ -211,10 +212,14 @@ c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
     c.galvoSpeedMax =  50;  % 50 um/sec
     c.galvoSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plh-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plh-bp-4*bh bw/2 bh]);
-    
+    c.galvoPixels =  5; % 5 pixels/side
     c.galvoPLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plh-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
-    c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plh-bp-5*bh bw/2 bh]);
-    c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plh-bp-7*bh bp+2*bw bh]);
+    c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoPixels,     'Position', [bp+bw   plh-bp-5*bh bw/2 bh]);    
+    
+    c.galvoCLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plh-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+    c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', 'gray|jet',     'Position', [bp+bw   plh-bp-6*bh bw/2 bh]);
+    
+    c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Scan!','Position', [bp        plh-bp-8*bh bp+2*bw bh]);
 
 c.counterTab =  uitab(c.automationPanel, 'Title', 'Counter');
     c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plh-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left');
