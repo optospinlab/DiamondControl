@@ -700,6 +700,10 @@ function varargout = diamondControl(varargin)
         c.sG.Rate = upspeed*length(up)/range;
         
         s2 = daq.createSession('ni');
+       
+        s2.TriggerType = 'Manual';
+        c.sG.TriggerType = 'Manual';
+        
         s2.Rate = upspeed*length(up)/range;
         
         s2.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
@@ -710,15 +714,23 @@ function varargout = diamondControl(varargin)
 
         queueOutputData(c.sG, [(0:-stepFast:-(mvConv*range/2))'    (0:-stepFast:-(mvConv*range/2))']);
         c.sG.startForeground();    % Goto starting point from 0,0
-
         for y = up  % For y in up. We 
             s2.NumberOfScans = length(up);
         
+            %Switch to manual trigger
+            s2.TriggerType = 'manual';
+            c.sG.TriggerType = 'manual';
             queueOutputData(c.sG, [up'      y*ones(1,length(up))']);
-            c.sG.startBackground();
-            [out, ~] = s2.startForeground();
-        
+            
+%             c.sG.startBackground();
+%             [out, ~] = s2.startForeground();
+            start([s2, c.sG]);
+            trigger([s2, c.sG]);
+                       
             c.sG.wait();
+            
+            %switch back to auto trigger
+            c.sG.TriggerType = 'immediate';
             
             queueOutputData(c.sG, [down'    linspace(y, y + step, length(down))']);
             c.sG.startBackground();
