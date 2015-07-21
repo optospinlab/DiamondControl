@@ -75,20 +75,22 @@ while ~0
         
         guidata(hObject, handles); %update the text fields in the gui
         
-    frame = getsnapshot(vid);
+        
+            frame = getsnapshot(vid);
+
+            f = fspecial('unsharp', .1); % Create mask
+            out = imfilter(frame, f); % Filter the image
+
+            axes(handles.axes1);
+            imshow(flipdim(out,1)); colormap Gray;
+            BW = im2bw(out,0.6);
     
-    f = fspecial('unsharp', 1); % Create mask
-    out = imfilter(frame, f); % Filter the image
-    
-    axes(handles.axes1);
-    imagesc(flipdim(out,1));
-    
-    BW = im2bw(out,0.6);
-    axes(handles.axes2);
-    imshow(BW);
-    
-   [centers, radii] = imfindcircles(BW,[12 20])
-   viscircles(centers, radii,'EdgeColor','b')
+            axes(handles.axes2);
+            imagesc(BW);
+
+           [centers, radii] = imfindcircles(BW,[12 20])
+           viscircles(centers, radii,'EdgeColor','b')
+       
         
     catch
         disp('GUI CLOSED');
