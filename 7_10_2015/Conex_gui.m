@@ -27,6 +27,7 @@ end
 function Conex_gui_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for Conex_gui
 global active; active=0;
+global vid;
 handles.output = hObject;
 guidata(hObject, handles);
 %--------------------------------------------------------------------------
@@ -35,9 +36,10 @@ guidata(hObject, handles);
 % --- Outputs from this function are returned to the command line.
 % function mypreview_fcn(obj,event,himage)
 % % Update preview window function
-% % sharpen the image
-% % Display image data.
-% himage.CData = imsharpen(image(event.Data))
+%     
+%     
+%     
+% himage.CData = out
 
 function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles) 
 
@@ -45,7 +47,7 @@ function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles)
 global sx; global sy; global device_xaddr; global device_yaddr;
 global init_first;global init_done;global kb_enable; global set_m;
 global coord_in; global popout1; global popout2; global zstep;
-global z_obj; global upspeed; global range; global zout;
+global z_obj; global upspeed; global range; global zout; global vid;
 
 %Config for axes1-preview from blue camera
 vid = videoinput('avtmatlabadaptor64_r2009b', 1);
@@ -53,7 +55,7 @@ vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
 closepreview;  %close preview if still running
 axes(handles.axes1);
 hImage = image( zeros(vidRes(2), vidRes(1), nBands));
-%setappdata(hImage,'UpdatePreviewWindowFcn',@mypreview_fcn)
+setappdata(hImage,'UpdatePreviewWindowFcn',@mypreview_fcn)
 preview(vid, hImage);
 
 init_first=0; init_done=0; z_obj='Null';
@@ -87,7 +89,21 @@ while ~0
         
         guidata(hObject, handles); %update the text fields in the gui
         
-        %colormap('Gray');
+    global vid
+    frame = getsnapshot(vid);
+    
+    f = fspecial('unsharp', 1); % Create mask
+    out = imfilter(frame, f); % Filter the image
+    
+    axes(handles.axes1);
+    imagesc(flipdim(out,1));
+    
+    BW = im2bw(out,0.99);
+    axes(handles.axes2);
+    imshow(BW);
+    
+   [centers, radii] = imfindcircles(BW,[12 20])
+   viscircles(centers, radii,'EdgeColor','b')
         
     catch
         disp('GUI CLOSED');
@@ -113,7 +129,7 @@ while ~0
         end
         break;
     end  
-    pause(2); % run every 2sec
+    pause(0.1); % run every 0.1sec
 end
 varargout{1} = handles.output;
 
