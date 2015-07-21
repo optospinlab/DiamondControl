@@ -36,10 +36,7 @@ guidata(hObject, handles);
 % --- Outputs from this function are returned to the command line.
 % function mypreview_fcn(obj,event,himage)
 % % Update preview window function
-%     
-%     
-%     
-% himage.CData = out
+
 
 function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles) 
 
@@ -55,7 +52,6 @@ vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
 closepreview;  %close preview if still running
 axes(handles.axes1);
 hImage = image( zeros(vidRes(2), vidRes(1), nBands));
-setappdata(hImage,'UpdatePreviewWindowFcn',@mypreview_fcn)
 preview(vid, hImage);
 
 init_first=0; init_done=0; z_obj='Null';
@@ -98,7 +94,7 @@ while ~0
     axes(handles.axes1);
     imagesc(flipdim(out,1));
     
-    BW = im2bw(out,0.99);
+    BW = im2bw(out,0.9);
     axes(handles.axes2);
     imshow(BW);
     
