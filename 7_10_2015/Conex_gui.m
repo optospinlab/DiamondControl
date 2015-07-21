@@ -1,9 +1,8 @@
 %Notes:
-%Set Not Interruptable tags on all the functions (Except on move btn!)
-
+%Add stuff to config button
+%
 %--------------------------------------------------------------------------
 function varargout = Conex_gui(varargin)
-global sx; global sy;global device_xaddr; global device_yaddr;
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
@@ -22,22 +21,17 @@ else
     gui_mainfcn(gui_State, varargin{:});
 end
 % End initialization code - DO NOT EDIT
-
 % --- Executes just before Conex_gui is made visible.
 function Conex_gui_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for Conex_gui
-global active; active=0;
-global vid;
 handles.output = hObject;
 guidata(hObject, handles);
+
+
 %--------------------------------------------------------------------------
 
-%%% Edited 7/17/2015 Srivatsa
-% --- Outputs from this function are returned to the command line.
-% function mypreview_fcn(obj,event,himage)
-% % Update preview window function
-
-
+%%% Edited 7/21/2015 Srivatsa
+% --- Outputs from this function are returned to the command line
 function varargout = Conex_gui_OutputFcn(hObject, eventdata, handles) 
 
 %Global variables
@@ -49,10 +43,6 @@ global z_obj; global upspeed; global range; global zout; global vid;
 %Config for axes1-preview from blue camera
 vid = videoinput('avtmatlabadaptor64_r2009b', 1);
 vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
-closepreview;  %close preview if still running
-axes(handles.axes1);
-hImage = image( zeros(vidRes(2), vidRes(1), nBands));
-preview(vid, hImage);
 
 init_first=0; init_done=0; z_obj='Null';
 stx='Not Connected'; sty='Not Connected';
@@ -85,7 +75,6 @@ while ~0
         
         guidata(hObject, handles); %update the text fields in the gui
         
-    global vid
     frame = getsnapshot(vid);
     
     f = fspecial('unsharp', 1); % Create mask
@@ -94,7 +83,7 @@ while ~0
     axes(handles.axes1);
     imagesc(flipdim(out,1));
     
-    BW = im2bw(out,0.9);
+    BW = im2bw(out,0.6);
     axes(handles.axes2);
     imshow(BW);
     
@@ -132,24 +121,15 @@ varargout{1} = handles.output;
 % --- Executes on button press in move_btn.
 function move_btn_Callback(hObject, eventdata, handles)
 global sx; global sy;global device_xaddr; global device_yaddr;
-global xin; global yin;global active; global init_done;
+global xin; global yin; global init_done;
 button_state = get(hObject,'Value');
 if button_state==1 && init_done==1
 	cmd(sx,device_xaddr,['SE' xin]); %Queue X-Axis
     cmd(sy,device_yaddr,['SE' yin]); %Queue Y-Axis
     %start simultaneous move
     fprintf(sx,'SE'); fprintf(sy,'SE');
-    %stx=status(sx,device_xaddr);
-   % sty=status(sy,device_yaddr);
     disp('Started move'); %Debug
-    %Only one move command should be passed to the device
-   % while ~strcmp([stx(end-1) stx(end)],'33') && ~strcmp([sty(end-1) sty(end)],'33')
-     %   active=1;
-     %   stx=status(sx,device_xaddr);
-     %   sty=status(sy,device_yaddr);
-   % end    
     disp('Finished move'); %Debug
-    active=0;  
 end
 set(hObject,'Value',0); %Reset the button state
 
@@ -166,10 +146,9 @@ end
 % --- Executes on button press in reset_btn.
 function reset_btn_Callback(hObject, eventdata, handles)
 global sx; global sy;global device_xaddr; global device_yaddr;
-global init_done; global active;
+global init_done;
 button_state = get(hObject,'Value');
 if button_state==1 && init_done==1
-    active=0;
     init_done = 0;
     cmd(sx,device_xaddr,'RS'); %Reset X-Axis
     cmd(sy,device_yaddr,'RS'); %Reset Y-Axis
@@ -255,7 +234,6 @@ set(hObject,'Value',0); %Reset the button state
 function edit3_Callback(hObject, eventdata, handles)
 global xin;
 xin=get(hObject,'String');
-
 % --- Executes during object creation, after setting all properties.
 function edit3_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -265,7 +243,6 @@ end
 function edit4_Callback(hObject, eventdata, handles)
 global yin;
 yin=get(hObject,'String');
-
 % --- Executes during object creation, after setting all properties.
 function edit4_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -275,12 +252,11 @@ end
 
 % --- Executes on button press in stop_btn.
 function stop_btn_Callback(hObject, eventdata, handles)
-global sx; global sy; global active; global init_done;
+global sx; global sy; global init_done;
 button_state = get(hObject,'Value');
-if button_state==1 && active==1 && init_done==1
+if button_state==1 && init_done==1
     fprintf(sx,'ST'); %stop X axis motion
     fprintf(sy,'ST'); %stop Y axis motion
-    active=0;
 end
 set(hObject,'Value',0); %Reset the button state
 
@@ -359,7 +335,6 @@ end
 function step_Callback(hObject, eventdata, handles)
 global step;
 step=get(hObject,'String');
-
 % --- Executes during object creation, after setting all properties.
 function step_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -372,6 +347,83 @@ function status_x_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to status_x (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
+
+%Z-axis control
+function Zstep_Callback(hObject, eventdata, handles)
+global zstep;
+zstep = str2num(get(hObject,'String'));
+
+
+% --- Executes during object creation, after setting all properties.
+function Zstep_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+    set(hObject,'String','0');
+end
+
+
+% --- Executes on button press in Zminus.
+function Zminus_Callback(hObject, eventdata, handles)
+global zout; global zstep;global z_obj;
+button_state = get(hObject,'Value');
+if button_state==1
+    if strcmp(z_obj,'Null')
+        z_init();
+    end
+    zout = zout - zstep;
+    if zout < -10
+        zout = -10;
+    end
+    z_obj.outputSingleScan(zout);
+end
+set(hObject,'Value',0); %Reset the button state
+
+
+% --- Executes on button press in Zplus.
+function Zplus_Callback(hObject, eventdata, handles)
+global zout; global zstep; global zinit;global z_obj;
+button_state = get(hObject,'Value');
+if button_state==1
+    if strcmp(z_obj,'Null')
+        z_init();
+    end
+    zout = zout + zstep;
+    if zout > 10
+        zout = 10;
+    end
+    z_obj.outputSingleScan(zout);
+end
+set(hObject,'Value',0); %Reset the button state
+
+% --- Executes on button press in Zmove.
+function Zmove_Callback(hObject, eventdata, handles)
+global zm; global zout; global zstep; global zinit;global z_obj;
+button_state = get(hObject,'Value');
+if button_state==1
+    if strcmp(z_obj,'Null')
+        z_init();
+    end
+    zout=zm;
+    z_obj.outputSingleScan(zout);
+end
+set(hObject,'Value',0); %Reset the button state
+
+
+function Zedit_Callback(hObject, eventdata, handles)
+global zm;
+zm = str2double(get(hObject,'String'));
+if zm > 10
+    zm = 10;
+end
+if zm < -10
+    zm = -10;
+end
+
+function z_init()
+global z_obj;
+z_obj = daq.createSession('ni');
+z_obj.addAnalogOutputChannel('Dev1', 'ao2', 'Voltage');
+disp('Initialized Z-Axis Piezo')
 
 
 %----From Ian's GUI design------------------------------------------------
@@ -450,82 +502,7 @@ if strcmp(get(ancestor(hObject, 'figure'), 'SelectionType'), 'alt') && popout2==
 end
 
 
-%Z-axis control
-function Zstep_Callback(hObject, eventdata, handles)
-global zstep;
-zstep = str2num(get(hObject,'String'));
 
-
-% --- Executes during object creation, after setting all properties.
-function Zstep_CreateFcn(hObject, eventdata, handles)
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-    set(hObject,'String','0');
-end
-
-
-% --- Executes on button press in Zminus.
-function Zminus_Callback(hObject, eventdata, handles)
-global zout; global zstep;global z_obj;
-button_state = get(hObject,'Value');
-if button_state==1
-    if strcmp(z_obj,'Null')
-        z_init();
-    end
-    zout = zout - zstep;
-    if zout < -10
-        zout = -10;
-    end
-    z_obj.outputSingleScan(zout);
-end
-set(hObject,'Value',0); %Reset the button state
-
-
-% --- Executes on button press in Zplus.
-function Zplus_Callback(hObject, eventdata, handles)
-global zout; global zstep; global zinit;global z_obj;
-button_state = get(hObject,'Value');
-if button_state==1
-    if strcmp(z_obj,'Null')
-        z_init();
-    end
-    zout = zout + zstep;
-    if zout > 10
-        zout = 10;
-    end
-    z_obj.outputSingleScan(zout);
-end
-set(hObject,'Value',0); %Reset the button state
-
-% --- Executes on button press in Zmove.
-function Zmove_Callback(hObject, eventdata, handles)
-global zm; global zout; global zstep; global zinit;global z_obj;
-button_state = get(hObject,'Value');
-if button_state==1
-    if strcmp(z_obj,'Null')
-        z_init();
-    end
-    zout=zm;
-    z_obj.outputSingleScan(zout);
-end
-set(hObject,'Value',0); %Reset the button state
-
-
-function Zedit_Callback(hObject, eventdata, handles)
-global zm;
-zm = str2double(get(hObject,'String'));
-if zm > 10
-    zm = 10;
-end
-if zm < -10
-    zm = -10;
-end
-
-function z_init()
-global z_obj;
-z_obj = daq.createSession('ni');
-z_obj.addAnalogOutputChannel('Dev1', 'ao2', 'Voltage');
-disp('Initialized Z-Axis Piezo')
 
 
 % --- Executes during object creation, after setting all properties.
