@@ -725,12 +725,8 @@ function varargout = diamondControl(varargin)
 
         queueOutputData(c.sG, [(0:-stepFast:-(mvConv*range/2))'    (0:-stepFast:-(mvConv*range/2))']);
         c.sG.startForeground();    % Goto starting point from 0,0
-<<<<<<< HEAD
-        for y = up  % For y in up. We 
-=======
 
         for y = up  % For y in up.
->>>>>>> origin/master
             s2.NumberOfScans = length(up);
         
             %Switch to manual trigger
