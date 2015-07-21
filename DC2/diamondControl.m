@@ -36,8 +36,6 @@ function varargout = diamondControl(varargin)
     set(c.gotoPZ, 'Callback', @limit_Callback);
     set(c.gotoGX, 'Callback', @limit_Callback);
     set(c.gotoGY, 'Callback', @limit_Callback);
-    set(c.galvoS, 'Callback', @limit_Callback);
-    set(c.galvoR, 'Callback', @range_Callback);
     
     set(c.gotoMButton, 'Callback', @goto_Callback);
     set(c.gotoMActual, 'Callback', @gotoActual_Callback);
@@ -55,6 +53,9 @@ function varargout = diamondControl(varargin)
     
     % Galvo Fields --------------------------------------------------------
     set(c.galvoButton, 'Callback', @galvoScan_Callback);
+    set(c.galvoR, 'Callback', @galvoVar_Callback);
+    set(c.galvoS, 'Callback', @galvoVar_Callback);
+    set(c.galvoP, 'Callback', @galvoVar_Callback);
     
     % Automation Fields ---------------------------------------------------
     set(c.autoV1X, 'Callback', @limit_Callback);
@@ -113,7 +114,13 @@ function varargout = diamondControl(varargin)
 %     set(c.microInit, 'Callback', @microInit_Callback);
     
     % Create joystick object =====
-    c.joy = vrjoystick(1);
+    try
+        c.joy = vrjoystick(1);
+        c.joystickEnabled = 1;
+    catch err
+        display(err.message);
+        c.joystickEnabled = 0;
+    end
     
     % Initiate Everything...
     
@@ -172,76 +179,80 @@ function varargout = diamondControl(varargin)
 
     % INPUTS ==============================================================
     function [outputXY, outputZ] = readJoystick()
-        [a, b, p] = read(c.joy);
-        % a - axes (vector of values -1 to 1),
-        % b - buttons (vector of 0s or 1s)
-        % p - povs (vector, but with our joystick there is only one
-        %     element, of angles \in { -1, 0, 45, 90, ... } where -1 is 
-        %     unset and any other value is the direction the pov is facing.
-        
-        prevX = c.micro(1); % For comparison later
-        prevY = c.micro(2);
-        prevZ = c.piezo(3);
-        
-        % Add the joystick offset to the target vector. The microscope
-        % attempts to go to the target vector.
-        c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep;
-        c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep;
-        
-        % Same for Z; the third axis is the twisting axis
-        if max(abs([joystickAxesFunc(a(1), c.joyXYPadding) joystickAxesFunc(a(2), c.joyXYPadding)])) == 0
-            c.piezo(3) = c.piezo(3) + c.piezoStep*c.joyZDir*joystickAxesFunc(a(3), c.joyZPadding);
+        outputXY = 0;
+        outputZ = 0;
+        if c.joystickEnabled == 1
+            [a, b, p] = read(c.joy);
+            % a - axes (vector of values -1 to 1),
+            % b - buttons (vector of 0s or 1s)
+            % p - povs (vector, but with our joystick there is only one
+            %     element, of angles \in { -1, 0, 45, 90, ... } where -1 is 
+            %     unset and any other value is the direction the pov is facing.
+
+            prevX = c.micro(1); % For comparison later
+            prevY = c.micro(2);
+            prevZ = c.piezo(3);
+
+            % Add the joystick offset to the target vector. The microscope
+            % attempts to go to the target vector.
+            c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep;
+            c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep;
+
+            % Same for Z; the third axis is the twisting axis
+            if max(abs([joystickAxesFunc(a(1), c.joyXYPadding) joystickAxesFunc(a(2), c.joyXYPadding)])) == 0
+                c.piezo(3) = c.piezo(3) + c.piezoStep*c.joyZDir*joystickAxesFunc(a(3), c.joyZPadding);
+            end
+
+            % Plot the XY offset on the graph in the Joystick tab
+            scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
+    %         set(c.joyAxes, 'xtick', []);
+    %         set(c.joyAxes, 'xticklabel', []);
+    %         set(c.joyAxes, 'ytick', []);
+    %         set(c.joyAxes, 'yticklabel', []);
+            xlim(c.joyAxes, [-1 1]);
+            ylim(c.joyAxes, [-1 1]);
+
+            % Logic for whether a button has changed since last time and is on.
+            buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
+            if buttonDown(1)
+                focus_Callback(0,0);
+            end
+
+            if b(6)
+                c.piezo(3) = c.piezo(3) + c.joyZDir*c.piezoStep;
+            end
+            if b(4)
+                c.piezo(3) = c.piezo(3) - c.joyZDir*c.piezoStep;
+            end
+
+            % From the pov angle, compute the direction of movement in XY
+            if p ~= -1
+                pov = [dir(sind(p)) (-dir(cosd(p)))];
+            else
+                pov = [0 0];
+            end
+
+            % Logic for whether a pov axis has changed since last time and is on.
+    %         povDown = (pov ~= 0 & pov ~= c.joyPovPrev);
+
+            if pov(1) ~= 0
+                c.micro(1) = c.micro(1) + c.joyXDir*pov(1)*c.microStep;
+            end
+            if pov(2) ~= 0
+                c.micro(2) = c.micro(2) + c.joyYDir*pov(2)*c.microStep;
+            end
+
+            % Save for next time
+            c.joyButtonPrev = b;
+            c.joyPovPrev = pov;
+
+            % Limit values
+            limit();
+
+            % Decide whether things have changed
+            outputXY =  (prevX ~= c.micro(1) || prevY ~= c.micro(2));
+            outputZ =   (prevZ ~= c.piezo(3));
         end
-        
-        % Plot the XY offset on the graph in the Joystick tab
-        scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
-%         set(c.joyAxes, 'xtick', []);
-%         set(c.joyAxes, 'xticklabel', []);
-%         set(c.joyAxes, 'ytick', []);
-%         set(c.joyAxes, 'yticklabel', []);
-        xlim(c.joyAxes, [-1 1]);
-        ylim(c.joyAxes, [-1 1]);
-        
-        % Logic for whether a button has changed since last time and is on.
-        buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
-        if buttonDown(1)
-            focus_Callback(0,0);
-        end
-        
-        if b(6)
-            c.piezo(3) = c.piezo(3) + c.joyZDir*c.piezoStep;
-        end
-        if b(4)
-            c.piezo(3) = c.piezo(3) - c.joyZDir*c.piezoStep;
-        end
-        
-        % From the pov angle, compute the direction of movement in XY
-        if p ~= -1
-            pov = [dir(sind(p)) (-dir(cosd(p)))];
-        else
-            pov = [0 0];
-        end
-        
-        % Logic for whether a pov axis has changed since last time and is on.
-%         povDown = (pov ~= 0 & pov ~= c.joyPovPrev);
-        
-        if pov(1) ~= 0
-            c.micro(1) = c.micro(1) + c.joyXDir*pov(1)*c.microStep;
-        end
-        if pov(2) ~= 0
-            c.micro(2) = c.micro(2) + c.joyYDir*pov(2)*c.microStep;
-        end
-        
-        % Save for next time
-        c.joyButtonPrev = b;
-        c.joyPovPrev = pov;
-        
-        % Limit values
-        limit();
-        
-        % Decide whether things have changed
-        outputXY =  (prevX ~= c.micro(1) || prevY ~= c.micro(2));
-        outputZ =   (prevZ ~= c.piezo(3));
     end
     function speed = joystickAxesFunc(num, ignore) 
         % Input a number for -1 to 1, get the 'speed' to drive the micrometers/piezo
@@ -674,13 +685,13 @@ function varargout = diamondControl(varargin)
         %min step of Galvo = 8e-4Deg
         %for galvo [1V->1Deg], 8e-4V->8e-4Deg
         
-        range = str2double(get(c.galvoR, 'String'));
-        upspeed = str2double(get(c.galvoR, 'String'));
-        downspeed = upspeed/8;
+        range = c.galvoRange;
+        upspeed = c.galvoSpeed;
+        downspeed = c.galvoSpeed/8;
 
-        mvConv = .030/5; % Micron to Voltage conversion (this is a guess! this should be changed!)
-        step = 8e-4;
-        stepFast = step*(upspeed/downspeed);
+        mvConv = .030/5;    % Micron to Voltage conversion (this is a guess! this should be changed!)
+        step = round(c.galvoPixels);
+        stepFast = round(c.galvoPixels*(upspeed/downspeed));
 
         maxGalvoRange = 5; % This is a likely-incorrect assumption.
 
@@ -711,7 +722,7 @@ function varargout = diamondControl(varargin)
         queueOutputData(c.sG, [(0:-stepFast:-(mvConv*range/2))'    (0:-stepFast:-(mvConv*range/2))']);
         c.sG.startForeground();    % Goto starting point from 0,0
 
-        for y = up  % For y in up. We 
+        for y = up  % For y in up.
             s2.NumberOfScans = length(up);
         
             queueOutputData(c.sG, [up'      y*ones(1,length(up))']);
@@ -728,9 +739,9 @@ function varargout = diamondControl(varargin)
             if i > 1
                 surf(c.lowerAxes, up, up(1:i), final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
                 view(c.lowerAxes,2);
-                colormap(c.lowerAxes, 'gray');
-                xlim(c.lowerAxes, [-mvConv*range/2  mvConv*range/2]);
-                ylim(c.lowerAxes, [-mvConv*range/2  mvConv*range/2]);
+                colormap(c.lowerAxes, get(c.galvoC, 'String'));
+                xlim(c.lowerAxes, [-range/2  range/2]);
+                ylim(c.lowerAxes, [-range/2  range/2]);
 %                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
             end
 
@@ -751,10 +762,18 @@ function varargout = diamondControl(varargin)
         xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
         ylim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
     end
-    function range_Callback(hObject, ~)
+    function galvoVar_Callback(hObject, ~)
         limit_Callback(hObject,0);
-        c.galvoRange = str2double(get(hObject, 'String'));
-        setGalvoAxesLimits();
+        switch hObject
+            case c.galvoR
+                c.galvoRange = str2double(get(hObject, 'String'));
+                setGalvoAxesLimits();
+            case c.galvoS
+                c.galvoSpeed = str2double(get(c.galvoS, 'String'));
+            case c.galvoP
+                makeInteger_Callback(c.galvoP, 0);
+                c.galvoPixels = str2double(get(c.galvoP, 'String'));
+        end
     end
 
     % AUTOMATION
@@ -1175,14 +1194,14 @@ function varargout = diamondControl(varargin)
             case c.galvoR
                 if val > c.galvoRangeMax
                     val = c.galvoRangeMax;
-                elseif val < 0
-                    val = 0;
+                elseif val < .001
+                    val = .001;
                 end
             case c.galvoS
                 if val > c.galvoSpeedMax
                     val = c.galvoSpeedMax;
-                elseif val < 0
-                    val = 0;
+                elseif val < .001
+                    val = .001;
                 end
         end
         
