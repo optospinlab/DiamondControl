@@ -76,43 +76,43 @@ c.microMin =    [-25000 -25000];
 c.microMax =    [25000 25000];
 
 c.microXSerial = 0;     % Empty variable for the X micrometer serial connection
-c.microXPort = 'COM5'; % This will be overwritten later (or should we define here?)
-c.microXAddr = '1';
+c.microXPort =  'COM5'; % This will be overwritten later (or should we define here?)
+c.microXAddr =  '1';
 
 c.microYSerial = 0;     % Empty variable for the Y micrometer serial connection
-c.microYPort = 'COM6'; % This will be overwritten later
-c.microYAddr = '1';
+c.microYPort =  'COM6'; % This will be overwritten later
+c.microYAddr =  '1';
 
+% Session for all daq devices
+c.s = 0; 
+c.daqInitiated = false;
 
-c.devSPCM = 'Dev1';         % SPCM DEVice and CHaNnel
-c.chnSPCM = 'ctr1';
+% SPCM DEVice and CHaNnel
+c.devSPCM =     'Dev1';         
+c.chnSPCM =     'ctr1';
 
+% Galvo DEVice and CHaNnels
+c.devGalvo =    'cDAQ1Mod1';	
+c.chnGalvoX =   'ao0';
+c.chnGalvoY =   'ao1';
 
-c.galvoInitiated = false;
-c.devGalvo = 'cDAQ1Mod1';	% Galvo DEVice and CHaNnels
-c.chnGalvoX = 'ao0';
-c.chnGalvoY = 'ao1';
-
-c.galvo = [0 0];
-c.galvoBase = [0 0];
+c.galvo =       [0 0];
+c.galvoBase =   [0 0];
 c.galvoMin =    [-5 -5];
 c.galvoMax =    [ 5  5];
-c.sG = 0; % Session for galvos
-c.galvoStep = .05;
+c.galvoStep =   .05;
 
-
-c.piezoInitiated = false;
-c.devPiezo = 'Dev1';        % Z Peizo DEVice and CHaNnels
-c.chnPiezoX = 'ao0';
-c.chnPiezoY = 'ao1';
-c.chnPiezoZ = 'ao2';
+% Z Peizo DEVice and CHaNnels
+c.devPiezo =    'Dev1';        
+c.chnPiezoX =   'ao0';
+c.chnPiezoY =   'ao1';
+c.chnPiezoZ =   'ao2';
 
 c.piezo =       [0 0 0];
 c.piezoBase =   [0 0 0];
 c.piezoMin =    [0 0 0];
 c.piezoMax =    [10 10 10];
 c.piezoStep = .05;
-c.sP = 0; % Session for piezos
 
 
 % AXES ====================================================================

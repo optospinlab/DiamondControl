@@ -312,23 +312,60 @@ function varargout = diamondControl(varargin)
             c.galvo(2) = c.galvoMin(2);
         end
     end
+    function figure_WindowKeyPressFcn(hObject, eventdata)
+        if c.microInit && c.outputEnabled
+            switch eventdata.Key
+            case {'uparrow', 'w'}
+                c.micro(2) = c.micro(2) + c.microStep;
+            case {'downarrow', 's'}
+                c.micro(2) = c.micro(2) - c.microStep;
+            case {'leftarrow', 'a'}
+                c.micro(1) = c.micro(1) - c.microStep;
+            case {'rightarrow', 'd'}
+                c.micro(1) = c.micro(1) + c.microStep;
+            case {'pageup', 'add', 'equal', 'q'}
+                c.piezo(3) = c.piezo(3) + c.piezoStep;
+            case {'pagedown', 'subtract', 'hyphen', 'e'}
+                c.piezo(3) = c.piezo(3) - c.piezoStep;
+            end   
+            
+            limit();
+            
+            piezoOut();
+            setPos();
+        end
+    end
+    function closeRequest(src,callbackdata)
+        c.running = false;
+        c.outputEnabled = false;
+        
+        try
+            cmd(c.microXSerial, c.microXAddr, 'RS');
+            fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
+
+            cmd(c.microYSerial, c.microYAddr, 'RS');
+            fclose(c.microYSerial); delete(c.microYSerial); clear c.microYSerial;
+        catch err
+            display(err.message);
+        end
+        
+        try
+            daqOutSmooth([0 0 0 0 0]);
+            
+            c.s.release();   
+        catch err
+            display(err.message);
+        end
+        
+        delete(c.imageAxes);
+        delete(c.upperAxes);
+        delete(c.lowerAxes);
+        
+        delete(c.parent);
+    end
 
     % OUTPUTS =============================================================
-    function out = pos(serial_obj, device_addr)
-        fprintf(serial_obj, [device_addr 'TP']);	% Get device state
-        out = fscanf(serial_obj);
-    end
-    function out = status(serial_obj, device_addr)
-        fprintf(serial_obj, [device_addr 'TS']);    % Get device state
-        out = fscanf(serial_obj);
-    end
-    function cmd(serial_obj, device_addr, c)
-        fprintf(serial_obj, [device_addr c]);       % Send a CoMmanD
-        % out = fscanf(serial_obj);
-        % if ~isempty(out)
-        %     disp(['ERR' out])
-        % end
-    end
+    % --- INIT ------------------------------------------------------------
     function microInit_Callback(hObject, ~)
         if c.microInitiated == 0
             display('Starting Initialization Sequence');
@@ -374,27 +411,28 @@ function varargout = diamondControl(varargin)
 %             end   
         end
     end
-    function galvoInit_Callback(~, ~)
-        if c.galvoInitiated == 0
-            c.sG = daq.createSession('ni');
-            c.sG.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoX,      'Voltage');
-            c.sG.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoY,      'Voltage');
-
-            set(c.galvoText, 'ForegroundColor', 'black');
+    function daqInit_Callback(~, ~)
+        if c.daqInitiated == 0
+            c.s = daq.createSession('ni');
             
-            c.galvoInitiated = 1;
-        end
-    end
-    function piezoInit_Callback(~, ~)
-        if c.piezoInitiated == 0
-            c.sP = daq.createSession('ni');
-            c.sP.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoX,      'Voltage');
-            c.sP.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoY,      'Voltage');
-            c.sP.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoZ,      'Voltage');
-
+            % Piezos    o 1:3
+            c.s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoX,      'Voltage');
+            c.s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoY,      'Voltage');
+            c.s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoZ,      'Voltage');
             set(c.piezoText, 'ForegroundColor', 'black');
             
-            c.piezoInitiated = 1;
+            % Galvos    o 4:5
+            c.s.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoX,      'Voltage');
+            c.s.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoY,      'Voltage');
+            set(c.galvoText, 'ForegroundColor', 'black');
+            
+            % Counter   i 1
+            c.sG.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
+
+            daqOut();
+            piezoOutSmooth([5 5 0]);
+            
+            c.daqInitiated = 1;
         end
     end
     function videoInit()
@@ -415,9 +453,8 @@ function varargout = diamondControl(varargin)
 %         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
     end
     function initAll()
-        piezoInit_Callback(0,0);
+        daqInit_Callback(0,0);
         videoInit();
-        galvoInit_Callback(0,0);
         microInit_Callback(0,0);
         
         focus_Callback(0,0);
@@ -426,19 +463,21 @@ function varargout = diamondControl(varargin)
         
         c.running = true;
     end
-    function getCurrent()
-        getPos();
-        getGalvo();
-        getPiezo();
+    % --- MICROMETER ------------------------------------------------------
+    function out = pos(serial_obj, device_addr)
+        fprintf(serial_obj, [device_addr 'TP']);	% Get device state
+        out = fscanf(serial_obj);
     end
-    function getGalvo()
-        set(c.galvoXX, 'String', c.galvo(1));
-        set(c.galvoYY, 'String', c.galvo(2));
+    function out = status(serial_obj, device_addr)
+        fprintf(serial_obj, [device_addr 'TS']);    % Get device state
+        out = fscanf(serial_obj);
     end
-    function getPiezo()
-        set(c.piezoXX, 'String', c.piezo(1));
-        set(c.piezoYY, 'String', c.piezo(2));
-        set(c.piezoZZ, 'String', c.piezo(3));
+    function cmd(serial_obj, device_addr, c)
+        fprintf(serial_obj, [device_addr c]);       % Send a CoMmanD
+        % out = fscanf(serial_obj);
+        % if ~isempty(out)
+        %     disp(['ERR' out])
+        % end
     end
     function getPos()
         % Gets the current postition from the linear actuators
@@ -462,6 +501,22 @@ function varargout = diamondControl(varargin)
             fprintf(c.microXSerial, 'SE'); fprintf(c.microYSerial, 'SE');
         end
     end
+    % --- UI GETTING ------------------------------------------------------
+    function getCurrent()
+        getPos();
+        getGalvo();
+        getPiezo();
+    end
+    function getGalvo()
+        set(c.galvoXX, 'String', c.galvo(1));
+        set(c.galvoYY, 'String', c.galvo(2));
+    end
+    function getPiezo()
+        set(c.piezoXX, 'String', c.piezo(1));
+        set(c.piezoYY, 'String', c.piezo(2));
+        set(c.piezoZZ, 'String', c.piezo(3));
+    end
+    % --- GOTO/SMOOTH OUT -------------------------------------------------
     function goto_Callback(hObject, ~)
         % Set the micrometers to the XY values in the goto box
         c.micro = [str2double(get(c.gotoMX, 'String')) str2double(get(c.gotoMY, 'String'))];
@@ -493,69 +548,63 @@ function varargout = diamondControl(varargin)
                 set(c.gotoGY, 'String', c.galvo(2));
         end
     end
-    function resetMicro_Callback(hObject, ~)
-        c.micro = [0 0];
-        setPos();
-    end
-    function piezoOut()
-        if c.outputEnabled && c.piezoInitiated
-            c.sP.outputSingleScan(c.piezo);
-        end
-    end
     function gotoPiezo_Callback(~, ~)
         piezoOutSmooth([str2double(get(c.gotoPX, 'String')) str2double(get(c.gotoPY, 'String')) str2double(get(c.gotoPZ, 'String'))]);
-    end
-    function resetPeizoXY_Callback(~, ~)
-        piezoOutSmooth([0 0 c.piezo(3)]);
-    end
-    function resetPeizo_Callback(~, ~)
-        piezoOutSmooth([0 0 0]);
-    end
-    function piezoOutSmooth(to)
-        if c.outputEnabled && c.piezoInitiated
-            prev = c.piezo;
-            c.piezo = to;
-            
-            limit();
-            
-            steps = round(max(abs(c.piezo - prev))/c.piezoStep);
-            
-            if steps > 0    % If the piezo isn't already there...
-                queueOutputData(c.sP, [linspace(prev(1), c.piezo(1), steps)' linspace(prev(2), c.piezo(2), steps)' linspace(c.piezo(3), c.piezo(3), steps)']);
-                c.sP.startForeground();
-            end
-            
-            getPiezo();
-        end
-    end
-    function galvoOut()
-        if c.outputEnabled && c.galvoInitiated
-            c.sG.outputSingleScan(c.galvo);
-        end
     end
     function gotoGalvo_Callback(~, ~)
         galvoOutSmooth([str2double(get(c.gotoGX, 'String')) str2double(get(c.gotoGY, 'String'))]);
     end
-    function resetGalvo_Callback(~, ~)
-        galvoOutSmooth([0 0]);
-    end
-    function galvoOutSmooth(to)
-        if c.outputEnabled && c.galvoInitiated
-            prev = c.galvo;
-            c.galvo = to;
+    function daqOutSmooth(to)
+        if c.outputEnabled && c.daqInitiated
+            prev = [c.piezo c.galvo];
+            c.piezo = to(1:3);
+            c.galvo = to(4:5);
             
             limit();
             
-            steps = round(max(abs(c.galvo - prev))/c.galvoStep);
+            steplist = [c.piezoStep c.piezoStep c.piezoStep c.galvoStep c.galvoStep];
+            
+            steps = round(max(abs([c.piezo c.galvo] - prev))./steplist);
             
             if steps > 0    % If the galvo isn't already there...
-                queueOutputData(c.sG, [linspace(prev(1), c.galvo(1), steps)' linspace(prev(2), c.galvo(2), steps)']);
-                c.sG.startForeground();
+                queueOutputData(c.s,   [linspace(prev(1), c.piezo(1), steps)' 
+                                        linspace(prev(2), c.piezo(2), steps)'
+                                        linspace(prev(3), c.piezo(3), steps)'
+                                        linspace(prev(4), c.galvo(2), steps)'
+                                        linspace(prev(5), c.galvo(2), steps)']);
+                c.s.startForeground();
             end
             
-            getGalvo();
+            getCurrent();
         end
     end
+    function piezoOutSmooth(to)
+        daqOutSmooth([to c.galvo]);
+    end
+    function galvoOutSmooth(to)
+        daqOutSmooth([c.peizo to]);
+    end
+    function daqOut()
+        if c.outputEnabled && c.daqInitiated
+            c.s.outputSingleScan([c.piezo c.galvo]);
+        end
+        getCurrent();
+    end
+    % --- RESETS ----------------------------------------------------------
+    function resetMicro_Callback(hObject, ~)
+        c.micro = [0 0];
+        setPos();
+    end
+    function resetPeizoXY_Callback(~, ~)
+        piezoOutSmooth([5 5 c.piezo(3)]);
+    end
+    function resetPeizo_Callback(~, ~)
+        piezoOutSmooth([5 5 0]);
+    end
+    function resetGalvo_Callback(~, ~)
+        galvoOutSmooth([0 0]);
+    end
+    % --- OPTIMIZATION ----------------------------------------------------
     function focus_Callback(~, ~)
         display('begin focusing');
         
@@ -607,65 +656,41 @@ function varargout = diamondControl(varargin)
         
         display('end focusing');
     end
-    function figure_WindowKeyPressFcn(hObject, eventdata)
-        if c.microInit && c.outputEnabled
-            switch eventdata.Key
-            case {'uparrow', 'w'}
-                c.micro(2) = c.micro(2) + c.microStep;
-            case {'downarrow', 's'}
-                c.micro(2) = c.micro(2) - c.microStep;
-            case {'leftarrow', 'a'}
-                c.micro(1) = c.micro(1) - c.microStep;
-            case {'rightarrow', 'd'}
-                c.micro(1) = c.micro(1) + c.microStep;
-            case {'pageup', 'add', 'equal', 'q'}
-                c.piezo(3) = c.piezo(3) + c.piezoStep;
-            case {'pagedown', 'subtract', 'hyphen', 'e'}
-                c.piezo(3) = c.piezo(3) - c.piezoStep;
-            end   
+    function piezoOptimize(zAlso)
+        resetPeizoXY_Callback(0, 0);
+        
+        % Method 1
+        range = .2;
+        
+        c.s.Rate = 100;
+        
+        notOptimized = 1;
+        while notOptimized
+            rows = wextend('ar', 'ppd', [c.piezo(3) c.galvo], 4, 'd');
             
-            limit();
+            upx = linspace(c.piezo(1)-range, c.piezo(1)+range, 11);
+            upy = linspace(c.piezo(2)-range, c.piezo(2)+range, 11);
             
-            piezoOut();
-            setPos();
-        end
-    end
-    function closeRequest(src,callbackdata)
-        c.running = false;
-        c.outputEnabled = false;
-        
-        try
-            cmd(c.microXSerial, c.microXAddr, 'RS');
-            fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
-
-            cmd(c.microYSerial, c.microYAddr, 'RS');
-            fclose(c.microYSerial); delete(c.microYSerial); clear c.microYSerial;
-        catch err
-            display(err.message);
-        end
-        
-        try
-            galvoOutSmooth([0 0]);
-            piezoOutSmooth([0 0 0]);
+%             queueOutputData(c.s, [0 0 c.piezo(3) c.galvo]);
             
-            c.sG.release();
-            c.sP.release();        
-        catch err
-            display(err.message);
+            for y = upy(1:2:10)
+                if get(c.galvoButton, 'Value') == 0
+                    
+                    break;
+                end
+                
+                queueOutputData(c.s, [up'           y*ones(10,1)            rows]);
+                queueOutputData(c.s, [up(10:-1:1)'  (y+range/10)*ones(10,1)	rows]);
+            end
+            
+            [out, ~] = c.s.startForeground();
+            
+            data = reshape(out,[],11);
+            
+            diff(data)
+                
+            range = range*2;
         end
-        
-        try
-%             set(c.counterButton, 'Value', 0);
-            counter_Callback(0, 0);
-        catch err
-            display(err.message);
-        end
-        
-        delete(c.imageAxes);
-        delete(c.upperAxes);
-        delete(c.lowerAxes);
-        
-        delete(c.parent);
     end
 %     function data = displayImage()
 %         start(c.vid);
@@ -675,101 +700,92 @@ function varargout = diamondControl(varargin)
 %         image(flipdim(data,1));
 %     end
 
-    % GALVO ===============================================================
+    % GALVOSCAN ===========================================================
     function galvoScan_Callback(hObject, ~)
         galvoScan()
     end
-    function galvoScan()    % range in microns, speed in microns per second (up is upscan; down is downscan)
-        %Scan the Galvo +/- mvConv*range/2 deg
-        %min step of DAQ = 20/2^16 = 3.052e-4V
-        %min step of Galvo = 8e-4Deg
-        %for galvo [1V->1Deg], 8e-4V->8e-4Deg
+    function galvoScan()    
+        set(c.galvoButton, 'String', 'Stop!');
         
-        range = c.galvoRange;
-        upspeed = c.galvoSpeed;
-        downspeed = c.galvoSpeed/8;
+        if get(c.galvoButton, 'Value') == 1
+            % range in microns, speed in microns per second (up is upscan; down is downscan)
+            %Scan the Galvo +/- mvConv*range/2 deg
+            %min step of DAQ = 20/2^16 = 3.052e-4V
+            %min step of Galvo = 8e-4Deg
+            %for galvo [1V->1Deg], 8e-4V->8e-4Deg
 
-        mvConv = .030/5;    % Micron to Voltage conversion (this is a guess! this should be changed!)
-        step = round(c.galvoPixels);
-        stepFast = round(c.galvoPixels*(upspeed/downspeed));
+            range =     c.galvoRange;
+            upspeed =   c.galvoSpeed;
+            downspeed = c.galvoSpeed/8;
 
-        maxGalvoRange = 5; % This is a likely-incorrect assumption.
+            mvConv =    .030/5;    % Micron to Voltage conversion (this is a guess! this should be changed!)
+            steps =      round(c.galvoPixels);
+            stepsFast =  round(c.galvoPixels*(upspeed/downspeed));
 
-        if mvConv*range > maxGalvoRange
-            display('Galvo scanrange too large! Reducing to maximum.');
-            range = maxGalvoRange/mvConv;
-        end
+            maxGalvoRange = 5; % This is a likely-incorrect assumption.
 
-        up = -(mvConv*range/2):step:(mvConv*range/2);%For testing not using full range
-        down = (mvConv*range/2):-stepFast:-(mvConv*range/2);
-
-        final = ones(length(up));
-        prev = 0;
-        i = 1;
-
-        % Initialize the DAQ
-        c.sG.Rate = upspeed*length(up)/range;
-        
-        s2 = daq.createSession('ni');
-       
-        s2.TriggerType = 'Manual';
-        c.sG.TriggerType = 'Manual';
-        
-        s2.Rate = upspeed*length(up)/range;
-        
-        s2.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
-        s2.addAnalogInputChannel(c.devSPCM,     'ai0',      'Voltage');
-        
-        set(c.galvoXX, 'String', '(scanning)');
-        set(c.galvoYY, 'String', '(scanning)');
-
-        queueOutputData(c.sG, [(0:-stepFast:-(mvConv*range/2))'    (0:-stepFast:-(mvConv*range/2))']);
-        c.sG.startForeground();    % Goto starting point from 0,0
-
-        for y = up  % For y in up.
-            s2.NumberOfScans = length(up);
-        
-            %Switch to manual trigger
-            s2.TriggerType = 'manual';
-            c.sG.TriggerType = 'manual';
-            queueOutputData(c.sG, [up'      y*ones(1,length(up))']);
-            
-%             c.sG.startBackground();
-%             [out, ~] = s2.startForeground();
-            start([s2, c.sG]);
-            trigger([s2, c.sG]);
-                       
-            c.sG.wait();
-            
-            %switch back to auto trigger
-            c.sG.TriggerType = 'immediate';
-            
-            queueOutputData(c.sG, [down'    linspace(y, y + step, length(down))']);
-            c.sG.startBackground();
-
-            final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)')];
-    
-            if i > 1
-                surf(c.lowerAxes, up, up(1:i), final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
-                view(c.lowerAxes,2);
-                colormap(c.lowerAxes, get(c.galvoC, 'String'));
-                xlim(c.lowerAxes, [-range/2  range/2]);
-                ylim(c.lowerAxes, [-range/2  range/2]);
-%                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
+            if mvConv*range > maxGalvoRange
+                display('Galvo scanrange too large! Reducing to maximum.');
+                range = maxGalvoRange/mvConv;
             end
 
-            i = i + 1;
+            up =    (mvConv*range/2):-steps    :-(mvConv*range/2);
+            down = -(mvConv*range/2): stepsFast: (mvConv*range/2);
 
-            c.sG.wait();
+            final = ones(length(up));
+            prev = 0;
+            i = 1;
+            
+            rate = c.galvoPixels/(upspeed/range);
+            c.s.Rate = rate;
+
+            set(c.galvoXX, 'String', '(scanning)');
+            set(c.galvoYY, 'String', '(scanning)');
+            
+            piezoRows = wextend('ar', 'ppd', c.piezo, c.galvoPixels, 'd');
+
+            queueOutputData(c.s, [piezoRows (0:stepsFast:(mvConv*range/2))'    (0:-stepsFast:-(mvConv*range/2))']);
+            c.sG.startForeground();    % Goto starting point from 0,0
+            
+            yCopy = 0;
+
+            for y = up
+                yCopy = y;
+                if get(c.galvoButton, 'Value') == 0
+                    
+                    break;
+                end
+                
+                queueOutputData(c.s, [piezoRows	up'     y*ones(1,length(up))']);
+                [out, ~] = c.s.startForeground();          
+
+                queueOutputData(c.s, [piezoRows	down'   linspace(y, y + steps, length(down))']);
+                c.s.startForeground();
+
+                final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)')]*rate;
+
+                if i > 1
+                    surf(c.lowerAxes, up, up((c.galvoPixels-i+1):(c.galvoPixels)), final(i:-1:1,:), 'EdgeColor', 'none');   % Display the graph on the backscan
+                    view(c.lowerAxes,2);
+                    colormap(c.lowerAxes, get(c.galvoC, 'String'));
+                    xlim(c.lowerAxes, [-range/2  range/2]);
+                    ylim(c.lowerAxes, [-range/2  range/2]);
+    %                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
+                end
+
+                i = i + 1;
+
+                c.s.wait();
+            end
+
+            queueOutputData(c.s, [piezoRows	((mvConv*range/2):-stepsFast:0)'     linspace(yCopy, 0, length((mvConv*range/2):-stepsFast:0))']);
+            c.s.startForeground();    % Go back to 0,0 from finishing point
+
+            c.galvo = [0 0];
+            getGalvo();
         end
-
-        queueOutputData(c.sG, [(-(mvConv*range/2):stepFast:0)'     ((mvConv*range/2):-stepFast:0)']);
-        c.sG.startForeground();    % Go back to 0,0 from finishing point
         
-        c.galvo = [0 0];
-        getGalvo();
-        
-        s2.release();    % release DAQ
+        set(c.galvoButton, 'String', 'Scan!');
     end
     function setGalvoAxesLimits()
         xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
@@ -789,7 +805,7 @@ function varargout = diamondControl(varargin)
         end
     end
 
-    % AUTOMATION
+    % AUTOMATION ==========================================================
     function setCurrent_Callback(hObject, ~)
         switch hObject
             case c.autoV1Get
@@ -1306,7 +1322,7 @@ function varargout = diamondControl(varargin)
 %         c.iC = c.iC + 1;
     end
 
-%     % BOX =================================================================
+%     % BOX ===============================================================
 %     function mouseEnabled_Callback(hObject, ~)
 %         if get(c.mouseEnabled, 'Value')
 %             set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
