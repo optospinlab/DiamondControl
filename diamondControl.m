@@ -699,41 +699,23 @@ function varargout = diamondControl(varargin)
         % Initialize the DAQ
         c.sG.Rate = upspeed*length(up)/range;
         
-        s2 = daq.createSession('ni');
-       
-        s2.TriggerType = 'Manual';
-        c.sG.TriggerType = 'Manual';
-        
-        s2.Rate = upspeed*length(up)/range;
-        
-        s2.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
-        s2.addAnalogInputChannel(c.devSPCM,     'ai0',      'Voltage');
+        c.sG.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
+        c.sG.addAnalogInputChannel(c.devSPCM,     'ai0',      'Voltage');
         
         set(c.galvoXX, 'String', '(scanning)');
         set(c.galvoYY, 'String', '(scanning)');
 
         queueOutputData(c.sG, [(0:-stepFast:-(mvConv*range/2))'    (0:-stepFast:-(mvConv*range/2))']);
         c.sG.startForeground();    % Goto starting point from 0,0
+       
         for y = up  % For y in up. We 
-            s2.NumberOfScans = length(up);
         
-            %Switch to manual trigger
-            s2.TriggerType = 'manual';
-            c.sG.TriggerType = 'manual';
+           
             queueOutputData(c.sG, [up'      y*ones(1,length(up))']);
-            
-%             c.sG.startBackground();
-%             [out, ~] = s2.startForeground();
-            start([s2, c.sG]);
-            trigger([s2, c.sG]);
+            [out, ~] = c.sG.startForeground();          
                        
-            c.sG.wait();
-            
-            %switch back to auto trigger
-            c.sG.TriggerType = 'immediate';
-            
             queueOutputData(c.sG, [down'    linspace(y, y + step, length(down))']);
-            c.sG.startBackground();
+            c.sG.startForeground();
 
             final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)')];
     
@@ -757,7 +739,7 @@ function varargout = diamondControl(varargin)
         c.galvo = [0 0];
         getGalvo();
         
-        s2.release();    % release DAQ
+        c.sG.release();    % release DAQ
     end
     function setGalvoAxesLimits()
         xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
