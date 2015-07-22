@@ -53,6 +53,13 @@ popout1=0;popout2=0;
 zstep=0;
 upspeed =0; range=0;
 zout=0;
+
+ frame = getsnapshot(vid);
+  
+ axes(handles.axes1);
+ h1=imshow(frame);
+ 
+  
  
 %Refresh Device Status
 while ~0 
@@ -80,18 +87,14 @@ while ~0
 
             f = fspecial('unsharp', .1); % Create mask
             out = imfilter(frame, f); % Filter the image
-
-            axes(handles.axes1);
-            imshow(flipdim(out,1)); colormap Gray;
-            BW = im2bw(out,0.6);
-    
-            axes(handles.axes2);
-            imagesc(BW);
-
+            
+            set(h1,'CData',flipdim(out,1));         
+            BW = im2bw(flipdim(out,1),0.7);
+            
            [centers, radii] = imfindcircles(BW,[12 20])
-           viscircles(centers, radii,'EdgeColor','b')
-       
-        
+           x=viscircles(centers, radii,'EdgeColor','b');
+           
+            
     catch
         disp('GUI CLOSED');
         % Should I move to zero position before shutdown??
@@ -117,6 +120,7 @@ while ~0
         break;
     end  
     pause(0.1); % run every 0.1sec
+    delete(x)
 end
 varargout{1} = handles.output;
 
