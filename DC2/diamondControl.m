@@ -1230,16 +1230,16 @@ function varargout = diamondControl(varargin)
 
         clk = clock;
         
-        superDirectory =['C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\'];
-        dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];
-        scanFolder =    ['Scan @' num2str(clk(4)) '_' num2str(clk(5)) '_' num2str(clk(6))];
+        superDirectory =['C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\'];              % Setup the folders
+        dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];          % Today's folder is formatted in 
+        scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
         directory =     [superDirectory '\' dateFolder];
         subDirectory =  [directory '\' scanFolder];
         
-        [status, message, messageid] = mkdir(superDirectory, dateFolder);
+        [status, message, messageid] = mkdir(superDirectory, dateFolder);                   % Make sure today's folder has been created.
         display(message);
         
-        [status, message, messageid] = mkdir(directory, scanFolder);
+        [status, message, messageid] = mkdir(directory, scanFolder);                        % Create a folder for this scan
         display(message);
         
         prefix = [subDirectory '\'];
