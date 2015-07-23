@@ -1,3 +1,8 @@
 # Compiled Matlab
 *.asv
 7_10_2015/*.asv
+DC2/*.asv
+# Error Logs
+*.log
+7_10_2015/*.log
+DC2/*.log

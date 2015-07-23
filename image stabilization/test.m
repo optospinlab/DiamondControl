@@ -37,18 +37,28 @@ while run
     frame = getsnapshot(vid);
     
     axes(handles.axes1);
-    imagesc(frame); colormap('Gray');
+    imagesc(flipdim(frame,1)); colormap('Gray');
     
-    f = fspecial('unsharp', alpha); % Create mask
-    out = imfilter(frame, f); % Filter the image
-    
-    BW = im2bw(frame,0.99);
+    f = fspecial('unsharp', 0.25); % Create mask
+    out = imfilter(flipdim(frame,1), f); % Filter the image
+%     
+%     BW = im2bw(frame,0.7);
     
     axes(handles.axes2);
-    imshow(BW);
     
-   [centers, radii] = imfindcircles(BW,[12 20])
-   viscircles(centers, radii,'EdgeColor','b')
+    mserRegions = detectMSERFeatures(out,'RegionAreaRange',[400 600], 'ThresholdDelta', 0.5,'MaxAreaVariation',0.05);
+    imshow(out);
+    
+    hold on;
+    try
+    plot(mserRegions, 'showPixelList', false,'showEllipses',true);
+    title('MSER regions'); hold off;
+    catch
+        disp('Null')
+    end
+    
+%    [centers, radii] = imfindcircles(BW,[12 20])
+%    viscircles(centers, radii,'EdgeColor','b')
     
     pause(0.5)
 end

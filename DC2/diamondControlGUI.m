@@ -112,7 +112,7 @@ c.piezo =       [0 0 0];
 c.piezoBase =   [0 0 0];
 c.piezoMin =    [0 0 0];
 c.piezoMax =    [10 10 10];
-c.piezoStep = .05;
+c.piezoStep = .025;
 
 
 % AXES ====================================================================
@@ -184,11 +184,13 @@ c.gotoTab =         uitab(c.automationPanel, 'Title', 'Goto');
     c.gotoPX =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2 plh-bp-5*bh bw/2 bh]);
     c.gotoPYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (V): ',   'Position',  [2*bp+2*bw/2 plh-bp-6*bh bw/2 bh],         'HorizontalAlignment', 'right');
     c.gotoPY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2 plh-bp-6*bh bw/2 bh]);
-    c.gotoPTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position', [2*bp+bw plh-bp-7*bh bw bh]);
-    c.gotoPButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [2*bp+bw     plh-bp-8*bh bw bh]);
-    c.gotoPMaximize = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Maximize','Position', [2*bp+bw plh-bp-9*bh bw bh]);
-    c.gotoPReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset XY','Position', [2*bp+bw plh-bp-10*bh bw bh]);
-    c.gotoPFocus =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Focus','Position', [2*bp+bw     plh-bp-11*bh bw bh]);
+    c.gotoPTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position',    [2*bp+bw    plh-bp-7*bh bw bh]);
+    c.gotoPButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position',         [2*bp+bw    plh-bp-8*bh bw bh]);
+    c.gotoPMaximize = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Maximize','Position',    [2*bp+bw    plh-bp-9*bh bw bh]);
+    c.gotoPReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset XY','Position',      [2*bp+bw    plh-bp-10*bh bw bh]);
+    c.gotoPFocus =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Focus','Position',         [2*bp+bw    plh-bp-11*bh bw bh]);
+    c.gotoPOptXY =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize XY','Position',   [2*bp+bw    plh-bp-12*bh bw bh]);
+    c.gotoPOptZ =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize Z','Position',    [2*bp+bw    plh-bp-13*bh bw bh]);
   
     c.gotoP = [c.gotoPX c.gotoPY c.gotoPZ c.gotoPFocus c.gotoPReset c.gotoPMaximize c.gotoPTarget c.gotoPButton];
     
@@ -212,12 +214,12 @@ c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
     c.galvoSpeedMax =  50;  % 50 um/sec
     c.galvoSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plh-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plh-bp-4*bh bw/2 bh]);
-    c.galvoPixels =  5; % 5 pixels/side
+    c.galvoPixels =  20; % 5 pixels/side
     c.galvoPLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plh-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoPixels,     'Position', [bp+bw   plh-bp-5*bh bw/2 bh]);    
     
     c.galvoCLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plh-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
-    c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', 'gray|jet',     'Position', [bp+bw   plh-bp-6*bh bw/2 bh]);
+    c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plh-bp-6*bh bw/2 bh]);
     
     c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Scan!','Position', [bp        plh-bp-8*bh bp+2*bw bh]);
 
@@ -412,9 +414,13 @@ c.autoTab =         uitab(c.automationPanel, 'Title', 'Automation!');
     c.autoV4Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-28*bh bw/2 bh]);
     c.autoV4Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plh-bp-28*bh bw bh]);
 
-    c.autoTest =     uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Preview Path', 'Position', [bp	plh-bp-30*bh 2*bw+bp bh]);
-    c.autoButton =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Automate!', 'Position', [bp	plh-bp-31*bh 2*bw+bp bh]);
-
+    c.autoTest =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Preview Path', 'Position', [bp	plh-bp-30*bh 2*bw+bp bh]);
+    c.autoButton =  uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plh-bp-31*bh 2*bw+bp bh]);
+    c.autoAutoProceed = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plh-bp-32*bh bw bh], 'HorizontalAlignment', 'left');
+    c.autoProceed = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plh-bp-32*bh bw bh]);
+    c.proceed = false;  % Variable for whether to proceed or not.
+    
+    
 % A list of all buttons to disable when a scan/etc is running.
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
