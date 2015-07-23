@@ -5,8 +5,9 @@
 %    movement over a sample,
 %  - the ability to XY scan the exitiation beam with Galvometers while
 %    collecting from the same spot,
-%  - control of the peizo stage for precise Z (and soon XY) positioning, and
-%  - (soon) basic automation protocols for preforming simple testing.
+%  - control of the peizo stage for precise Z and XY positioning,
+%  - poorly-implemented optimization routines, and
+%  - (soon [edit: now]) basic automation protocols for preforming simple testing.
 function varargout = diamondControl(varargin)
     if isempty(varargin)    % If no variables have been given, make the figure
         f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none');
@@ -20,8 +21,8 @@ function varargout = diamondControl(varargin)
     
     
     % CALLBACKS ===========================================================
-    set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);
-    set(c.parent, 'CloseRequestFcn', @closeRequest);
+    set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprects keypresses e.g. up/down arrow.
+    set(c.parent, 'CloseRequestFcn', @closeRequest);                % Handles the closing of the figure.
     
 %     set(c.boxTL, 'Callback', @box_Callback);
 %     set(c.boxTR, 'Callback', @box_Callback);
@@ -29,38 +30,38 @@ function varargout = diamondControl(varargin)
 %     set(c.boxBR, 'Callback', @box_Callback);
     
     % Goto Fields ---------------------------------------------------------
-    set(c.gotoMX, 'Callback', @limit_Callback);
-    set(c.gotoMY, 'Callback', @limit_Callback);
-    set(c.gotoPX, 'Callback', @limit_Callback);
+    set(c.gotoMX, 'Callback', @limit_Callback);                     % Limits the values of these uicontrols to be
+    set(c.gotoMY, 'Callback', @limit_Callback);                     % within the safe/allowed limits of the devices
+    set(c.gotoPX, 'Callback', @limit_Callback);                     % they control. e.g. piezos are limited 0 -> 10 V.
     set(c.gotoPY, 'Callback', @limit_Callback);
     set(c.gotoPZ, 'Callback', @limit_Callback);
     set(c.gotoGX, 'Callback', @limit_Callback);
     set(c.gotoGY, 'Callback', @limit_Callback);
     
-    set(c.gotoMButton, 'Callback', @goto_Callback);
-    set(c.gotoMActual, 'Callback', @gotoActual_Callback);
-    set(c.gotoMTarget, 'Callback', @gotoTarget_Callback);
-    set(c.gotoMReset, 'Callback',  @resetMicro_Callback);
+    set(c.gotoMButton, 'Callback', @goto_Callback);                 % MICROMETER GOTO controls - Goto button sends the micros to the current fields
+    set(c.gotoMActual, 'Callback', @gotoActual_Callback);           
+    set(c.gotoMTarget, 'Callback', @gotoTarget_Callback);           % Actual and Target set the current fields to the actual (where the micros think they are) and target
+    set(c.gotoMReset, 'Callback',  @resetMicro_Callback);           % (where the program is going to) values. Reset goes back to [0 0]
     
-    set(c.gotoPButton, 'Callback', @gotoPiezo_Callback);
-    set(c.gotoPFocus,  'Callback', @focus_Callback);
-    set(c.gotoPOptXY,  'Callback', @optXY_Callback);
+    set(c.gotoPButton, 'Callback', @gotoPiezo_Callback);            % PIEZO GOTO controls - Goto button sends the piezos (smoothly) to the current fields
+    set(c.gotoPFocus,  'Callback', @focus_Callback);                % This uses a contrast-optimization routine to focus using the blue image
+    set(c.gotoPOptXY,  'Callback', @optXY_Callback);                % XY and Z opt use filthy count-optimization techniques
     set(c.gotoPOptZ,  'Callback',  @optZ_Callback);
-    set(c.gotoPReset, 'Callback',  @resetPeizoXY_Callback);
-    set(c.gotoPTarget, 'Callback', @gotoTarget_Callback);
+    set(c.gotoPReset, 'Callback',  @resetPeizoXY_Callback);         % Resets the XY to [5 5], approaching from [0 0]
+    set(c.gotoPTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
-    set(c.gotoGButton, 'Callback', @gotoGalvo_Callback);
-    set(c.gotoGReset, 'Callback',  @resetGalvo_Callback);
-    set(c.gotoGTarget, 'Callback', @gotoTarget_Callback);
+    set(c.gotoGButton, 'Callback', @gotoGalvo_Callback);            % GALVO GOTO controls - Goto button sends the galvos to the current fields
+    set(c.gotoGReset, 'Callback',  @resetGalvo_Callback);           % Resets the XY to [0 0] (should I approach from a direction?)
+    set(c.gotoGTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
     % Galvo Fields --------------------------------------------------------
-    set(c.galvoButton, 'Callback', @galvoScan_Callback);
-    set(c.galvoR, 'Callback', @galvoVar_Callback);
-    set(c.galvoS, 'Callback', @galvoVar_Callback);
-    set(c.galvoP, 'Callback', @galvoVar_Callback);
+    set(c.galvoButton, 'Callback', @galvoScan_Callback);            % Starts a Galvo scan. Below are parameters defining that scan.
+    set(c.galvoR, 'Callback', @galvoVar_Callback);                  %  - R for Range in um/side (approx) where the side is the side of the scanning square
+    set(c.galvoS, 'Callback', @galvoVar_Callback);                  %  - S for Speed in um/sec
+    set(c.galvoP, 'Callback', @galvoVar_Callback);                  %  - P for Pixels in pixels/side
     
     % Automation Fields ---------------------------------------------------
-    set(c.autoV1X, 'Callback', @limit_Callback);
+    set(c.autoV1X, 'Callback', @limit_Callback);                    % Same as the limit callbacks above
     set(c.autoV2X, 'Callback', @limit_Callback);
     set(c.autoV3X, 'Callback', @limit_Callback);
     set(c.autoV4X, 'Callback', @limit_Callback);
@@ -75,14 +76,14 @@ function varargout = diamondControl(varargin)
     set(c.autoV3Z, 'Callback', @limit_Callback);
     set(c.autoV4Z, 'Callback', @limit_Callback);
     
-    set(c.autoNXRm, 'Callback', @autoRange_Callback);
-    set(c.autoNXRM, 'Callback', @autoRange_Callback);
+    set(c.autoNXRm, 'Callback', @autoRange_Callback);               % This callback makes the field an integer using makeInteger_Callback and also prevents the
+    set(c.autoNXRM, 'Callback', @autoRange_Callback);               % m - [m]inimum - field from being greater than the M - [M]aximum - field and visa versa.
     set(c.autoNYRm, 'Callback', @autoRange_Callback);
     set(c.autoNYRM, 'Callback', @autoRange_Callback);
     set(c.autonRm,  'Callback', @autoRange_Callback);
     set(c.autonRM,  'Callback', @autoRange_Callback);
     
-    set(c.autoV1NX, 'Callback', @makeInteger_Callback);
+    set(c.autoV1NX, 'Callback', @makeInteger_Callback);             % This forces the field to be an integer.
     set(c.autoV2NX, 'Callback', @makeInteger_Callback);
     set(c.autoV3NX, 'Callback', @makeInteger_Callback);
     set(c.autoV4NX, 'Callback', @makeInteger_Callback);
@@ -95,28 +96,27 @@ function varargout = diamondControl(varargin)
     set(c.autoV123n, 'Callback', @makeInteger_Callback);
     set(c.autoV4n,   'Callback', @makeInteger_Callback);
     
-    set(c.autoV1Get, 'Callback', @setCurrent_Callback);
+    set(c.autoV1Get, 'Callback', @setCurrent_Callback);             % These set the fields for vectors 1->4 to be the current position
     set(c.autoV2Get, 'Callback', @setCurrent_Callback);
     set(c.autoV3Get, 'Callback', @setCurrent_Callback);
     set(c.autoV4Get, 'Callback', @setCurrent_Callback);
     
-    set(c.autoTest, 'Callback',  @autoTest_Callback);
-    set(c.autoButton, 'Callback',  @automate_Callback);
-    set(c.autoProceed, 'Callback',  @proceed_Callback);
-    
-    set(c.counterButton, 'Callback',  @counter_Callback);
+    set(c.autoTest, 'Callback',  @autoTest_Callback);               % Displays the devices that will be tested to an axes. Useful for error-correcting
+    set(c.autoButton, 'Callback',  @automate_Callback);             % Starts the automation!
+    set(c.autoProceed, 'Callback',  @proceed_Callback);             % Button to proceed to the next device. The use has the option to use this to proceed or 
+                                                                    % to autoproceed using a checkbox.
+    % Counter Fields (unfinished) -----------------------------------------
+    set(c.counterButton, 'Callback',  @counter_Callback);           
     
     % UI Fields -----------------------------------------------------------
-%     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
+%     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);        % Currently not functioning
 %     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-
     set(c.imageAxes, 'ButtonDownFcn', @makePopout_Callback);
-    
     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
 %     set(c.microInit, 'Callback', @microInit_Callback);
     
-    % Create joystick object =====
+    % Create the joystick object =====
     try
         c.joy = vrjoystick(1);
         c.joystickEnabled = 1;
@@ -124,8 +124,6 @@ function varargout = diamondControl(varargin)
         display(err.message);
         c.joystickEnabled = 0;
     end
-    
-    % Initiate Everything...
     
     % We do resizing programatically
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
@@ -138,6 +136,7 @@ function varargout = diamondControl(varargin)
     
     set(c.parent, 'Visible', 'On');
     
+    % Initiate Everything...
     initAll();
     
     % Start main loop
@@ -145,7 +144,6 @@ function varargout = diamondControl(varargin)
     
     function main()
         while c.running     % c.running is currently unused, but likely will be used.
-%             try
             if ~c.focusing
                 [outputXY, outputZ] = readJoystick();
 
@@ -162,29 +160,15 @@ function varargout = diamondControl(varargin)
 
             renderUpper();
                     
-            pause(.06); % 60 Hz
-                
-%                 displayImage();
-%             catch           % If something goes wrong (likely the figure is destroyed), deinitialize the Galvos
-%                 cmd(c.microXSerial, c.microXAddr, 'RS');
-%                 fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
-%                 
-%                 cmd(c.microYSerial, c.microYAddr, 'RS');
-%                 fclose(c.microYSerial); delete(c.microYSerial); clear c.microYSerial;
-%             end
+            pause(.06); % 60 Hz (should later make this run so we actually delay to 60 Hz)
         end
     end
-
-%     function tick()
-%         display('here');
-%         renderUpper();
-%     end
 
     % INPUTS ==============================================================
     function [outputXY, outputZ] = readJoystick()
         outputXY = 0;
         outputZ = 0;
-        if c.joystickEnabled == 1
+        if c.joystickEnabled == 1   % If the joystick is enabled...
             [a, b, p] = read(c.joy);
             % a - axes (vector of values -1 to 1),
             % b - buttons (vector of 0s or 1s)
@@ -277,6 +261,9 @@ function varargout = diamondControl(varargin)
         end
     end
     function limit()
+        % Limits the value of a field to the range acceptable for the
+        % device it governs. e.g. piezos are limited 0 -> 10 V.
+        % MICROMETERS =====
         if c.micro(1) > c.microMax(1)
             c.micro(1) = c.microMax(1);
         elseif c.micro(1) < c.microMin(1)
@@ -288,6 +275,7 @@ function varargout = diamondControl(varargin)
             c.micro(2) = c.microMin(2);
         end
 
+        % PIEZOS =====
         if c.piezo(1) > c.piezoMax(1)
             c.piezo(1) = c.piezoMax(1);
         elseif c.piezo(1) < c.piezoMin(1)
@@ -304,6 +292,7 @@ function varargout = diamondControl(varargin)
             c.piezo(3) = c.piezoMin(3);
         end
 
+        % GALVOS =====
         if c.galvo(1) > c.galvoMax(1)
             c.galvo(1) = c.galvoMax(1);
         elseif c.galvo(1) < c.galvoMin(1)
@@ -315,7 +304,7 @@ function varargout = diamondControl(varargin)
             c.galvo(2) = c.galvoMin(2);
         end
     end
-    function figure_WindowKeyPressFcn(hObject, eventdata)
+    function figure_WindowKeyPressFcn(~, eventdata)
         if c.microInitiated && c.daqInitiated && c.outputEnabled
             switch eventdata.Key
                 case {'uparrow', 'w'}
@@ -332,18 +321,18 @@ function varargout = diamondControl(varargin)
                     c.piezo(3) = c.piezo(3) - c.piezoStep;
             end   
             
-            limit();
+            limit();    % Make sure we do not overstep...
             
-            daqOut();
-            setPos();
+            daqOut();   % (piezos, galvos)
+            setPos();   % (micrometers)
         end
     end
-    function closeRequest(src,callbackdata)
+    function closeRequest(~,~)
         display('Starting Deinitialization Sequence');
         c.running = false;
         c.outputEnabled = false;
         
-        try
+        try     % Release the Micrometers
             cmd(c.microXSerial, c.microXAddr, 'RS');
             fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
 
@@ -354,7 +343,7 @@ function varargout = diamondControl(varargin)
             display(err.message);
         end
         
-        try
+        try     % Reset and release the DAQ devices
             daqOutSmooth([0 0 0 0 0]);
             
             c.s.release();   
@@ -363,6 +352,7 @@ function varargout = diamondControl(varargin)
             display(err.message);
         end
         
+        % Release the graphics
         delete(c.imageAxes);
         delete(c.upperAxes);
         delete(c.lowerAxes);
@@ -373,70 +363,67 @@ function varargout = diamondControl(varargin)
 
     % OUTPUTS =============================================================
     % --- INIT ------------------------------------------------------------
-    function microInit_Callback(hObject, ~)
-        if c.microInitiated == 0
+    function microInit_Callback(~, ~)
+        while c.microInitiated == 0
             display('Starting Initialization Sequence');
-            while c.microInitiated == 0
-                try
-                    % X-axis actuator =====
-                    c.microXPort = 'COM5'; % USB Port that X is connected to (we view it as a serial port)
-                    c.microXAddr = '1';
+            try
+                % X-axis actuator =====
+                c.microXPort = 'COM5'; % USB Port that X is connected to (we view it as a serial port)
+                c.microXAddr = '1';
 
-                    c.microXSerial = serial(c.microXPort);
-                    set(c.microXSerial, 'BaudRate', 921600, 'DataBits', 8, 'Parity', 'none', 'StopBits', 1, ...
-                        'FlowControl', 'software', 'Terminator', 'CR/LF');
-                    fopen(c.microXSerial);
+                c.microXSerial = serial(c.microXPort);
+                set(c.microXSerial, 'BaudRate', 921600, 'DataBits', 8, 'Parity', 'none', 'StopBits', 1, ...
+                    'FlowControl', 'software', 'Terminator', 'CR/LF');
+                fopen(c.microXSerial);
 
-                    pause(.25);
+                pause(.25);
 
-    %                 cmd(c.microXSerial, c.microXAddr, 'PW1'); 
-                    cmd(c.microXSerial, c.microXAddr, 'HT1'); 
-                    cmd(c.microXSerial, c.microXAddr, 'SL-5');  % negative software limit x=-5
-                    cmd(c.microXSerial, c.microXAddr, 'BA0.005');% backlash compensation
-                    cmd(c.microXSerial, c.microXAddr, 'PW0');
+%                 cmd(c.microXSerial, c.microXAddr, 'PW1'); 
+                cmd(c.microXSerial, c.microXAddr, 'HT1'); 
+                cmd(c.microXSerial, c.microXAddr, 'SL-5');  % negative software limit x=-5
+                cmd(c.microXSerial, c.microXAddr, 'BA0.005');% backlash compensation
+                cmd(c.microXSerial, c.microXAddr, 'PW0');
 
-                    pause(.25);
+                pause(.25);
 
-                    cmd(c.microXSerial, c.microXAddr, 'OR'); %Get to home state (should retain position)
+                cmd(c.microXSerial, c.microXAddr, 'OR'); %Get to home state (should retain position)
 
-                    pause(.25);
+                pause(.25);
 
-                    display('Done Initializing X Axis');
+                display('Done Initializing X Axis');
 
 
-                    % Y-axis actuator =====
-                    c.microYPort = 'COM6'; % USB Port that Y is connected to (we view it as a serial port)
-                    c.microYAddr = '1';
+                % Y-axis actuator =====
+                c.microYPort = 'COM6'; % USB Port that Y is connected to (we view it as a serial port)
+                c.microYAddr = '1';
 
-                    c.microYSerial = serial(c.microYPort);
-                    set(c.microYSerial,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
-                        'FlowControl', 'software','Terminator', 'CR/LF');
-                    fopen(c.microYSerial);
+                c.microYSerial = serial(c.microYPort);
+                set(c.microYSerial,'BaudRate',921600,'DataBits',8,'Parity','none','StopBits',1, ...
+                    'FlowControl', 'software','Terminator', 'CR/LF');
+                fopen(c.microYSerial);
 
-                    pause(.25);
+                pause(.25);
 
-    %                 cmd(c.microYSerial, c.microYAddr, 'PW1'); 
-                    cmd(c.microYSerial, c.microYAddr, 'HT1'); 
-                    cmd(c.microYSerial, c.microYAddr, 'SL-5');   % negative software limit y=-5
-                    cmd(c.microYSerial, c.microYAddr, 'BA0.005'); % backlash compensation
-                    cmd(c.microYSerial, c.microYAddr, 'PW0');
+%                 cmd(c.microYSerial, c.microYAddr, 'PW1'); 
+                cmd(c.microYSerial, c.microYAddr, 'HT1'); 
+                cmd(c.microYSerial, c.microYAddr, 'SL-5');   % negative software limit y=-5
+                cmd(c.microYSerial, c.microYAddr, 'BA0.005'); % backlash compensation
+                cmd(c.microYSerial, c.microYAddr, 'PW0');
 
-                    pause(.25);
+                pause(.25);
 
-                    cmd(c.microYSerial, c.microYAddr, 'OR'); % Go to home state
+                cmd(c.microYSerial, c.microYAddr, 'OR'); % Go to home state
 
-                    pause(.25);
+                pause(.25);
 
-                    display('Done Initializing Y Axis');
+                display('Done Initializing Y Axis');
 
-                    c.microInitiated = 1;
+                c.microInitiated = 1;
 
-                    set(c.microText, 'ForegroundColor', 'black');
-                catch err
-                    display(err.message);
-    %                 disp('Controller Disconnected !!!');
-                end   
-            end
+                set(c.microText, 'ForegroundColor', 'black');
+            catch err
+                display(err.message);
+            end   
         end
     end
     function daqInit_Callback(~, ~)
@@ -466,23 +453,24 @@ function varargout = diamondControl(varargin)
         end
     end
     function videoInit()
+        % Get video source
         c.vid = videoinput('avtmatlabadaptor64_r2009b', 1, 'F0M5_Mono8_640x480');
-        src = getselectedsource(c.vid);
+%         src = getselectedsource(c.vid);
 
         c.vid.FramesPerTrigger = 1;
-
+        
+        % Send the image from the source to the imageAxes
         axes(c.imageAxes);
-
         vidRes = c.vid.VideoResolution;
         nBands = c.vid.NumberOfBands;
         hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(1) 1]);
-
         preview(c.vid, hImage);
 
 %         set(c.imageAxes, 'ButtonDownFcn', @makePopout_Callback);
 %         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
     end
     function initAll()
+        % Self-explainitory
         daqInit_Callback(0,0);
         videoInit();
         microInit_Callback(0,0);
@@ -523,7 +511,7 @@ function varargout = diamondControl(varargin)
         end
     end
     function setPos()
-        % Set the position of the micrometers if the micrometers are
+        % Sets the position of the micrometers if the micrometers are
         % initiated and output is enabled.
         if c.outputEnabled && c.microInitiated
             cmd(c.microXSerial, c.microXAddr, ['SE' num2str(c.micro(1)/1000)]); % Remember that c.micro is in um and we must convert to mm
@@ -547,13 +535,13 @@ function varargout = diamondControl(varargin)
         set(c.piezoZZ, 'String', c.piezo(3));
     end
     % --- GOTO/SMOOTH OUT -------------------------------------------------
-    function goto_Callback(hObject, ~)
+    function goto_Callback(~, ~)
         % Set the micrometers to the XY values in the goto box
         c.micro = [str2double(get(c.gotoMX, 'String')) str2double(get(c.gotoMY, 'String'))];
         setPos();
         renderUpper();
     end
-    function gotoActual_Callback(hObject, ~)
+    function gotoActual_Callback(~, ~)
         % Sets the goto box to the current 'actual' position of the
         % micrometers
         set(c.gotoMX, 'String', c.microActual(1));
@@ -579,52 +567,61 @@ function varargout = diamondControl(varargin)
         end
     end
     function gotoPiezo_Callback(~, ~)
+        % Sends the piezos to the location currently stored in the fields.
         piezoOutSmooth([str2double(get(c.gotoPX, 'String')) str2double(get(c.gotoPY, 'String')) str2double(get(c.gotoPZ, 'String'))]);
     end
     function gotoGalvo_Callback(~, ~)
+        % Sends the galvos to the location currently stored in the fields.
         galvoOutSmooth([str2double(get(c.gotoGX, 'String')) str2double(get(c.gotoGY, 'String'))]);
     end
     function daqOutSmooth(to)
+        % Smoothly sends all the DAQ devices to the location defined by 'to'.
         if c.outputEnabled && c.daqInitiated
-            prev = [c.piezo c.galvo];
-            c.piezo = to(1:3);
+            prev = [c.piezo c.galvo];   % Get the previous location.
+            c.piezo = to(1:3);          % Set the new location.
             c.galvo = to(4:5);
             
-            limit();
+            limit();                    % Make sure we aren't going over-bounds.
             
             steplist = [c.piezoStep c.piezoStep c.piezoStep c.galvoStep c.galvoStep];
             
-            steps = round(max(abs([c.piezo c.galvo] - prev)./steplist));
+            steps = round(max(abs([c.piezo c.galvo] - prev)./steplist));    % Calculates which device 'furthest away from the target' and uses that device to define the speed.
+            c.s.Rate = 1000;
             
-            if steps > 0    % If the galvo isn't already there...
+            if steps > 0    % If there is something to do...
                 queueOutputData(c.s,   [linspace(prev(1), c.piezo(1), steps)'  linspace(prev(2), c.piezo(2), steps)' linspace(prev(3), c.piezo(3), steps)' linspace(prev(4), c.galvo(1), steps)' linspace(prev(5), c.galvo(2), steps)']);
                 c.s.startForeground();
             end
             
-            getCurrent();
+            getCurrent();   % Sets the UI to the current location.
         end
     end
     function piezoOutSmooth(to)
+        % Only modifies the piezo.
         daqOutSmooth([to c.galvo]);
     end
     function galvoOutSmooth(to)
+        % Only modifies the galvo.
         daqOutSmooth([c.peizo to]);
     end
     function daqOut()
+        % Abruptly sends all the DAQ devices to the location defined by 'to'.
         if c.outputEnabled && c.daqInitiated
             c.s.outputSingleScan([c.piezo c.galvo]);
         end
-        getCurrent();
+        getCurrent();       % Sets the UI to the current location.
     end
     % --- RESETS ----------------------------------------------------------
-    function resetMicro_Callback(hObject, ~)
+    function resetMicro_Callback(~, ~)
         c.micro = [0 0];
         setPos();
     end
     function resetPeizoXY_Callback(~, ~)
+        piezoOutSmooth([0 0 c.piezo(3)]);   % Always approach from [0 0]
         piezoOutSmooth([5 5 c.piezo(3)]);
     end
     function resetPeizo_Callback(~, ~)
+        piezoOutSmooth([0 0 0]);
         piezoOutSmooth([5 5 0]);
     end
     function resetGalvo_Callback(~, ~)
@@ -901,28 +898,23 @@ function varargout = diamondControl(varargin)
 %         image(flipdim(data,1));
 %     end
     function [x, y] = myMean(data, X, Y)
+        % Calculates the centroid.
         total = sum(sum(data));
-        dim = size(data)
-%         X
-%         1:dim(2)
-%         ((X(1:dim(2)))')
-%         data*((X(1:dim(2)))')
+        dim = size(data);
         x = sum(data*((X((length(X)-dim(2)+1):end))'))/total;
-%         Y
-%         1:dim(1)
-%         (Y(1:dim(1)))
-%         (Y(1:dim(1)))*data
         y = sum((Y((length(Y)-dim(1)+1):end))*data)/total;
     end
 
     % GALVOSCAN ===========================================================
-    function galvoScan_Callback(hObject, ~)
-        galvoScan()
+    function galvoScan_Callback(~, ~)
+        galvoScan(true)
     end
-    function [final] = galvoScan()    
-%         set(c.galvoButton, 'String', 'Stop!');
+    function [final] = galvoScan(useUI)    
+        if useUI
+            set(c.galvoButton, 'String', 'Stop!');
+        end
         
-%         if get(c.galvoButton, 'Value') == 1
+        if get(c.galvoButton, 'Value') == 1 || ~useUI
             % range in microns, speed in microns per second (up is upscan; down is downscan)
             %Scan the Galvo +/- mvConv*range/2 deg
             %min step of DAQ = 20/2^16 = 3.052e-4V
@@ -934,7 +926,7 @@ function varargout = diamondControl(varargin)
             downspeed = c.galvoSpeed*8;
 
             mvConv =    .030/5;    % Micron to Voltage conversion (this is a guess! this should be changed!)
-            steps =      round(c.galvoPixels)
+            steps =      round(c.galvoPixels);
             stepsFast =  round(c.galvoPixels*(upspeed/downspeed));
 
             maxGalvoRange = 5; % This is a likely-incorrect assumption.
@@ -948,10 +940,10 @@ function varargout = diamondControl(varargin)
             down =  linspace(-mvConv*range/2,  mvConv*range/2, stepsFast);
 
             final = ones(steps);
-            prev = 0;
+%             prev = 0;
             i = 1;
             
-            rate = c.galvoPixels*(upspeed/range)
+            rate = c.galvoPixels*(upspeed/range);
             c.s.Rate = rate;
 
             set(c.galvoXX, 'String', '(scanning)');
@@ -967,10 +959,9 @@ function varargout = diamondControl(varargin)
 
             for y = up
                 yCopy = y;
-%                 if get(c.galvoButton, 'Value') == 0
-%                     
-%                     break;
-%                 end
+                if get(c.galvoButton, 'Value') == 0 && useUI
+                    break;
+                end
                 display('up');
                 queueOutputData(c.s, [piezoRows	up'     y*ones(length(up),1)]);
                 [out, ~] = c.s.startForeground();
@@ -1009,10 +1000,12 @@ function varargout = diamondControl(varargin)
 
             c.galvo = [0 0];
             getGalvo();
-%         end
+        end
         
-%         set(c.galvoButton, 'String', 'Scan!');
-%         set(c.galvoButton, 'Value', 0)
+        if useUI
+            set(c.galvoButton, 'String', 'Scan!');
+            set(c.galvoButton, 'Value', 0)
+        end
     end
     function setGalvoAxesLimits()
         xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
@@ -1087,12 +1080,8 @@ function varargout = diamondControl(varargin)
                 R = [str2num(get(c.autonRm, 'String'))  str2num(get(c.autonRM, 'String'))]';
         end
     end
-    function autoTest_Callback(hObject, ~)
-%         try
-            generateGrid();
-%         catch err
-%             display(err.message);
-%         end
+    function autoPreview_Callback(hObject, ~)
+        generateGrid();
     end
     function [p, color, name, len] = generateGrid()
         nxrange = getStoredR('x');    % Range of the major grid
@@ -1124,7 +1113,7 @@ function varargout = diamondControl(varargin)
             error('Grid vectors are not linearly independent!');
         end
 
-        % +++++Broken method with broken logic below:
+        % +++++ Broken method with broken logic below:
 %         % Find the V0 = [x y] of n0 = [0 0]
 %         V0 = V1 - dot(n1, n2-n1)*(V2-V1) - dot(n1, n3-n1)*(V3-V1);
 % 
@@ -1137,7 +1126,7 @@ function varargout = diamondControl(varargin)
 %         % Structure the major grid in matrix form
 %         V = [Vx Vy];
 
-        % +++++Better matrix way:
+        % +++++ Better matrix way:
 %         m =    [n1(1)   n1(2)   0       0       1       0;
 %                 0       0       n1(1)   n1(2)   0       1;
 %                 n2(1)   n2(2)   0       0       1       0;
@@ -1152,7 +1141,7 @@ function varargout = diamondControl(varargin)
 %         V =     [x(1) x(2); x(3) x(4); 0 0]
 %         V0 =    [x(5) x(6) 0]'
         
-        % +++++Even better matrix way:
+        % +++++ Even better matrix way:
         m =    [n1(1)   n1(2)   1;
                 n2(1)   n2(2)   1;
                 n3(1)   n3(2)   1];
@@ -1215,7 +1204,7 @@ function varargout = diamondControl(varargin)
         
         len = i-1;
         
-        c.pv = p;
+        c.pv = p;           % Transportation variables
         c.pc = color;
 
 %         xlim(c.upperAxes, [min(p(1,:)) max(p(1,:))]);
@@ -1223,9 +1212,12 @@ function varargout = diamondControl(varargin)
 %         scatter(c.upperAxes, p(1,:), p(2,:), 36, color);
     end
     function automate_Callback(hObject, ~)
-        automate();
+        automate(false);
     end
-    function automate()
+    function autoTest_Callback(hObject, ~)
+        automate(true);
+    end
+    function automate(onlyTest)
 %         [V, V0, v, nxrange, nyrange, ndrange] = varin;
 
         clk = clock;
@@ -1261,41 +1253,43 @@ function varargout = diamondControl(varargin)
                 renderUpper();
             end
             
-%             piezoOutSmooth([5 5 p(3,i)]);
+            piezoOutSmooth([5 5 p(3,i)]);
 
             display(['Arrived at' name{i}]);
-            display('  Focusing...');
+            
+            if ~onlyTest
+                display('  Focusing...');
 
-            focus_Callback(0, 0);
-            
-            display('  Optimizing...');
-            
-            piezoOptimizeXY();
-            piezoOptimizeZ();
-            piezoOptimizeXY();
-            piezoOptimizeZ();
-            
-            display('  Scanning...');
+                focus_Callback(0, 0);
 
-            scan = galvoScan();
-            
-            display('  Saving...');
+                display('  Optimizing...');
 
-            save([prefix name{i} '_galvo' '.mat'], 'scan');
-            
-            imwrite(scan/max(max(scan)), [prefix name{i} '_galvo' '.png']);
-            
-            start(c.vid);
-            data = getdata(c.vid);
-            img = data(121:360, 161:480);
-            imwrite(img, [prefix name{i} '_blue' '.png']);
-            
-            display('  Finished...');
-            
-            while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
-                pause(.5);
+                piezoOptimizeXY();
+                piezoOptimizeZ();
+                piezoOptimizeXY();
+                piezoOptimizeZ();
+
+                display('  Scanning...');
+
+                scan = galvoScan();
+
+                display('  Saving...');
+
+                save([prefix name{i} '_galvo' '.mat'], 'scan');
+
+                imwrite(scan/max(max(scan)), [prefix name{i} '_galvo' '.png']);
+
+                start(c.vid);
+                data = getdata(c.vid);
+                img = data(121:360, 161:480);
+                imwrite(img, [prefix name{i} '_blue' '.png']);
+
+                display('  Finished...');
+
+                while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
+                    pause(.5);
+                end
             end
-
         end
         
         display('Totally Finished!');
@@ -1524,7 +1518,7 @@ function varargout = diamondControl(varargin)
             end
         end
     end
-    function makePopout_Callback(hObject, ~)
+    function makePopout_Callback(~, ~)
         display('here');
         fig = figure();
         copyobj(c.imageAxes, fig);  % Temporary; need to figure out how to make this universal (type issues and parent problems)...

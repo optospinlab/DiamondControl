@@ -414,10 +414,11 @@ c.autoTab =         uitab(c.automationPanel, 'Title', 'Automation!');
     c.autoV4Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-28*bh bw/2 bh]);
     c.autoV4Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plh-bp-28*bh bw bh]);
 
-    c.autoTest =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Preview Path', 'Position', [bp	plh-bp-30*bh 2*bw+bp bh]);
-    c.autoButton =  uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plh-bp-31*bh 2*bw+bp bh]);
-    c.autoAutoProceed = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plh-bp-32*bh bw bh], 'HorizontalAlignment', 'left');
-    c.autoProceed = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plh-bp-32*bh bw bh]);
+    c.autoPreview =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton','String', 'Preview Path', 'Position', [bp	plh-bp-30*bh 2*bw+bp bh]);
+    c.autoTest =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Preview Path', 'Position', [bp	plh-bp-31*bh 2*bw+bp bh]);
+    c.autoButton =  uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plh-bp-32*bh 2*bw+bp bh]);
+    c.autoAutoProceed = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plh-bp-33*bh bw bh], 'HorizontalAlignment', 'left');
+    c.autoProceed = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plh-bp-33*bh bw bh]);
     c.proceed = false;  % Variable for whether to proceed or not.
     
     
