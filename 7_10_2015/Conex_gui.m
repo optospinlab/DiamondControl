@@ -84,17 +84,33 @@ while ~0
         
         
             frame = getsnapshot(vid);
-
-            f = fspecial('unsharp', .1); % Create mask
-            out = imfilter(frame, f); % Filter the image
-            
-            set(h1,'CData',flipdim(out,1));         
-            BW = im2bw(flipdim(out,1),0.7);
-            
-           [centers, radii] = imfindcircles(BW,[12 20])
-           x=viscircles(centers, radii,'EdgeColor','b');
            
+             f = fspecial('unsharp', 0.01);
+             I1 = imfilter(flipdim(frame,1), f);
+    
+             %adjust contrast
+             Ix = imtophat(I1,strel('disk',33));
+             I2 = imadjust(Ix);
+             set(h1,'CData', I2)
+             
+             IBW=im2bw(I2,0.6)
+             [centers, radii] = imfindcircles(IBW,[12 22])
+             try
+                 delete(hg1);
+                 delete(hg2);
+             catch
+             end
+            hg1=viscircles(centers, radii,'EdgeColor','b')
             
+    
+            try
+            mserRegions = detectMSERFeatures(I2,'RegionAreaRange',[400 600], 'ThresholdDelta', 0.5,'MaxAreaVariation',0.05);
+            hold on;
+            hg2=plot(mserRegions, 'showPixelList', false,'showEllipses',true);
+            catch
+            disp('Null')
+            end
+             
     catch
         disp('GUI CLOSED');
         % Should I move to zero position before shutdown??
@@ -119,8 +135,8 @@ while ~0
         end
         break;
     end  
-    pause(0.1); % run every 0.1sec
-    delete(x)
+        pause(0.1); % run every 0.1sec
+   
 end
 varargout{1} = handles.output;
 

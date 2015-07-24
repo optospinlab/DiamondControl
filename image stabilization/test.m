@@ -33,36 +33,47 @@ vid = videoinput('avtmatlabadaptor64_r2009b', 1);
 vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
 closepreview;  %close preview if still running
 
-while run
+%while run
     frame = getsnapshot(vid);
+    close all
     
-    axes(handles.axes1);
+    figure
     imagesc(flipdim(frame,1)); colormap('Gray');
     
-    f = fspecial('unsharp', 0.25); % Create mask
-    out = imfilter(flipdim(frame,1), f); % Filter the image
-%     
-%     BW = im2bw(frame,0.7);
+    tic
+    %sharpen image
+    f = fspecial('unsharp', 0.1);
+    I1 = imfilter(flipdim(frame,1), f);
     
-    axes(handles.axes2);
-    
-    mserRegions = detectMSERFeatures(out,'RegionAreaRange',[400 600], 'ThresholdDelta', 0.5,'MaxAreaVariation',0.05);
-    imshow(out);
-    
+    %adjust contrast
+    %figure 
+    Ix = imtophat(I1,strel('disk',33));
+    I2 = imadjust(Ix);
+    imshow(I2);
+     
+    %axes(handles.axes2);
+    mserRegions = detectMSERFeatures(I2,'RegionAreaRange',[400 600], 'ThresholdDelta', 0.5,'MaxAreaVariation',0.05);
     hold on;
+    
     try
     plot(mserRegions, 'showPixelList', false,'showEllipses',true);
     title('MSER regions'); hold off;
     catch
         disp('Null')
     end
-    
-%    [centers, radii] = imfindcircles(BW,[12 20])
-%    viscircles(centers, radii,'EdgeColor','b')
+    toc
+   
+    %edge detection
+%     figure
+%      BW = edge(I2,'canny');
+%      imshow(BW)
+     IBW=im2bw(I2,0.5)
+    [centers, radii] = imfindcircles(IBW,[12 23])
+   viscircles(centers, radii,'EdgeColor','b')
     
     pause(0.5)
-end
-close all;
+%end
+%close all;
 varargout{1} = handles.output;
 
 
