@@ -1025,51 +1025,6 @@ function varargout = diamondControl(varargin)
         end
     end
 
-    % SPECTROMETER ========================================================
-    function sendSpectrumTrigger()
-        % create the trigger file
-        f = fopen('z:\WinSpec_Scan\matlabfile.txt', 'w');  
-        if (f == -1) 
-            error('oops, file cannot be written'); 
-        end 
-        fprintf(f, 'Trigger Spectrum\n');
-        fclose(f);
-    end
-    function image = waitForSpectrum(filename)
-        file = '';
-        image = -1;
-        
-        while 1
-            try
-                disp('waiting')
-                d = dir('Z:\WinSpec_Scan\s*.*');
-                disp(d);
-                
-                file = ['Z:\WinSpec_Scan\' d.name];
-                image = readSPE(file);
-            catch error
-                disp(error)
-                pause(1)
-            end
-            if image ~=-1
-                break
-            end
-        end
-        disp('got the data!');
-
-        %plot data -> delete file
-%         plot(1:512,image)
-%         axis([1 512 min(image) max(image)])
-        
-        if filename ~= 0    % If there is a filename, save there.
-            save([filename '.mat'],'image');
-            disp('Saved .mat file and cleared folder')
-            movefile(file, [filename '.SPE']);
-        else                % Otherwise only delete
-            delete(file);
-        end
-    end
-
     % AUTOMATION ==========================================================
     function setCurrent_Callback(hObject, ~)
         switch hObject
@@ -1318,11 +1273,6 @@ function varargout = diamondControl(varargin)
 
                 scan = galvoScan();
 
-                display('  Taking Spectrum...');
-
-                sendSpectrumTrigger()
-                waitForSpectrum([prefix name{i} '_spectrum'])
-
                 display('  Saving...');
 
                 save([prefix name{i} '_galvo' '.mat'], 'scan');
@@ -1560,8 +1510,6 @@ function varargout = diamondControl(varargin)
         end
     end
     function fixRange(smallObj, largeObj, refObj)
-        % This function makes sure maximums are never less than minimums
-        % and visa versa. The non-refObj is shifted to make this happen.
         if str2double(get(smallObj, 'String')) > str2double(get(largeObj, 'String'))
             if smallObj == refObj
                 set(largeObj, 'String', get(smallObj, 'String'));
@@ -1571,36 +1519,40 @@ function varargout = diamondControl(varargin)
         end
     end
     function makePopout_Callback(~, ~)
-        % This will (eventually) be used to popout graphs so they can be
-        % maximized or moved elsewhere.
         display('here');
         fig = figure();
         copyobj(c.imageAxes, fig);  % Temporary; need to figure out how to make this universal (type issues and parent problems)...
         set(c.imageAxes, 'Position', [.13 .11 .77 .815], 'ButtonDownFcn', []);
     end
     function bool = myIn(num, range)
-        % Funciton to determine whether a number is in a certain range -
-        % currently unused.
         bool = (num > range(1)) && (num < range(2));
     end
-
-
     function counter_Callback(hObject, ~)
-        display('counter');
-        if ~c.isCounting && hObject ~= 0 && get(hObject, 'Value') == 1  % Logic for whether to start counting
+        if hObject ~= 0 && get(hObject, 'Value') == 1
+            c.sC = daq.createSession('ni');
+            c.sC.addCounterInputChannel(c.devSPCM,    c.chnSPCM,  'EdgeCount');
+%             c.sC.addAnalogInputChannel(c.devSPCM,     'ai0',      'Voltage');
+
+%             c.sC.NumberOfScans = 1000;
+%             c.sC.Rate = c.rateC;
+%             c.sC.IsNotifyWhenDataAvailableExceedsAuto = false;
+%             c.sC.NotifyWhenDataAvailableExceeds = 1;
             c.lhC = timer; % c.sC.addlistener('DataAvailable', @counterListener);
             c.lhC.TasksToExecute = Inf;
             c.lhC.Period = 1; %1/c.rateC;
-            c.lhC.TimerFcn = @(~,~)counterListener;
+            c.lhC.TimerFcn = @(~,~)display('here'); %counterListener;
             c.lhC.StartDelay = 0;
             c.lhC.StartFcn = [];
-            c.lhC.StopFcn = [];
-            c.lhC.ErrorFcn = [];
-
+        	c.lhC.StopFcn = [];
+        	c.lhC.ErrorFcn = [];
+            
             start(c.lhC);
 
             c.dataC = zeros(1, c.lenC);
-        elseif c.isCounting && ((hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0))   % Logic for whether to stop counting
+        elseif (hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0)
+            stop(c.sC);
+            c.sC.release();
+
             stop(c.lhC);
             delete(c.lhC);
         end
@@ -1609,19 +1561,18 @@ function varargout = diamondControl(varargin)
 %         c.sC.NumberOfScans = 8;
         c.dataC = circshift(c.dataC, [0 1]);
         
-        out = c.s.inputSingleScan()
+        out = c.sC.inputSingleScan()
         
-        c.dataC(1) = c.rateC*out; % - c.prevC;
-        c.prevC = c.rateC*out;
+        c.dataC(1) = c.rateC*out;
         
-        if c.iC < c.lenC            % This counter tells us how much of the data should be shown.
+        if c.iC < c.lenC
             c.iC = c.iC + 1;
         end
         
         cm = min(c.dataC(1:c.iC)); cM = max(c.dataC(1:c.iC)); cA = (cm + cM)/2; cO = .55*(cM - cm) + 1;
         
         if c.iC > 2
-            plot(c.counterAxes, 1:c.iC, c.dataC(1:c.iC));   % We show only c.iC points.
+            plot(c.counterAxes, 1:c.iC, c.dataC(1:c.iC));
             xlim(c.counterAxes, [1 c.lenC]);
             ylim(c.counterAxes, [cA - cO cA + cO]);
         end

@@ -225,14 +225,13 @@ c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
 
 c.counterTab =  uitab(c.automationPanel, 'Title', 'Counter');
     c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plh-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left');
+    c.sC = 0;       % Empty variable for the counter channel;
     c.lhC = 0;      % Empty variable for counter listener;
     c.dataC = [];   % Empty variable for counter data;
     c.rateC = 1;    % rate: scans/sec
     c.lenC = 1000;  % len:  scans/graph
     c.iC = 0;
     c.prevC = 0;
-    c.isCounting = false;   % Boolean for other processes to look at
-    
 % c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
 %     c.boxInfo =     uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'This draws a box on the screen, depending upon the given points.', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-4*bh 2*bw 2*bh]);
 %     c.boxLabel =    uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'Save Current Position As...', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-5*bh 2*bw bh]);
