@@ -1025,6 +1025,51 @@ function varargout = diamondControl(varargin)
         end
     end
 
+    % SPECTROMETER ========================================================
+    function sendSpectrumTrigger()
+        % create the trigger file
+        f = fopen('z:\WinSpec_Scan\matlabfile.txt', 'w');  
+        if (f == -1) 
+            error('oops, file cannot be written'); 
+        end 
+        fprintf(f, 'Trigger Spectrum\n');
+        fclose(f);
+    end
+    function image = waitForSpectrum(filename)
+        file = '';
+        image = -1;
+        
+        while 1
+            try
+                disp('waiting')
+                d = dir('Z:\WinSpec_Scan\s*.*');
+                disp(d);
+                
+                file = ['Z:\WinSpec_Scan\' d.name];
+                image = readSPE(file);
+            catch error
+                disp(error)
+                pause(1)
+            end
+            if image ~=-1
+                break
+            end
+        end
+        disp('got the data!');
+
+        %plot data -> delete file
+%         plot(1:512,image)
+%         axis([1 512 min(image) max(image)])
+        
+        if filename ~= 0    % If there is a filename, save there.
+            save([filename '.mat'],'image');
+            disp('Saved .mat file and cleared folder')
+            movefile(file, [filename '.SPE']);
+        else                % Otherwise only delete
+            delete(file);
+        end
+    end
+
     % AUTOMATION ==========================================================
     function setCurrent_Callback(hObject, ~)
         switch hObject
@@ -1272,6 +1317,11 @@ function varargout = diamondControl(varargin)
                 display('  Scanning...');
 
                 scan = galvoScan();
+
+                display('  Taking Spectrum...');
+
+                sendSpectrumTrigger()
+                waitForSpectrum([prefix name{i} '_spectrum'])
 
                 display('  Saving...');
 
@@ -1533,7 +1583,10 @@ function varargout = diamondControl(varargin)
         % currently unused.
         bool = (num > range(1)) && (num < range(2));
     end
+
+
     function counter_Callback(hObject, ~)
+        display('counter');
         if ~c.isCounting && hObject ~= 0 && get(hObject, 'Value') == 1  % Logic for whether to start counting
             c.lhC = timer; % c.sC.addlistener('DataAvailable', @counterListener);
             c.lhC.TasksToExecute = Inf;
