@@ -205,7 +205,7 @@ c.gotoTab =         uitab(c.automationPanel, 'Title', 'Goto');
   
     c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
 
-c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo Scan');
+c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo');
     c.galvoRange =  5;      % 5 um
     c.galvoRangeMax =  50;  % 50 um
     c.galvoRLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp        plh-bp-3*bh bw bh],         'HorizontalAlignment', 'right');
@@ -420,7 +420,7 @@ c.autoTab =         uitab(c.automationPanel, 'Title', 'Automation!');
     c.autoV4Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plh-bp-28*bh bw bh]);
 
     c.autoPreview =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton','String', 'Preview Path', 'Position', [bp	plh-bp-30*bh 2*bw+bp bh]);
-    c.autoTest =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Preview Path', 'Position', [bp	plh-bp-31*bh 2*bw+bp bh]);
+    c.autoTest =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Test Path', 'Position', [bp	plh-bp-31*bh 2*bw+bp bh]);
     c.autoButton =  uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plh-bp-32*bh 2*bw+bp bh]);
     c.autoAutoProceed = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plh-bp-33*bh bw bh], 'HorizontalAlignment', 'left');
     c.autoProceed = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plh-bp-33*bh bw bh]);

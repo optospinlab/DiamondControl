@@ -47,7 +47,7 @@ function varargout = diamondControl(varargin)
     set(c.gotoPFocus,  'Callback', @focus_Callback);                % This uses a contrast-optimization routine to focus using the blue image
     set(c.gotoPOptXY,  'Callback', @optXY_Callback);                % XY and Z opt use filthy count-optimization techniques
     set(c.gotoPOptZ,  'Callback',  @optZ_Callback);
-    set(c.gotoPReset, 'Callback',  @resetPeizoXY_Callback);         % Resets the XY to [5 5], approaching from [0 0]
+    set(c.gotoPReset, 'Callback',  @resetPiezoXY_Callback);         % Resets the XY to [5 5], approaching from [0 0]
     set(c.gotoPTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
     set(c.gotoGButton, 'Callback', @gotoGalvo_Callback);            % GALVO GOTO controls - Goto button sends the galvos to the current fields
@@ -101,6 +101,7 @@ function varargout = diamondControl(varargin)
     set(c.autoV3Get, 'Callback', @setCurrent_Callback);
     set(c.autoV4Get, 'Callback', @setCurrent_Callback);
     
+    set(c.autoPreview, 'Callback',  @autoPreview_Callback);               % Displays the devices that will be tested to an axes. Useful for error-correcting
     set(c.autoTest, 'Callback',  @autoTest_Callback);               % Displays the devices that will be tested to an axes. Useful for error-correcting
     set(c.autoButton, 'Callback',  @automate_Callback);             % Starts the automation!
     set(c.autoProceed, 'Callback',  @proceed_Callback);             % Button to proceed to the next device. The use has the option to use this to proceed or 
@@ -452,7 +453,7 @@ function varargout = diamondControl(varargin)
             
             c.daqInitiated = 1;
             
-            resetPeizoXY_Callback(0, 0);
+            resetPiezoXY_Callback(0, 0);
         end
     end
     function videoInit()
@@ -623,11 +624,11 @@ function varargout = diamondControl(varargin)
         c.micro = [0 0];
         setPos();
     end
-    function resetPeizoXY_Callback(~, ~)
+    function resetPiezoXY_Callback(~, ~)
         piezoOutSmooth([0 0 c.piezo(3)]);   % Always approach from [0 0]
         piezoOutSmooth([5 5 c.piezo(3)]);
     end
-    function resetPeizo_Callback(~, ~)
+    function resetPiezo_Callback(~, ~)
         piezoOutSmooth([0 0 0]);
         piezoOutSmooth([5 5 0]);
     end
@@ -690,7 +691,7 @@ function varargout = diamondControl(varargin)
         piezoOptimizeXY();
     end
     function piezoOptimizeXY()
-        resetPeizoXY_Callback(0, 0);
+        resetPiezoXY_Callback(0, 0);
         
         % Method 1
         range = 1;
@@ -713,7 +714,7 @@ function varargout = diamondControl(varargin)
             
             piezoOutSmooth([upx(end)  upy(end) c.piezo(3)]);
             
-            resetPeizoXY_Callback(0, 0);
+            resetPiezoXY_Callback(0, 0);
             
             piezoOutSmooth([upx(1)  upy(1) c.piezo(3)]);
             
@@ -792,7 +793,7 @@ function varargout = diamondControl(varargin)
                 
                 
                 piezoOutSmooth([upx(end)  upy(end) c.piezo(3)]);
-                resetPeizoXY_Callback(0, 0);
+                resetPiezoXY_Callback(0, 0);
                 piezoOutSmooth([upx(1)  upy(1) c.piezo(3)]);
                 piezoOutSmooth([upx(1)  fy c.piezo(3)]);
                 piezoOutSmooth([fx  fy c.piezo(3)]);
@@ -894,16 +895,6 @@ function varargout = diamondControl(varargin)
             end
         end
     end
-
-
-
-%     function data = displayImage()
-%         start(c.vid);
-%         data = getdata(c.vid)
-%         
-%         axes(c.imageAxes);
-%         image(flipdim(data,1));
-%     end
     function [x, y] = myMean(data, X, Y)
         % Calculates the centroid.
         total = sum(sum(data));
@@ -911,6 +902,13 @@ function varargout = diamondControl(varargin)
         x = sum(data*((X((length(X)-dim(2)+1):end))'))/total;
         y = sum((Y((length(Y)-dim(1)+1):end))*data)/total;
     end
+%     function data = displayImage()
+%         start(c.vid);
+%         data = getdata(c.vid)
+%         
+%         axes(c.imageAxes);
+%         image(flipdim(data,1));
+%     end
 
     % GALVOSCAN ===========================================================
     function galvoScan_Callback(~, ~)
@@ -1048,7 +1046,7 @@ function varargout = diamondControl(varargin)
         file = '';
         image = -1;
         
-        while 1
+        while c.running
             try
                 disp('waiting')
                 d = dir('Z:\WinSpec_Scan\s*.*');
@@ -1063,21 +1061,24 @@ function varargout = diamondControl(varargin)
                 break
             end
         end
-        disp('got the data!');
+        
+        if c.running
+            disp('got the data!');
 
-        %plot data -> delete file
-%         plot(1:512,image)
-%         axis([1 512 min(image) max(image)])
-        
-        if filename ~= 0    % If there is a filename, save there.
-            save([filename '.mat'],'image');
-            disp('Saved .mat file and cleared folder')
-            movefile(file, [filename '.SPE']);
-        else                % Otherwise only delete
-            delete(file);
+            %plot data -> delete file
+    %         plot(1:512,image)
+    %         axis([1 512 min(image) max(image)])
+
+            if filename ~= 0    % If there is a filename, save there.
+                save([filename '.mat'],'image');
+                disp('Saved .mat file and cleared folder')
+                movefile(file, [filename '.SPE']);
+            else                % Otherwise only delete
+                delete(file);
+            end
+
+            set(c.spectrumButton, 'Enable', 'on');
         end
-        
-        set(c.spectrumButton, 'Enable', 'on');
     end
     function takeSpectrum_Callback(~,~)
         sendSpectrumTrigger();
@@ -1303,14 +1304,22 @@ function varargout = diamondControl(varargin)
         
         original = c.micro;
         
+        resetPiezoXY_Callback(0,0);
+        
         for i = 1:len
-            c.micro = p(1:2,i)';
-            
-            % Need to set Z also...
-
+            c.micro = p(1:2,i)' - [5 5];
             setPos();
 
-            while sum(abs(c.microActual - p(1:2,i)')) > .1
+            while sum(abs(c.microActual - c.micro)) > .1
+                pause(.1);
+                getPos();
+                renderUpper();
+            end
+            
+            c.micro = p(1:2,i)';
+            setPos();
+
+            while sum(abs(c.microActual - c.micro)) > .1
                 pause(.1);
                 getPos();
                 renderUpper();
@@ -1320,10 +1329,11 @@ function varargout = diamondControl(varargin)
 
             display(['Arrived at' name{i}]);
             
-            if ~onlyTest
-                display('  Focusing...');
+            display('  Focusing...');
 
-                focus_Callback(0, 0);
+            focus_Callback(0, 0);
+            
+            if ~onlyTest
 
                 display('  Optimizing...');
 
@@ -1357,6 +1367,8 @@ function varargout = diamondControl(varargin)
                 while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
                     pause(.5);
                 end
+            else
+                pause(.5);
             end
         end
         
@@ -1595,6 +1607,8 @@ function varargout = diamondControl(varargin)
     function bool = myIn(num, range)
         bool = (num > range(1)) && (num < range(2));
     end
+
+    % COUNTER =============================================================
     function counter_Callback(hObject, ~)
         display('Counting started.');
         if hObject ~= 0 && get(hObject, 'Value') == 1
@@ -1607,12 +1621,12 @@ function varargout = diamondControl(varargin)
 %             c.lhC.StartFcn = [];
 %         	c.lhC.StopFcn = [];
 %         	c.lhC.ErrorFcn = [];
-            
-            start(c.lhC);
 
             c.dataC = zeros(1, c.lenC);
-            
+            c.iC = 0;
             c.isCounting = 1;
+            
+            start(c.lhC);
         elseif (hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0)
             stop(c.lhC);
             delete(c.lhC);
@@ -1620,7 +1634,7 @@ function varargout = diamondControl(varargin)
         end
     end
     function counterListener(~, ~)
-        display('  Counting...');
+%         display('  Counting...');
 %         c.sC.NumberOfScans = 8;
         c.dataC = circshift(c.dataC, [0 1]);
         
