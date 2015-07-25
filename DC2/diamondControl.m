@@ -105,8 +105,11 @@ function varargout = diamondControl(varargin)
     set(c.autoButton, 'Callback',  @automate_Callback);             % Starts the automation!
     set(c.autoProceed, 'Callback',  @proceed_Callback);             % Button to proceed to the next device. The use has the option to use this to proceed or 
                                                                     % to autoproceed using a checkbox.
-    % Counter Fields (unfinished) -----------------------------------------
+    % Counter Fields -----------------------------------------
     set(c.counterButton, 'Callback',  @counter_Callback);           
+                                       % to autoproceed using a checkbox.
+    % Spectra Fields (unfinished) -----------------------------------------
+    set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);           
     
     % UI Fields -----------------------------------------------------------
 %     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);        % Currently not functioning
@@ -214,7 +217,7 @@ function varargout = diamondControl(varargin)
 
             % From the pov angle, compute the direction of movement in XY
             if p ~= -1
-                pov = [dir(sind(p)) (-dir(cosd(p)))];
+                pov = [direction(sind(p)) (-direction(cosd(p)))];
             else
                 pov = [0 0];
             end
@@ -250,7 +253,7 @@ function varargout = diamondControl(varargin)
             speed = num*num*num/(ignore*ignore*ignore*8); % *dir(num);
         end
     end
-    function out = dir(num)
+    function out = direction(num)
         % Returns the DIRection of a NUMber as OUT = 1, 0 ,-1. e.g. dir(3) = 1, dir(-3) = -1
         if num == 0
             out = 0;
@@ -470,16 +473,20 @@ function varargout = diamondControl(varargin)
 %         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
     end
     function initAll()
-        % Self-explainitory
-        daqInit_Callback(0,0);
-        videoInit();
-        microInit_Callback(0,0);
-        
-        focus_Callback(0,0);
-        
-        getCurrent();
-        
-        c.running = 1;
+        % Self-explainatory
+        try
+            daqInit_Callback(0,0);
+            videoInit();
+            microInit_Callback(0,0);
+
+            focus_Callback(0,0);
+
+            getCurrent();
+
+            c.running = 1;
+        catch err
+            display(err.message);
+        end
     end
     % --- MICROMETER ------------------------------------------------------
     function out = pos(serial_obj, device_addr)
@@ -1025,6 +1032,62 @@ function varargout = diamondControl(varargin)
         end
     end
 
+    % SPECTROMETER ========================================================
+    function sendSpectrumTrigger()
+        set(c.spectrumButton, 'Enable', 'off');
+        
+        % create the trigger file
+        fh = fopen('Z:\WinSpec_Scan\matlabfile.txt', 'w');  
+        if (fh == -1) 
+            error('oops, file cannot be written'); 
+        end 
+        fprintf(fh, 'Trigger Spectrum\n');
+        fclose(fh);
+    end
+    function image = waitForSpectrum(filename)
+        file = '';
+        image = -1;
+        
+        while 1
+            try
+                disp('waiting')
+                d = dir('Z:\WinSpec_Scan\s*.*');
+                
+                file = strcat('Z:\WinSpec_Scan\', d.name);
+                image = readSPE(file);
+            catch error
+                disp(error)
+                pause(1)
+            end
+            if image ~=-1
+                break
+            end
+        end
+        disp('got the data!');
+
+        %plot data -> delete file
+%         plot(1:512,image)
+%         axis([1 512 min(image) max(image)])
+        
+        if filename ~= 0    % If there is a filename, save there.
+            save([filename '.mat'],'image');
+            disp('Saved .mat file and cleared folder')
+            movefile(file, [filename '.SPE']);
+        else                % Otherwise only delete
+            delete(file);
+        end
+        
+        set(c.spectrumButton, 'Enable', 'on');
+    end
+    function takeSpectrum_Callback(~,~)
+        sendSpectrumTrigger();
+        image = waitForSpectrum(0);
+        
+        plot(c.lowerAxes, 1:512, image)
+        xlim(c.lowerAxes, [1 512]);
+        ylim(c.lowerAxes, [min(image) max(image)]);
+    end
+
     % AUTOMATION ==========================================================
     function setCurrent_Callback(hObject, ~)
         switch hObject
@@ -1272,6 +1335,11 @@ function varargout = diamondControl(varargin)
                 display('  Scanning...');
 
                 scan = galvoScan();
+                
+                display('  Taking Spectrum...');
+
+                sendSpectrumTrigger()
+                waitForSpectrum([prefix name{i} '_spectrum'])
 
                 display('  Saving...');
 
@@ -1519,7 +1587,7 @@ function varargout = diamondControl(varargin)
         end
     end
     function makePopout_Callback(~, ~)
-        display('here');
+        display('POPOUT');
         fig = figure();
         copyobj(c.imageAxes, fig);  % Temporary; need to figure out how to make this universal (type issues and parent problems)...
         set(c.imageAxes, 'Position', [.13 .11 .77 .815], 'ButtonDownFcn', []);
@@ -1528,40 +1596,40 @@ function varargout = diamondControl(varargin)
         bool = (num > range(1)) && (num < range(2));
     end
     function counter_Callback(hObject, ~)
+        display('Counting started.');
         if hObject ~= 0 && get(hObject, 'Value') == 1
-            c.sC = daq.createSession('ni');
-            c.sC.addCounterInputChannel(c.devSPCM,    c.chnSPCM,  'EdgeCount');
-%             c.sC.addAnalogInputChannel(c.devSPCM,     'ai0',      'Voltage');
-
-%             c.sC.NumberOfScans = 1000;
-%             c.sC.Rate = c.rateC;
-%             c.sC.IsNotifyWhenDataAvailableExceedsAuto = false;
-%             c.sC.NotifyWhenDataAvailableExceeds = 1;
             c.lhC = timer; % c.sC.addlistener('DataAvailable', @counterListener);
             c.lhC.TasksToExecute = Inf;
-            c.lhC.Period = 1; %1/c.rateC;
-            c.lhC.TimerFcn = @(~,~)display('here'); %counterListener;
-            c.lhC.StartDelay = 0;
-            c.lhC.StartFcn = [];
-        	c.lhC.StopFcn = [];
-        	c.lhC.ErrorFcn = [];
+            c.lhC.Period = 1/c.rateC;
+            c.lhC.TimerFcn = @(~,~)counterListener;
+            c.lhC.ExecutionMode = 'fixedSpacing';
+%             c.lhC.StartDelay = 0;
+%             c.lhC.StartFcn = [];
+%         	c.lhC.StopFcn = [];
+%         	c.lhC.ErrorFcn = [];
             
             start(c.lhC);
 
             c.dataC = zeros(1, c.lenC);
+            
+            c.isCounting = 1;
         elseif (hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0)
-            stop(c.sC);
-            c.sC.release();
-
             stop(c.lhC);
             delete(c.lhC);
+            c.isCounting = 0;
         end
     end
     function counterListener(~, ~)
+        display('  Counting...');
 %         c.sC.NumberOfScans = 8;
         c.dataC = circshift(c.dataC, [0 1]);
         
-        out = c.sC.inputSingleScan()
+        try
+            out = c.s.inputSingleScan();
+        catch
+            out = 0;
+            display('counter aquisiton failed');
+        end
         
         c.dataC(1) = c.rateC*out;
         

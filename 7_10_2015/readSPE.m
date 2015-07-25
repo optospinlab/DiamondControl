@@ -106,6 +106,8 @@ if(fd < 0)
     error('Could not open file, bad filename')
 end
 
+% CCDtemperature = getData(fd, '24', 'uint16')     %edit to see the temperature, 7/24/2015
+
 % Get the image dimensions:
 stripDim = getData(fd, '2A', 'uint16');     %first dim
 pixelDim = getData(fd, '290', 'uint16');    %second dim

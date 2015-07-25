@@ -228,10 +228,15 @@ c.counterTab =  uitab(c.automationPanel, 'Title', 'Counter');
     c.sC = 0;       % Empty variable for the counter channel;
     c.lhC = 0;      % Empty variable for counter listener;
     c.dataC = [];   % Empty variable for counter data;
-    c.rateC = 1;    % rate: scans/sec
-    c.lenC = 1000;  % len:  scans/graph
+    c.rateC = 4;    % rate: scans/sec
+    c.lenC = 100;  % len:  scans/graph
     c.iC = 0;
     c.prevC = 0;
+    c.isCounting = 0;
+    
+c.spectraTab =  uitab(c.automationPanel, 'Title', 'Spectra');
+    c.spectrumButton = uicontrol('Parent', c.spectraTab, 'Style', 'pushbutton', 'String', 'Take Spectrum', 'Position', [bp plh-bp-3*bh bp+2*bw bh]);
+    
 % c.boxTab =          uitab(c.automationPanel, 'Title', 'Set Box');
 %     c.boxInfo =     uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'This draws a box on the screen, depending upon the given points.', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-4*bh 2*bw 2*bh]);
 %     c.boxLabel =    uicontrol('Parent', c.boxTab, 'Style', 'text', 'String', 'Save Current Position As...', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plh-bp-5*bh 2*bw bh]);
