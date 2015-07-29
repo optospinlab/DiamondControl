@@ -335,10 +335,28 @@ function varargout = diamondControl(varargin)
             setPos();   % (micrometers)
         end
     end
+    function saveState()
+        piezoZ = c.piezo(3);
+        save('state.mat', 'piezoZ');
+    end
+    function getState()
+        try
+            data = load('state.mat');
+            piezoZ = data.piezoZ;
+        catch err
+            dipslay(err.message);
+            piezoZ = 0;
+        end
+        
+        piezoOutSmooth([c.piezo(1), c.piezo(2), piezoZ]);
+    end
     function closeRequest(~,~)
         display('Starting Deinitialization Sequence');
         c.running = false;
         c.outputEnabled = false;
+        
+        saveState();
+        display('Saved State');
         
         try     % Release the Micrometers
             cmd(c.microXSerial, c.microXAddr, 'RS');
@@ -479,8 +497,7 @@ function varargout = diamondControl(varargin)
 %         set(c.imageAxes, 'ButtonDownFcn', @makePopout_Callback);
 %         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
     end
-
-%     function mypreview_fcn(obj,event,himage)
+        %     function mypreview_fcn(obj,event,himage)
 %         frame = event.Data;
 % 
 %         filter = fspecial('unsharp', 0.01);
@@ -507,16 +524,17 @@ function varargout = diamondControl(varargin)
 %         event.Data=get(temp,'CData');
 %         himage.CData = event.Data;
 %     end
-
     function initAll()
         % Self-explainatory
         try
             daqInit_Callback(0,0);
             videoInit();
             microInit_Callback(0,0);
+            
+            getState()
 
             focus_Callback(0,0);
-
+            
             getCurrent();
 
             c.running = 1;
@@ -930,6 +948,18 @@ function varargout = diamondControl(varargin)
             end
         end
     end
+    function galvoOpt_Callback(~, ~)
+        galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);   % Currently uses GUI values (should change, probably)
+    end
+    function [final] = galvoOptimize(range, upspeed, pixels)
+        [final, D] = galvoScanFull(false, range, upspeed, pixels);
+        
+        [x, y] = myMean(final, D, D);
+        
+        galvoOutSmooth([max(D) min(D)]);
+        galvoOutSmooth([max(D) y]);
+        galvoOutSmooth([x y]);
+    end
     function [x, y] = myMean(data, X, Y)
         % New Method
 %         [labels, ~] = bwlabel(data, 4);
@@ -964,6 +994,9 @@ function varargout = diamondControl(varargin)
         galvoScan(true)
     end
     function [final] = galvoScan(useUI)    
+        [final, ~] = galvoScanFull(useUI, c.galvoRange, c.galvoSpeed, c.galvoPixels);
+    end
+    function [final, D] = galvoScanFull(useUI, range, upspeed, pixels)
         if useUI
             set(c.galvoButton, 'String', 'Stop!');
         end
@@ -975,13 +1008,14 @@ function varargout = diamondControl(varargin)
             %min step of Galvo = 8e-4Deg
             %for galvo [1V->1Deg], 8e-4V->8e-4Deg
 
-            range =     c.galvoRange;
-            upspeed =   c.galvoSpeed;
+%             range =     c.galvoRange;
+%             upspeed =   c.galvoSpeed;
+%             pixels = c.galvoPixels;
             downspeed = c.galvoSpeed*8;
 
             mvConv =    .030/5;    % Micron to Voltage conversion (this is a guess! this should be changed!)
-            steps =      round(c.galvoPixels);
-            stepsFast =  round(c.galvoPixels*(upspeed/downspeed));
+            steps =      round(pixels);
+            stepsFast =  round(pixels*(upspeed/downspeed));
 
             maxGalvoRange = 5; % This is a likely-incorrect assumption.
 
@@ -992,12 +1026,13 @@ function varargout = diamondControl(varargin)
 
             up =    linspace( mvConv*range/2, -mvConv*range/2, steps);
             down =  linspace(-mvConv*range/2,  mvConv*range/2, stepsFast);
+            D = up;
 
             final = ones(steps);
 %             prev = 0;
             i = 1;
             
-            rate = c.galvoPixels*(upspeed/range);
+            rate = pixels*(upspeed/range);
             c.s.Rate = rate;
 
             set(c.galvoXX, 'String', '(scanning)');
@@ -1005,9 +1040,14 @@ function varargout = diamondControl(varargin)
             
             piezoRows = [c.piezo(1)*ones(steps,1) c.piezo(2)*ones(steps,1) c.piezo(3)*ones(steps,1)];
             piezoRowsFast = [c.piezo(1)*ones(stepsFast,1) c.piezo(2)*ones(stepsFast,1) c.piezo(3)*ones(stepsFast,1)];
-
-            queueOutputData(c.s, [piezoRowsFast     linspace(0,  mvConv*range/2, stepsFast)'    linspace(0,  -mvConv*range/2, stepsFast)']);
-            c.s.startForeground();    % Goto starting point from 0,0
+            
+            prev = c.galvo;
+            
+            resetGalvo_Callback(0, 0);
+            galvoOutSmooth([max(up) min(up)]);
+            
+%             queueOutputData(c.s, [piezoRowsFast     linspace(c.galvo(1),  mvConv*range/2, stepsFast)'    linspace(0,  -mvConv*range/2, stepsFast)']);
+%             c.s.startForeground();    % Goto starting point from 0,0
             
             yCopy = 0;
 
@@ -1030,7 +1070,7 @@ function varargout = diamondControl(varargin)
 %                     up
 %                     up(1:i)
 %                     final(1:i,:)
-                    surf(c.lowerAxes, up./mvConv, up((c.galvoPixels-i+1):(c.galvoPixels))./mvConv, final((c.galvoPixels-i+1):(c.galvoPixels),:), 'EdgeColor', 'none');   % Display the graph on the backscan
+                    surf(c.lowerAxes, up(c.galvoPixels:-1:1)./mvConv, up((c.galvoPixels-i+1):(c.galvoPixels))./mvConv, final((c.galvoPixels-i+1):(c.galvoPixels),:), 'EdgeColor', 'none');   % Display the graph on the backscan
 %                     surf(c.lowerAxes, up./mvConv, up(1:i)./mvConv, final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
                     view(c.lowerAxes,2);
                     
@@ -1049,16 +1089,19 @@ function varargout = diamondControl(varargin)
                 c.s.wait();
             end
 
-            queueOutputData(c.s, [piezoRowsFast	linspace(mvConv*range/2, 0, stepsFast)'     linspace(yCopy, 0, stepsFast)']);
-            c.s.startForeground();    % Go back to 0,0 from finishing point
+%             queueOutputData(c.s, [piezoRowsFast	linspace(mvConv*range/2, 0, stepsFast)'     linspace(yCopy, 0, stepsFast)']);
+%             c.s.startForeground();    % Go back to start from finishing point
 
-            c.galvo = [0 0];
+            resetGalvo_Callback(0, 0);
+            galvoOutSmooth(prev);
+
+%             c.galvo = [0 0];
             getGalvo();
         end
         
         if useUI
             set(c.galvoButton, 'String', 'Scan!');
-            set(c.galvoButton, 'Value', 0)
+            set(c.galvoButton, 'Value', 0);
         end
     end
     function setGalvoAxesLimits()
@@ -1094,7 +1137,6 @@ function varargout = diamondControl(varargin)
             c.s.startBackground();
         end
     end
-    
     function galvoScansRequired(~,~)
        
         if c.galvoAligning && get(c.galvoAlignX, 'Value') == 0 && get(c.galvoAlignY, 'Value') == 0
@@ -1392,22 +1434,24 @@ function varargout = diamondControl(varargin)
     function automate(onlyTest)
         c.autoScanning = true;
 %         [V, V0, v, nxrange, nyrange, ndrange] = varin;
+        
+        if ~onlyTest
+            clk = clock;
 
-        clk = clock;
-        
-        superDirectory =['C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\'];              % Setup the folders
-        dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];          % Today's folder is formatted in 
-        scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
-        directory =     [superDirectory '\' dateFolder];
-        subDirectory =  [directory '\' scanFolder];
-        
-        [status, message, messageid] = mkdir(superDirectory, dateFolder);                   % Make sure today's folder has been created.
-        display(message);
-        
-        [status, message, messageid] = mkdir(directory, scanFolder);                        % Create a folder for this scan
-        display(message);
-        
-        prefix = [subDirectory '\'];
+            superDirectory =c.directory;              % Setup the folders
+            dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];          % Today's folder is formatted in 
+            scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
+            directory =     [superDirectory '\' dateFolder];
+            subDirectory =  [directory '\' scanFolder];
+
+            [status, message, messageid] = mkdir(superDirectory, dateFolder);                   % Make sure today's folder has been created.
+            display(message);
+
+            [status, message, messageid] = mkdir(directory, scanFolder);                        % Create a folder for this scan
+            display(message);
+
+            prefix = [subDirectory '\'];
+        end
         
         [p, color, name, len] = generateGrid();
         
@@ -1446,7 +1490,7 @@ function varargout = diamondControl(varargin)
                     focus_Callback(0, 0);
                     start(c.vid);
                     data = getdata(c.vid);
-                    img = data(121:360, 161:480);
+                    img = data(360:-1:121, 161:480);    % Fixed flip...
 
                     display('  Optimizing...');
 
@@ -1496,6 +1540,7 @@ function varargout = diamondControl(varargin)
     function autoStop_Callback(~, ~)
         c.autoScanning = false;
     end
+
     % UI ==================================================================
     function renderUpper()
         if c.axesMode ~= 2
@@ -1793,7 +1838,6 @@ function varargout = diamondControl(varargin)
             set(c.counterAxes, 'ButtonDownFcn','');
         end
     end
-
     function click_Callback(hObject, ~)
         set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
         set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);

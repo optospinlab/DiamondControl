@@ -114,6 +114,19 @@ c.piezoMin =    [0 0 0];
 c.piezoMax =    [10 10 10];
 c.piezoStep = .025;
 
+% Galvos
+c.galvoRange =  5;      % 5 um
+c.galvoRangeMax =  50;  % 50 um    
+c.galvoSpeed =  5;      % 5 um/sec
+c.galvoSpeedMax =  50;  % 50 um/sec    
+c.galvoPixels =  20;    % 5 pixels/side
+
+% File Saving
+c.directory = 'C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\';
+display('Files will be saved in:');
+display(['    ' c.directory]);
+c.device = 'd_';
+c.set = 's_';
 
 % AXES ====================================================================
 c.axesMode =    0;     % 0:Both, 1:Upper, 2:Lower
@@ -215,23 +228,16 @@ c.gotoTab =         uitab(c.automationPanel, 'Title', 'Goto');
     c.gotoGButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-15*bh bw bh]);
   
     c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
-
+    
 c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo');
-    c.galvoRange =  5;      % 5 um
-    c.galvoRangeMax =  50;  % 50 um
     c.galvoRLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp        plh-bp-3*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoR =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoRange,     'Position', [bp+bw   plh-bp-3*bh bw/2 bh]);
-    c.galvoSpeed =  5; % 5 um/sec
-    c.galvoSpeedMax =  50;  % 50 um/sec
     c.galvoSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plh-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plh-bp-4*bh bw/2 bh]);
-    c.galvoPixels =  20; % 5 pixels/side
     c.galvoPLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plh-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoPixels,     'Position', [bp+bw   plh-bp-5*bh bw/2 bh]);    
-    
     c.galvoCLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plh-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
     c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plh-bp-6*bh bw/2 bh]);
-    
     c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Scan!','Position', [bp        plh-bp-8*bh bp+2*bw bh]);
 
     c.galvoAlignX = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep X','Position', [bp        plh-bp-10*bh bw bh]);

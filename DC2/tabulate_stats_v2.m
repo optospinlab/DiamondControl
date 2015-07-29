@@ -3,11 +3,16 @@ clear all; close all; clc;
 stat_file=fopen('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\2015_7_28\Scan @ 19-44-37.94\scan_stats.txt','w');
 count=1;
 
+% c.device = 'd_';
+% c.set = 's_';
+c.device = 'device_';
+c.set = 'set_';
+
 for i=0:3
     for j=0:4
        for k=1:5
-            I=imread(strcat('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\2015_7_28\Scan @ 19-44-37.94\device_',num2str(k),'_set_[',num2str(i),',',num2str(j),']_galvo.png'));
-            data = load(strcat('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\2015_7_28\Scan @ 19-44-37.94\device_',num2str(k),'_set_[',num2str(i),',',num2str(j),']_galvo.mat'));
+            I=imread(strcat('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\2015_7_28\Scan @ 19-44-37.94\',c.device,num2str(k),'_',c.set,'[',num2str(i),',',num2str(j),']_galvo.png'));
+            data = load(strcat('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\2015_7_28\Scan @ 19-44-37.94\',c.device,num2str(k),'_',c.set,'[',num2str(i),',',num2str(j),']_galvo.mat'));
             M(count,k) = (max(max(data.scan)));
             level = graythresh(I);
             IBW=im2bw(I,level);
