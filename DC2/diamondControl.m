@@ -405,10 +405,12 @@ function varargout = diamondControl(varargin)
 
                 pause(.25);
 
-%                 cmd(c.microXSerial, c.microXAddr, 'PW1'); 
+                %cmd(c.microXSerial, c.microXAddr, 'PW1'); 
                 cmd(c.microXSerial, c.microXAddr, 'HT1'); 
-                cmd(c.microXSerial, c.microXAddr, 'SL-5');  % negative software limit x=-5
-                cmd(c.microXSerial, c.microXAddr, 'BA0.0087');% backlash compensation
+                cmd(c.microXSerial, c.microXAddr, 'SL-5');     % negative software limit x=-5
+                cmd(c.microXSerial, c.microXAddr, 'BA0.003');      % disable backlash compensation
+                cmd(c.microXSerial, c.microXAddr, 'FF05');
+               
                 cmd(c.microXSerial, c.microXAddr, 'PW0');
 
                 pause(.25);
@@ -431,10 +433,12 @@ function varargout = diamondControl(varargin)
 
                 pause(.25);
 
-%                 cmd(c.microYSerial, c.microYAddr, 'PW1'); 
+               % cmd(c.microYSerial, c.microYAddr, 'PW1'); 
                 cmd(c.microYSerial, c.microYAddr, 'HT1'); 
                 cmd(c.microYSerial, c.microYAddr, 'SL-5');   % negative software limit y=-5
-                cmd(c.microYSerial, c.microYAddr, 'BA0.0061'); % backlash compensation
+                cmd(c.microYSerial, c.microYAddr, 'BA0.003');    % disable backlash compensation
+                cmd(c.microYSerial, c.microYAddr, 'FF5');
+               
                 cmd(c.microYSerial, c.microYAddr, 'PW0');
 
                 pause(.25);
