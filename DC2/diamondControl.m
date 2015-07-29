@@ -190,9 +190,9 @@ function varargout = diamondControl(varargin)
 
             % Add the joystick offset to the target vector. The microscope
             % attempts to go to the target vector.
-            c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep;
-            c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep;
-
+            c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep*(1+a(4))*5;
+            c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep*(1+a(4))*5;
+            
             % Same for Z; the third axis is the twisting axis
             if max(abs([joystickAxesFunc(a(1), c.joyXYPadding) joystickAxesFunc(a(2), c.joyXYPadding)])) == 0
                 c.piezo(3) = c.piezo(3) + c.piezoStep*c.joyZDir*joystickAxesFunc(a(3), c.joyZPadding);
@@ -390,7 +390,7 @@ function varargout = diamondControl(varargin)
 %                 cmd(c.microXSerial, c.microXAddr, 'PW1'); 
                 cmd(c.microXSerial, c.microXAddr, 'HT1'); 
                 cmd(c.microXSerial, c.microXAddr, 'SL-5');  % negative software limit x=-5
-                cmd(c.microXSerial, c.microXAddr, 'BA0.005');% backlash compensation
+                cmd(c.microXSerial, c.microXAddr, 'BA0.0087');% backlash compensation
                 cmd(c.microXSerial, c.microXAddr, 'PW0');
 
                 pause(.25);
@@ -416,7 +416,7 @@ function varargout = diamondControl(varargin)
 %                 cmd(c.microYSerial, c.microYAddr, 'PW1'); 
                 cmd(c.microYSerial, c.microYAddr, 'HT1'); 
                 cmd(c.microYSerial, c.microYAddr, 'SL-5');   % negative software limit y=-5
-                cmd(c.microYSerial, c.microYAddr, 'BA0.005'); % backlash compensation
+                cmd(c.microYSerial, c.microYAddr, 'BA0.0061'); % backlash compensation
                 cmd(c.microYSerial, c.microYAddr, 'PW0');
 
                 pause(.25);
@@ -480,33 +480,33 @@ function varargout = diamondControl(varargin)
 %         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
     end
 
-    function mypreview_fcn(obj,event,himage)
-        frame = event.Data;
-
-        filter = fspecial('unsharp', 0.01);
-        I1 = imfilter(flipdim(frame,1), filter);
-
-        %adjust contrast
-        Ix = imtophat(I1,strel('disk',33));
-        I2 = imadjust(Ix);
-        temp=image(I2);
-             
-                 %Circle detection code
-    %              IBW=im2bw(I2,0.6)
-    %              [centers, radii] = imfindcircles(IBW,[12 22])
-    %              try
-    %                  delete(hg1);
-    %                  delete(hg2);
-    %              catch
-    %              end
-    %             hg1=viscircles(centers, radii,'EdgeColor','b')
-
-    % Set the value of the text label.
-
-    % Display image data.
+%     function mypreview_fcn(obj,event,himage)
+%         frame = event.Data;
+% 
+%         filter = fspecial('unsharp', 0.01);
+%         I1 = imfilter(flipdim(frame,1), filter);
+% 
+%         adjust contrast
+%         Ix = imtophat(I1,strel('disk',33));
+%         I2 = imadjust(Ix);
+%         temp=image(I2);
+%              
+%                  Circle detection code
+%                  IBW=im2bw(I2,0.6)
+%                  [centers, radii] = imfindcircles(IBW,[12 22])
+%                  try
+%                      delete(hg1);
+%                      delete(hg2);
+%                  catch
+%                  end
+%                 hg1=viscircles(centers, radii,'EdgeColor','b')
+% 
+%     Set the value of the text label.
+% 
+%     Display image data.
 %         event.Data=get(temp,'CData');
-        himage.CData = event.Data;
-    end
+%         himage.CData = event.Data;
+%     end
 
     function initAll()
         % Self-explainatory
@@ -732,7 +732,7 @@ function varargout = diamondControl(varargin)
         range = 1;
         pixels = 100;
         
-        prev = [5 5];
+        %prev = [5 5];
         
         c.s.Rate = 1000;
         
@@ -776,7 +776,7 @@ function varargout = diamondControl(varargin)
            
 %             size(data);
             
-            m = min(min(data)); M = max(max(data))
+            m = min(min(data)); M = max(max(data));
             
             if m ~= M
 %                 figure()
@@ -784,7 +784,7 @@ function varargout = diamondControl(varargin)
 %                 pause(5);
                 data = (data - m)/(M - m);
 %                 data > .7
-                [fx, fy] = myMean(data.*(data > .5), upx, upy(1:2:end))
+                [fx, fy] = myMean(data.*(data > .5), upx, upy(1:2:end));
                 
                 if fx > 10
                     fx = 10;
@@ -816,8 +816,8 @@ function varargout = diamondControl(varargin)
                 xlim(c.upperAxes, [upx(1) upx(end)]);
                 ylim(c.upperAxes, [upy(1) upy(end)]);
                 zlim(c.upperAxes, [0 1]);
-                dim = size(data)
-                upy2 = upy(1:2:end)
+                dim = size(data);
+                upy2 = upy(1:2:end);
                 surf(c.lowerAxes, upx(1:dim(2)), upy2(1:dim(1)), data, 'EdgeColor', 'none');
                 view(c.lowerAxes,2);
                 xlim(c.lowerAxes, [upx(1) upx(end)]);
@@ -903,16 +903,16 @@ function varargout = diamondControl(varargin)
         data = diff(out);
         data = data(1:pixels);
 
-        m = min(min(data)); M = max(max(data))
+        m = min(min(data)); M = max(max(data));
 
         if m ~= M
             data = (data - m)/(M - m);
-            mask = ((up(1:pixels,3) > (prev - .5)) + (up(1:pixels,3) < (prev + .5))) == 2
+            mask = ((up(1:pixels,3) > (prev - .5)) + (up(1:pixels,3) < (prev + .5))) == 2;
             mask = mask(1:length(data));
             data = data.*mask;
             data = data.*(data > .5);
             total = sum(sum(data));
-            fz = sum((data').*(up(1:pixels,3)'))/total
+            fz = sum((data').*(up(1:pixels,3)'))/total;
 
             if fz > 10
                 fz = 10;
@@ -1016,11 +1016,11 @@ function varargout = diamondControl(varargin)
                 if get(c.galvoButton, 'Value') == 0 && useUI
                     break;
                 end
-                display('up');
+                %display('up');
                 queueOutputData(c.s, [piezoRows	up'     y*ones(length(up),1)]);
                 [out, ~] = c.s.startForeground();
 
-                display('down');
+                %display('down');
                 queueOutputData(c.s, [piezoRowsFast	down'   linspace(y, y + up(2) - up(1), length(down))']);
                 c.s.startForeground();
 
@@ -1078,7 +1078,7 @@ function varargout = diamondControl(varargin)
                 c.galvoPixels = str2double(get(c.galvoP, 'String'));
         end
     end
-    function galvoAlign_Callback(hObject, ~)
+    function galvoAlign_Callback(~, ~)
         if ~c.galvoAligning
         
             for i=1:5
@@ -1252,7 +1252,7 @@ function varargout = diamondControl(varargin)
                 R = [str2num(get(c.autonRm, 'String'))  str2num(get(c.autonRM, 'String'))]';
         end
     end
-    function autoPreview_Callback(hObject, ~)
+    function autoPreview_Callback(~, ~)
         generateGrid();
     end
     function [p, color, name, len] = generateGrid()
@@ -1383,10 +1383,10 @@ function varargout = diamondControl(varargin)
 %         ylim(c.upperAxes, [min(p(2,:)) max(p(2,:))]);
 %         scatter(c.upperAxes, p(1,:), p(2,:), 36, color);
     end
-    function automate_Callback(hObject, ~)
+    function automate_Callback(~, ~)
         automate(false);
     end
-    function autoTest_Callback(hObject, ~)
+    function autoTest_Callback(~, ~)
         automate(true);
     end
     function automate(onlyTest)
@@ -1444,6 +1444,9 @@ function varargout = diamondControl(varargin)
                     display('  Focusing...');
 
                     focus_Callback(0, 0);
+                    start(c.vid);
+                    data = getdata(c.vid);
+                    img = data(121:360, 161:480);
 
                     display('  Optimizing...');
 
@@ -1467,9 +1470,6 @@ function varargout = diamondControl(varargin)
 
                     imwrite(scan/max(max(scan)), [prefix name{i} '_galvo' '.png']);
 
-                    start(c.vid);
-                    data = getdata(c.vid);
-                    img = data(121:360, 161:480);
                     imwrite(img, [prefix name{i} '_blue' '.png']);
 
                     display('  Finished...');
@@ -1490,10 +1490,10 @@ function varargout = diamondControl(varargin)
         
         c.autoScanning = false;
     end
-    function proceed_Callback(hObject, ~)
+    function proceed_Callback(~, ~)
         c.proceed = true;
     end
-    function autoStop_Callback(hObject, ~)
+    function autoStop_Callback(~, ~)
         c.autoScanning = false;
     end
     % UI ==================================================================
@@ -1621,7 +1621,8 @@ function varargout = diamondControl(varargin)
         if isnan(val) % ~isa(val,'double') % If it's NaN, check if it's an equation
             try
                 val = eval(get(hObject,'String'));
-            catch
+            catch err
+                display('err');
                 val = 0;
             end
         end
@@ -1755,8 +1756,9 @@ function varargout = diamondControl(varargin)
         
         try
             out = c.s.inputSingleScan();
-        catch
+        catch err
             out = 0;
+            display(err);
             display('counter aquisiton failed');
         end
         
@@ -1778,7 +1780,7 @@ function varargout = diamondControl(varargin)
     end
 
 %   Popup Plots ===============================================================
-    function mouseEnabled_Callback(hObject, ~)
+    function mouseEnabled_Callback(~, ~)
         if get(c.mouseEnabled, 'Value')
             set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
             set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
