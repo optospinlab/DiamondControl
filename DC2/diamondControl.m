@@ -932,24 +932,24 @@ function varargout = diamondControl(varargin)
     end
     function [x, y] = myMean(data, X, Y)
         % New Method
-        [labels, ~] = bwlabel(data, 4);
-        measurements = regionprops(labels, 'Area', 'Centroid');
-        areas = [measurements.Area];
-        [~, indexes] = sort(areas, 'descend');
-        
-        centroid = measurements(indexes(1)).Centroid;
-        
-        x = X(centroid(1));
-        y = Y(centroid(2));
-        
-        plot(c.upperAxes, X, Y, labels(indexes(1)));
+%         [labels, ~] = bwlabel(data, 4);
+%         measurements = regionprops(labels, 'Area', 'Centroid');
+%         areas = [measurements.Area];
+%         [~, indexes] = sort(areas, 'descend');
+%         
+%         centroid = measurements(indexes(1)).Centroid;
+%         
+%         x = X(centroid(1));
+%         y = Y(centroid(2));
+%         
+%         plot(c.upperAxes, X, Y, labels(indexes(1)));
         
         % Old Method
-%         % Calculates the centroid.
-%         total = sum(sum(data));
-%         dim = size(data);
-%         x = sum(data*((X((length(X)-dim(2)+1):end))'))/total;
-%         y = sum((Y((length(Y)-dim(1)+1):end))*data)/total;
+        % Calculates the centroid.
+        total = sum(sum(data));
+        dim = size(data);
+        x = sum(data*((X((length(X)-dim(2)+1):end))'))/total;
+        y = sum((Y((length(Y)-dim(1)+1):end))*data)/total;
     end
 %     function data = displayImage()
 %         start(c.vid);
@@ -1454,12 +1454,12 @@ function varargout = diamondControl(varargin)
 
                     display('  Scanning...');
 
-                    scan = galvoScan();
+                    scan = galvoScan(false);
 
-                    display('  Taking Spectrum...');
-
-                    sendSpectrumTrigger()
-                    waitForSpectrum([prefix name{i} '_spectrum'])
+%                     display('  Taking Spectrum...');
+% 
+%                     sendSpectrumTrigger()
+%                     waitForSpectrum([prefix name{i} '_spectrum'])
 
                     display('  Saving...');
 
@@ -1480,6 +1480,7 @@ function varargout = diamondControl(varargin)
                 else
                     pause(.5);
                 end
+            end
         end
         
         display('Totally Finished!');

@@ -441,7 +441,7 @@ c.autoTab =         uitab(c.automationPanel, 'Title', 'Automation!');
     c.autoAutoProceed = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plh-bp-33*bh bw bh], 'HorizontalAlignment', 'left');
     c.autoProceed = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plh-bp-33*bh bw bh]);
     c.proceed = false;  % Variable for whether to proceed or not.
-    c.autoStop =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plh-bp-34*bh 2*bw+bp bh]);
+    c.autoStop =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Stop', 'Position', [bp	plh-bp-34*bh 2*bw+bp bh]);
     c.autoScanning = false;
     
 % A list of all buttons to disable when a scan/etc is running.
