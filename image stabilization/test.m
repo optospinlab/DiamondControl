@@ -27,27 +27,25 @@ global run; run=1;
 
 % --- Outputs from this function are returned to the command line.
 function varargout = test_OutputFcn(hObject, eventdata, handles) 
-global alpha; global run;
+global alpha; global run; global I2;
 
 vid = videoinput('avtmatlabadaptor64_r2009b', 1);
 vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
 closepreview;  %close preview if still running
 
-%while run
+while run
     frame = getsnapshot(vid);
     close all
-    
-    figure
-    imagesc(flipdim(frame,1)); colormap('Gray');
+
     
     tic
     %sharpen image
-    f = fspecial('unsharp', 0.1);
+    f = fspecial('unsharp', 1);
     I1 = imfilter(flipdim(frame,1), f);
     
     %adjust contrast
     %figure 
-    Ix = imtophat(I1,strel('disk',33));
+    Ix = imtophat(flipdim(frame,1),strel('disk',33));
     I2 = imadjust(Ix);
     imshow(I2);
      
@@ -72,7 +70,7 @@ closepreview;  %close preview if still running
    viscircles(centers, radii,'EdgeColor','b')
     
     pause(0.5)
-%end
+end
 %close all;
 varargout{1} = handles.output;
 

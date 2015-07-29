@@ -39,7 +39,7 @@ c.pc = [];
 global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
 pw = 250;           % Panel Width, the width of the side panel
 puh = 180;          % Upper Panel Height
-plh = 600;          % Lower Panel Height
+plh = 650;          % Lower Panel Height
 
 bp = 5;             % Button Padding
 bw = (pw-4*bp)/2;   % Button Width, the width of a button/object
@@ -117,10 +117,21 @@ c.piezoStep = .025;
 
 % AXES ====================================================================
 c.axesMode =    0;     % 0:Both, 1:Upper, 2:Lower
-c.upperAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
-c.lowerAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'ButtonDownFcn', @graphSwitch_Callback);
+c.upperAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.lowerAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
 c.imageAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
 c.counterAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+
+% Add popout figures here.
+% c.upperFigure =     figure('Visible', 'Off');
+% c.lowerFigure =     figure('Visible', 'Off');
+% c.imageFigure =     figure('Visible', 'Off');
+% c.counterFigure =   figure('Visible', 'Off');
+% 
+% c.upperAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
+% c.lowerAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
+% c.imageAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
+% c.counterAxes2 = axes('XLimMode', 'manual', 'YLimMode', 'manual');
 
 % PANELS ==================================================================
 c.ioPanel =         uitabgroup('Units', 'pixels');
@@ -223,6 +234,11 @@ c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo');
     
     c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Scan!','Position', [bp        plh-bp-8*bh bp+2*bw bh]);
 
+    c.galvoAlignX = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep X','Position', [bp        plh-bp-10*bh bw bh]);
+    c.galvoAlignY = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep Y','Position', [2*bp+bw   plh-bp-10*bh bw bh]);
+
+    c.galvoAligning = false;
+    
 c.counterTab =  uitab(c.automationPanel, 'Title', 'Counter');
     c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plh-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left');
     c.sC = 0;       % Empty variable for the counter channel;
@@ -425,7 +441,8 @@ c.autoTab =         uitab(c.automationPanel, 'Title', 'Automation!');
     c.autoAutoProceed = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plh-bp-33*bh bw bh], 'HorizontalAlignment', 'left');
     c.autoProceed = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plh-bp-33*bh bw bh]);
     c.proceed = false;  % Variable for whether to proceed or not.
-    
+    c.autoStop =    uicontrol('Parent', c.autoTab, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plh-bp-34*bh 2*bw+bp bh]);
+    c.autoScanning = false;
     
 % A list of all buttons to disable when a scan/etc is running.
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
