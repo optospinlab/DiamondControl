@@ -98,9 +98,9 @@ c.chnGalvoY =   'ao1';
 
 c.galvo =       [0 0];
 c.galvoBase =   [0 0];
-c.galvoMin =    [-5 -5];
-c.galvoMax =    [ 5  5];
-c.galvoStep =   .05;
+c.galvoMin =    [-5000 -5000];  % mV
+c.galvoMax =    [ 5000  5000];  % mV
+c.galvoStep =   .05;            % V
 
 % Z Peizo DEVice and CHaNnels
 c.devPiezo =    'Dev1';        
@@ -242,8 +242,11 @@ c.galvoTab =  uitab(c.automationPanel, 'Title', 'Galvo');
 
     c.galvoAlignX = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep X','Position', [bp        plh-bp-10*bh bw bh]);
     c.galvoAlignY = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep Y','Position', [2*bp+bw   plh-bp-10*bh bw bh]);
+    
+    c.galvoOptimize =uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plh-bp-12*bh bp+2*bw bh]);
 
     c.galvoAligning = false;
+    c.galvoScanning = true;
     
 c.counterTab =  uitab(c.automationPanel, 'Title', 'Counter');
     c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plh-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left');
@@ -253,7 +256,7 @@ c.counterTab =  uitab(c.automationPanel, 'Title', 'Counter');
     c.rateC = 4;    % rate: scans/sec
     c.lenC = 100;  % len:  scans/graph
     c.iC = 0;
-    c.prevC = 0;
+    c.prevCount = 0;
     c.isCounting = 0;
     
 c.spectraTab =  uitab(c.automationPanel, 'Title', 'Spectra');
