@@ -115,11 +115,11 @@ c.piezoMax =    [10 10 10];
 c.piezoStep = .025;
 
 % Galvos
-c.galvoRange =  5;      % 5 um
+c.galvoRange =  8;      % 8 um
 c.galvoRangeMax =  50;  % 50 um    
-c.galvoSpeed =  5;      % 5 um/sec
+c.galvoSpeed =  25;     % 25 um/sec
 c.galvoSpeedMax =  50;  % 50 um/sec    
-c.galvoPixels =  20;    % 5 pixels/side
+c.galvoPixels =  40;    % 40 pixels/side
 
 % File Saving
 c.directory = 'C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\';

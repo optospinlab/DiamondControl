@@ -10,7 +10,7 @@
 %  - (soon [edit: now]) basic automation protocols for performing simple testing.
 function varargout = diamondControl(varargin)
     if isempty(varargin)    % If no variables have been given, make the figure
-        f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none');
+        f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none','Position',get(0,'Screensize'));
         c = diamondControlGUI('Parent', f);
     else                    % Otherwise pass the variables on.
         c = diamondControlGUI(varargin);
@@ -119,9 +119,10 @@ function varargout = diamondControl(varargin)
     set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);           
     
     % UI Fields -----------------------------------------------------------
-%     set(c.upperAxes, 'ButtonDownFcn', @click_Callback);        % Currently not functioning
-%     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-    set(c.imageAxes, 'ButtonDownFcn', @makePopout_Callback);
+   % set(c.parent, 'ButtonDownFcn', @click_Callback);
+    set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+    set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+    
     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
 %     set(c.microInit, 'Callback', @microInit_Callback);
@@ -153,6 +154,7 @@ function varargout = diamondControl(varargin)
     main();
     
     function main()
+              
         while c.running     % c.running is currently unused, but likely will be used.
             if ~c.focusing
                 [outputXY, outputZ] = readJoystick();
@@ -385,6 +387,17 @@ function varargout = diamondControl(varargin)
         catch err
             display(err.message);
         end
+        
+       %Need to check if the counter is disabled
+       try
+        if get(c.counterButton, 'Value') == 1
+            display('Closing Counter...')
+            stop(c.lhC);
+            delete(c.lhC);
+        end
+       catch err
+           display(err.message);
+       end
         
         % Release the graphics
         delete(c.imageAxes);
@@ -702,6 +715,7 @@ function varargout = diamondControl(varargin)
         piezoOutSmooth([5 5 0]);
     end
     function resetGalvo_Callback(~, ~)
+        galvoOutSmooth([.2 .2]);
         galvoOutSmooth([0 0]);
     end
     % --- OPTIMIZATION ----------------------------------------------------
@@ -831,7 +845,8 @@ function varargout = diamondControl(varargin)
                 surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none');   % Display the graph on the backscan
 %                     surf(c.lowerAxes, up./mvConv, up(1:i)./mvConv, final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
                 view(c.lowerAxes,2);
-
+                set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+               
 %                 strings = get(c.galvoC, 'string');
 %                 curval = get(c.galvoC, 'value');
 % %                     strings{curval}
@@ -847,6 +862,7 @@ function varargout = diamondControl(varargin)
 
             c.s.wait();
         end
+        
         
 %         set(c.lowerAxes, 'Xdir', 'normal', 'Ydir', 'normal');
         
@@ -943,6 +959,7 @@ function varargout = diamondControl(varargin)
                 upy2 = upy(1:2:end);
                 surf(c.lowerAxes, upx(1:dim(2)), upy2(1:dim(1)), data, 'EdgeColor', 'none');
                 view(c.lowerAxes,2);
+                set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
                 xlim(c.lowerAxes, [upx(1) upx(end)]);
                 ylim(c.lowerAxes, [upy(1) upy(end)]);
 %                 hold(c.lowerAxes, 'off');
@@ -1036,11 +1053,11 @@ function varargout = diamondControl(varargin)
         [final, X, Y] = galvoScanFull(false, range, upspeed, pixels);
         
         m = min(min(final)); M = max(max(final));
-        final = (final - m)/(M - m);
+        data = (final - m)/(M - m);
         
-        [x, y] = myMean(final.*(final > .7), X, Y);
+        [x, y] = myMean(data.*(data > .7), X, Y);
         
-        galvoOutSmooth([.1 .1]);
+        galvoOutSmooth([.2 .2]);
         galvoOutSmooth([X(1) Y(1)]);
         galvoOutSmooth([X(1) y]);
         galvoOutSmooth([x y]);
@@ -1142,7 +1159,7 @@ function varargout = diamondControl(varargin)
             prev = c.galvo;
             
 %             resetGalvo_Callback(0, 0);
-            galvoOutSmooth([.1 .1]);
+            galvoOutSmooth([.2 .2]);
             galvoOutSmooth([up(1) up2(1)]);
             
             set(c.galvoXX, 'String', '(scanning)');
@@ -1168,15 +1185,16 @@ function varargout = diamondControl(varargin)
                 queueOutputData(c.s, [piezoRowsFast	down'   linspace(y, y + up2(2) - up2(1), length(down))']);
                 c.s.startForeground();
 
-                final(pixels-i + 1,:) = [mean(diff(out(:,1)')) diff(out(:,1)')]*rate;
+                final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)') ]*rate;
 
                 if i > 1
 %                     up
 %                     up(1:i)
 %                     final(1:i,:)
-                    surf(c.lowerAxes, up(1:pixels)./mvConv, up2((pixels-i+1):(pixels))./mvConv, final((pixels-i+1):(pixels),:), 'EdgeColor', 'none');   % Display the graph on the backscan
+                    surf(c.lowerAxes, up(1:pixels)./mvConv, up2((pixels):-1:(pixels-i+1))./mvConv, final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
 %                     surf(c.lowerAxes, up./mvConv, up(1:i)./mvConv, final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
                     view(c.lowerAxes,2);
+                    set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
                     
                     strings = get(c.galvoC, 'string');
                     curval = get(c.galvoC, 'value');
@@ -1199,7 +1217,7 @@ function varargout = diamondControl(varargin)
 %             c.s.startForeground();    % Go back to start from finishing point
 
 %             resetGalvo_Callback(0, 0);
-            galvoOutSmooth([.1 .1]);
+            galvoOutSmooth([.2 .2]);
             galvoOutSmooth(prev);
 
 %             c.galvo = [0 0];
@@ -1209,7 +1227,7 @@ function varargout = diamondControl(varargin)
         if useUI
             set(c.galvoButton, 'String', 'Scan!');
             set(c.galvoButton, 'Value', 0);
-        end
+        end    
     end
     function setGalvoAxesLimits()
         xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
@@ -1303,24 +1321,30 @@ function varargout = diamondControl(varargin)
         file = '';
         image = -1;
         
+        t = now;
+        
         while c.running
             try
-                disp('waiting')
+                disp('    waiting')
                 d = dir('Z:\WinSpec_Scan\s*.*');
                 
                 file = strcat('Z:\WinSpec_Scan\', d.name);
-                image = readSPE(file);
+                if d.datenum > t % file == 'Z:\WinSpec_Scan\spec.SPE'
+                    pause(.5);
+                    image = readSPE(file);
+                end
             catch error
-                disp(error)
-                pause(1)
+               % disp(error)
+                pause(.5);
             end
+            
             if image ~=-1
                 break
             end
         end
         
         if c.running
-            disp('got the data!');
+            disp('    got the data!');
 
             %plot data -> delete file
     %         plot(1:512,image)
@@ -1328,7 +1352,7 @@ function varargout = diamondControl(varargin)
 
             if filename ~= 0    % If there is a filename, save there.
                 save([filename '.mat'],'image');
-                disp('Saved .mat file and cleared folder')
+                disp('    Saved .mat file and cleared folder')
                 movefile(file, [filename '.SPE']);
             else                % Otherwise only delete
                 delete(file);
@@ -1342,6 +1366,7 @@ function varargout = diamondControl(varargin)
         image = waitForSpectrum(0);
         
         plot(c.lowerAxes, 1:512, image)
+        set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
         xlim(c.lowerAxes, [1 512]);
         ylim(c.lowerAxes, [min(image) max(image)]);
     end
@@ -1516,7 +1541,7 @@ function varargout = diamondControl(varargin)
                     end
                     
 %                     name{i} = ['Device ' num2str(d) 'in set [' num2str(x) ', '  num2str(y) ']'];
-                    name{i} = ['device_' num2str(d) '_set_[' num2str(x) ','  num2str(y) ']'];
+                    name{i} = [c.device num2str(d) '_' c.set '[' num2str(x) ','  num2str(y) ']'];
                     
                     i = i + 1;
                 end
@@ -1542,12 +1567,19 @@ function varargout = diamondControl(varargin)
         c.autoScanning = true;
 %         [V, V0, v, nxrange, nyrange, ndrange] = varin;
         
+        nxrange = getStoredR('x');    % Range of the major grid
+        nyrange = getStoredR('y');
+
+        ndrange = getStoredR('d');    % Range of the minor grid
+        
+        [p, color, name, len] = generateGrid();
+        
         if ~onlyTest
             clk = clock;
 
-            superDirectory =c.directory;              % Setup the folders
-            dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];          % Today's folder is formatted in 
-            scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
+            superDirectory = c.directory;              % Setup the folders
+            dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];           % Today's folder is formatted in YYYY_MM_DD Form
+            scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))]; % This scan's folder is fomatted in @ HH-MM-SS.sss
             directory =     [superDirectory '\' dateFolder];
             subDirectory =  [directory '\' scanFolder];
 
@@ -1558,85 +1590,176 @@ function varargout = diamondControl(varargin)
             display(message);
 
             prefix = [subDirectory '\'];
+            
+            results = true;
+            
+            try
+                fh =  fopen([prefix 'results.txt'],         'w');  
+                fhv = fopen([prefix 'results_verbose.txt'], 'w');
+                fhb = fopen([prefix 'results_brief.txt'],   'w');
+
+                if (fh == -1 || fhv == -1 || fhb == -1) 
+                    error('oops, file cannot be written'); 
+                end 
+            
+                fprintf(fhb, '  Set  |       Works       |\r\n');         % Change this in the future to be compatable with all possibilities.
+                fprintf(fhb, '  Set  | 1 | 2 | 3 | 4 | 5 |');
+
+                fprintf(fh, '  Set  |                          Counts                           |\r\n');
+                fprintf(fh, '  Set  |     1     |     2     |     3     |     4     |     5     |');
+
+                fprintf(fhv, 'Welcome to the verbose version of the results summary...\r\n\r\n');
+            catch err
+                display(err.message);
+                results = false;
+            end
+            
         end
-        
-        [p, color, name, len] = generateGrid();
         
         original = c.micro;
         
-        resetPiezoXY_Callback(0,0);
-        
-        for i = 1:len
-            if c.autoScanning
-                c.micro = p(1:2,i)' - [5 5];
-                setPos();
+        i = 1;
 
-                while sum(abs(c.microActual - c.micro)) > .1
-                    pause(.1);
-                    getPos();
-                    renderUpper();
-                end
+        for x = nxrange(1):nxrange(2)
+            for y = nyrange(1):nyrange(2)
+                for d = ndrange(1):ndrange(2)
+                    if c.autoScanning
+                        c.micro = p(1:2,i)' - [10 10];
+                        setPos();
 
-                c.micro = p(1:2,i)';
-                setPos();
+                        while sum(abs(c.microActual - c.micro)) > .1
+                            pause(.1);
+                            getPos();
+                            renderUpper();
+                        end
 
-                while sum(abs(c.microActual - c.micro)) > .1
-                    pause(.1);
-                    getPos();
-                    renderUpper();
-                end
+                        c.micro = p(1:2,i)';
+                        setPos();
 
-                piezoOutSmooth([5 5 p(3,i)]);
+                        while sum(abs(c.microActual - c.micro)) > .1
+                            pause(.1);
+                            getPos();
+                            renderUpper();
+                        end
 
-                display(['Arrived at' name{i}]);
+                        piezoOutSmooth([5 5 p(3,i)]);
 
-                if ~onlyTest
+                        display(['Arrived at' name{i}]);
 
-                    display('  Focusing...');
+                        if ~onlyTest
+                            old = [c.piezo c.galvo];
+                            
+                            display('  Focusing...');
+                            
+                            focus_Callback(0, 0);
+                            
+                            start(c.vid);
+                            data = getdata(c.vid);
+                            img = data(360:-1:121, 161:480);    % Fixed flip...
 
-                    focus_Callback(0, 0);
-                    start(c.vid);
-                    data = getdata(c.vid);
-                    img = data(360:-1:121, 161:480);    % Fixed flip...
+                            display('  Optimizing...');
 
-                    display('  Optimizing...');
+                            piezoOptimizeXY();
+                            intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+                            
+                            if results
+                                fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) '\r\n']);
+                                fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
+                                fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
+                                fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
+                                fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
+                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)) ', ' num2str(c.galvo(2)) ' mV\r\n']);
+                                fprintf(fhv, ['                            from ' num2str(old(4)) ', ' num2str(old(5)) ' mV.\r\n']);
+                                fprintf(fhv, ['    This gave us an inital countrate of ' num2str(max(max(intitial))) ' counts/sec.\r\n']);
+                            end
+                                
+                            old = [c.piezo c.galvo];
+                            
+                            piezoOptimizeZ();
+                            piezoOptimizeXY();
+                            
+                            if results
+                                fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
+                                fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
+                                fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
+                                fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
+                            end
+                            
+                            old = [c.piezo c.galvo];
+                            
+                            piezoOptimizeZ();
 
-                    piezoOptimizeXY();
-                    intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
-                    piezoOptimizeZ();
-                    piezoOptimizeXY();
-                    piezoOptimizeZ();
+                            display('  Scanning...');
 
-                    display('  Scanning...');
+                            scan = galvoScan(false);
+                            
+                            if results
+                                fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
+                                fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
+                                fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(max(max(scan))) ' counts/sec.\r\n']);
+                            end
 
-                    scan = galvoScan(false);
+                            display('  Taking Spectrum...');
 
-                    display('  Taking Spectrum...');
+                            sendSpectrumTrigger();
+                            waitForSpectrum([prefix name{i} '_spectrum']);
 
-                    sendSpectrumTrigger();
-                    waitForSpectrum([prefix name{i} '_spectrum']);
+                            display('  Saving...');
 
-                    display('  Saving...');
+                            save([prefix name{i} '_galvo' '.mat'], 'scan');
 
-                    save([prefix name{i} '_galvo' '.mat'], 'scan');
-                    
-                    imwrite(intitial/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);
+                            imwrite(intitial'/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % Transpose because the dims are flipped.
 
-                    imwrite(scan/max(max(scan)), [prefix name{i} '_galvo' '.png']);
+                            imwrite(scan'/max(max(scan)), [prefix name{i} '_galvo' '.png']);
 
-                    imwrite(img, [prefix name{i} '_blue' '.png']);
+                            imwrite(img, [prefix name{i} '_blue' '.png']);
 
-                    display('  Finished...');
-                    
-                    galvoOutSmooth([0 0]);
+                            if results
+                                display('  Remarking...');
 
-                    while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
-                        pause(.5);
+                                counts = max(max(scan));
+%                                 counts2 = max(max(intitial));
+
+                                IBW = im2bw(scan, graythresh(scan));
+                                [centers, radii] = imfindcircles(IBW,[5 25]);
+
+                                if d == ndrange(1)
+                                    fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] |']);
+                                    fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] |']);
+                                end
+
+                                if ~isempty(centers)
+                                    fprintf(fhb, ' W |');
+                                    fprintf(fh, [' W ' num2str(counts, '%07i') ' |']);
+                                    fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
+                                else
+                                    fprintf(fhb, '   |');
+                                    fprintf(fh, ['   ' num2str(counts, '%07i') ' |']);
+                                    fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
+                                end
+                            end
+
+                            display('  Finished...');
+                            
+                            resetGalvo_Callback(0,0);
+
+                            while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
+                                pause(.5);
+                            end
+                        else
+                            pause(.5);
+                        end
+                        
+                        i = i+1;
                     end
-                else
-                    pause(.5);
                 end
             end
+        end
+        
+        if ~onlyTest
+            fclose(fhb);
+            fclose(fh);
+            fclose(fhv);
         end
         
         display('Totally Finished!');
@@ -1910,6 +2033,7 @@ function varargout = diamondControl(varargin)
     function counterListener(~, ~)
 %         display('  Counting...');
 %         c.sC.NumberOfScans = 8;
+        
         c.dataC = circshift(c.dataC, [0 1]);
         
         try
@@ -1932,41 +2056,36 @@ function varargout = diamondControl(varargin)
         
         if c.iC > 2
             plot(c.counterAxes, 1:c.iC, c.dataC(1:c.iC));
+            set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
             xlim(c.counterAxes, [1 c.lenC]);
             ylim(c.counterAxes, [cA - cO cA + cO]);
+            
         end
         
 %         c.iC = c.iC + 1;
+    
     end
 
 %   Popup Plots ===============================================================
     function mouseEnabled_Callback(~, ~)
         if get(c.mouseEnabled, 'Value')
-            set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
-            set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-            set(c.imageAxes, 'ButtonDownFcn', @click_Callback);
-            set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+           set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+           set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
         else
-            set(c.upperAxes, 'ButtonDownFcn', '');
-            set(c.lowerAxes, 'ButtonDownFcn', '');
-            set(c.imageAxes, 'ButtonDownFcn', '');
-            set(c.counterAxes, 'ButtonDownFcn','');
+           set(c.lowerAxes, 'ButtonDownFcn', '');
+           set(c.counterAxes, 'ButtonDownFcn', '');
         end
     end
+
     function click_Callback(hObject, ~)
-        set(c.upperAxes, 'ButtonDownFcn', @click_Callback);
-        set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-        set(c.imageAxes, 'ButtonDownFcn', @click_Callback);
-        set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-        
-        if strcmp(get(c.parent, 'SelectionType'), 'normal')
-            disp(hObject)
-            pop=figure;
-            h=hObject; 
-            hc = copyobj(h, gcf);
-            set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
-            uiwait(pop);
+        try
+            delete(c.pop);
         end
+        c.pop=figure;
+        hc = copyobj(hObject, gcf);
+        set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
+        uiwait(c.pop);
+    end
             
 %             
 %             if c.axesMode == 0
@@ -1997,7 +2116,7 @@ function varargout = diamondControl(varargin)
 %             end
 %             renderUpper();
 %         end
-    end
+    %end
 
 %     function box_Callback(hObject, ~)
 %         switch hObject
