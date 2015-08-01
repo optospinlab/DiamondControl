@@ -663,10 +663,10 @@ function varargout = diamondControl(varargin)
     function daqOutSmooth(to)
         % Smoothly sends all the DAQ devices to the location defined by 'to'.
         if c.outputEnabled && c.daqInitiated && ~c.isCounting
-            prev = [c.piezo c.galvo]   % Get the previous location.
+            prev = [c.piezo c.galvo];   % Get the previous location.
             c.piezo = to(1:3);          % Set the new location.
             c.galvo = to(4:5);
-            curr = [c.piezo c.galvo]
+            curr = [c.piezo c.galvo];
             
             limit();                    % Make sure we aren't going over-bounds.
             
@@ -720,7 +720,7 @@ function varargout = diamondControl(varargin)
     end
     % --- OPTIMIZATION ----------------------------------------------------
     function focus_Callback(~, ~)
-        display('begin focusing');
+        display('    begin focusing');
         
         c.focusing = 1;
         prevContrast = 0;
@@ -768,7 +768,7 @@ function varargout = diamondControl(varargin)
             getPiezo();
         end
         
-        display('end focusing');
+        display('    end focusing');
     end
     function optXY_Callback(~, ~)
         piezoOptimizeXY();
@@ -1567,6 +1567,7 @@ function varargout = diamondControl(varargin)
         c.autoScanning = true;
 %         [V, V0, v, nxrange, nyrange, ndrange] = varin;
         
+        
         nxrange = getStoredR('x');    % Range of the major grid
         nyrange = getStoredR('y');
 
@@ -1590,6 +1591,19 @@ function varargout = diamondControl(varargin)
             display(message);
 
             prefix = [subDirectory '\'];
+
+            
+            [fileNorm, pathNorm] = uigetfile('*.SPE','Select the bare-diamond spectrum');
+
+            if isequal(fileNorm, 0)
+                normal = 0;
+            else
+                normal = readSPE([pathNorm fileNorm]);
+
+                save([filename '.mat'],'normal');
+                copyfile([pathNorm fileNorm], [filename '.SPE']);
+            end
+            
             
             results = true;
             
@@ -1644,7 +1658,7 @@ function varargout = diamondControl(varargin)
 
                         piezoOutSmooth([5 5 p(3,i)]);
 
-                        display(['Arrived at' name{i}]);
+                        display(['Arrived at ' name{i}]);
 
                         if ~onlyTest
                             old = [c.piezo c.galvo];
@@ -1663,14 +1677,14 @@ function varargout = diamondControl(varargin)
                             intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
                             
                             if results
-                                fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) '\r\n']);
+                                fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) ']\r\n']);
                                 fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
                                 fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
                                 fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
                                 fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
-                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)) ', ' num2str(c.galvo(2)) ' mV\r\n']);
-                                fprintf(fhv, ['                            from ' num2str(old(4)) ', ' num2str(old(5)) ' mV.\r\n']);
-                                fprintf(fhv, ['    This gave us an inital countrate of ' num2str(max(max(intitial))) ' counts/sec.\r\n']);
+                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
+                                fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
+                                fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(intitial)))) ' counts/sec.\r\n']);
                             end
                                 
                             old = [c.piezo c.galvo];
@@ -1691,23 +1705,26 @@ function varargout = diamondControl(varargin)
 
                             display('  Scanning...');
 
-                            scan = galvoScan(false);
+                            scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
                             
                             if results
                                 fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
                                 fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
-                                fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(max(max(scan))) ' counts/sec.\r\n']);
+                                fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
                             end
 
                             display('  Taking Spectrum...');
 
                             sendSpectrumTrigger();
-                            waitForSpectrum([prefix name{i} '_spectrum']);
+                            spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
 
                             display('  Saving...');
+                            
+                            finalSpectrum = 
+                            save([prefix name{i} '_spectrum' '.mat'], 'spectrum');
 
                             save([prefix name{i} '_galvo' '.mat'], 'scan');
-
+                            
                             imwrite(intitial'/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % Transpose because the dims are flipped.
 
                             imwrite(scan'/max(max(scan)), [prefix name{i} '_galvo' '.png']);
@@ -1730,11 +1747,11 @@ function varargout = diamondControl(varargin)
 
                                 if ~isempty(centers)
                                     fprintf(fhb, ' W |');
-                                    fprintf(fh, [' W ' num2str(counts, '%07i') ' |']);
+                                    fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
                                     fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
                                 else
                                     fprintf(fhb, '   |');
-                                    fprintf(fh, ['   ' num2str(counts, '%07i') ' |']);
+                                    fprintf(fh, ['   ' num2str(round(counts), '%07i') ' |']);
                                     fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
                                 end
                             end
