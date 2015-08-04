@@ -2293,7 +2293,7 @@ function varargout = diamondControl(varargin)
 %     end
     function startvid_Callback(hObject,~)
          if hObject ~= 0 && ~c.vid_on
-             disp('Started vid...')
+            set(c.track_stat,'String','Status: Started vid');
 
                 c.tktime = timer;
                 c.tktime.TasksToExecute = Inf;
@@ -2303,20 +2303,17 @@ function varargout = diamondControl(varargin)
                 
                 c.vid_on=1;
                 c.seldisk=0;
+                c.centroid_init=0;
                 
                 start(c.tktime);
          end
     end
-    function stopvid_Callback(~,~)
-        disp('Stopped vid...')
-        stop(c.tktime);
-        delete(c.tktime);
-        c.vid_on = 0;
-    end
+    
     function tkListener(~, ~)
-            frame = getsnapshot(c.vid);
-           
-        if c.vid_on && ~c.seldisk
+        % frame = getsnapshot(c.vid);
+         frame= flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png')),1);
+         
+        if c.vid_on 
             %Sharpen image
             filter = fspecial('unsharp', 1);
             I1 = imfilter(flipdim(frame,1), filter);
@@ -2325,150 +2322,153 @@ function varargout = diamondControl(varargin)
             I2 = imtophat(I1,strel('disk',35));
             I3 = imadjust(I2);
                 
-                %Circle detection code
-                 IBW=im2bw(I3,0.7);
-                 set(c.track_img,'CData',I3); 
-                 
-                 [c.circles, c.radii] = imfindcircles(IBW,[12 20]);
-  
-                 try
-                     delete(c.hg1);
-                 catch
-                 end
-                 if ~isempty(c.radii)
-                    axes(c.track_Axes);
-                    c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
-                 end
-        elseif ~isempty(c.roi)  
-            
+            IBW=im2bw(I3,0.7);
+            set(c.track_img,'CData',I3); 
+ 
+            if ~isempty(c.roi)  
+                c.roi_image = imcrop(IBW,c.roi);
+                if c.centroid_init
+                    
+                    axes(c.roi_Axes); 
+                    c.hroi=imshow(c.roi_image);
+                    
+                    [c.centroidXi,c.centroidYi]=centroid_fun();
+                    set(c.track_stat,'String',['Got Initial Centroid']);
+                    c.centroid_init=0;
+                else
+                    [c.centroidX,c.centroidY]=centroid_fun();
+                    set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
+                end
+    
+                k = 0.0144; %calibration constant between pixels and voltage
+
+    %         gain = str2num(get(handles.gain, 'String'));
+    %         minAdjustmentpx = str2num(get(handles.minAdjustment, 'String'));
+    %         mindelV = minAdjustmentpx*k;
+    %         rate=str2num(get(handles.feedbackRate, 'String'));
+    %         delay = 1.0/rate
+    %         zfocuscounter = 0;
+    %         N = round(str2num(get(handles.N, 'String')));
+    %         while get(handles.track, 'Value') == 1
+    %             global ao1 ao2 nidevice;
+    %             frame = getsnapshot(vid);
+    %             rot = str2num(get(handles.rot, 'String'));
+    %         %     Im=imrotate (frame,rot,'bilinear','crop');
+    %         %     [X Y] = centroid_fun(Im,handles);
+    %             [X Y] = centroid_fun(frame,handles);
+    %             set(handles.xcurrent, 'String', num2str(X));
+    %             set(handles.ycurrent, 'String', num2str(Y));
+    %             delX = X-X0;
+    %             delY = Y-Y0;
+    %             Vxold = str2num(get(handles.Vx, 'String'));
+    %             Vyold = str2num(get(handles.Vy,'String'));    
+    %             delVx = delX*k*gain;
+    %             delVy = delY*k*gain;
+    %             %only move if greater than 1 pixel which is < 50 nm
+    %             if (abs(delVx)>mindelV) | (abs(delVy) > mindelV)
+    %             %only move if voltage stays positive
+    %             Vxnew = max([0, Vxold - delVx])
+    %             Vynew = max([0, Vyold - delVy])
+    %             s = daq.createSession('ni');
+    %             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
+    %             s.outputSingleScan([Vxnew Vynew]); 
+    %             set(handles.Vx, 'String', num2str(Vxnew));
+    %             set(handles.Vy, 'String', num2str(Vynew));
+    %             end
+    %             pause(delay);
+    %             zfocuscounter = zfocuscounter + 1;
+    %             if zfocuscounter == N
+    %                 zfocuscounter = 0;
+    %                if get(handles.zFeedback, 'Value') == 2
+    %                    figure(2)
+    %                    close(2)
+    %                    findfocus(handles)
+    %                end
+    %             end
+    %         end
+    
+            elseif ~c.seldisk
+                [c.circles, c.radii] = imfindcircles(IBW,[12 20]);
+
+                     try
+                         delete(c.hg1);
+                     catch
+                     end
+                     if ~isempty(c.radii)
+                        axes(c.track_Axes);
+                        c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
+                     end
+            end
         end
     end
-%     function click_trackCallback(~,~)
-%         c.trackpt = get (gca, 'CurrentPoint');
-%         w=strcat('%0','3.1f');   
-%         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0
-%              set(c.track_stat,'String',strcat(['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]));
-%              axes(c.track_Axes);
-%              for i=1:length(c.radii)
-%                 if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
-%                         && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
-%                     c.selcircle(1)=c.circles(i,1); 
-%                     c.selcircle(2)=c.circles(i,2);
-%                     c.selradii=c.radii(i);
-%                     viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
-%                     c.seldisk=1;
-%                 end
-%              end
-%         end
-%     end
+
+    function click_trackCallback(~,~)
+        c.trackpt = get (gca, 'CurrentPoint');
+        w=strcat('%0','3.1f');   
+        if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
+             set(c.track_stat,'String',['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]);
+             axes(c.track_Axes);
+             for i=1:length(c.radii)
+                if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
+                        && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
+                    c.selcircle(1)=c.circles(i,1); 
+                    c.selcircle(2)=c.circles(i,2);
+                    c.selradii=c.radii(i);
+                    viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
+                    c.seldisk=1;
+                end
+             end
+        end
+    end
+
+    function stopvid_Callback(~,~)
+        set(c.track_stat,'String','Status: Stopped vid');
+        stop(c.tktime);
+        delete(c.tktime);
+        c.vid_on = 0;
+    end
 
     function cleartrack_Callback(~,~)
      c.seldisk=0;
+     c.centroid_init=0;
      c.roi='';
+     axes(c.roi_Axes); cla;
+     try
+         delete(c.hg1);
+     catch
+     end
+     set(c.track_stat,'String','Status: ROI cleared');
     end
 
     function settrack_Callback(~,~)
-       
-       stopvid_Callback();
-       frame = getsnapshot(c.vid);
-       
-       %Set the ROI for tracking 
-       c.roi=[c.selcircle(1)-c.selradii-c.roi_pad c.selcircle(2)-c.selradii-c.roi_pad 2*c.selradii+c.roi_pad 2*c.selradii+c.roi_pad];
-       roi_image = imcrop(frame,c.roi);
-       axes(c.roi_Axes);imshow(roi_image);
+    
+      if isempty(c.roi) && c.seldisk 
+       %Set the ROI for tracking
+       c.roi=[c.selcircle(1)-c.selradii-c.roi_pad c.selcircle(2)-c.selradii-c.roi_pad 2*(c.selradii+c.roi_pad) 2*(c.selradii+c.roi_pad)];   
        set(c.track_stat,'String','Status: New ROI Selected');
        
-%         centroid_fun(frame,handles)
-%         % colormap('Gray');
-% 
-%         pause(0.1)
-%         % [X0 Y0] = centroid_fun(Im,handles);
-%         [X0 Y0] = centroid_fun(frame,handles);
-%         set(handles.x0, 'String', num2str(X0));
-%         set(handles.y0, 'String', num2str(Y0));
-%         %start tracking
-%         %here I record approximate calibration from Dec. 5 2012
-%         %full x range on camera corresponds to ~46 um, 1 pixel = 0.072 um
-%         %for y range on camera corresponds to ~35 um
-%         %next need to know voltage/per pixel 10V = 50 microns -> 1 px = 0.0144 V
-%         k = 0.0144; %calibration constant between pixels and voltage
-%         %check calibration a different way- look at image as voltage is changed on
-%         %piezos,it is about 9V across which agrees well with 46microns
-% 
-%         gain = str2num(get(handles.gain, 'String'));
-%         minAdjustmentpx = str2num(get(handles.minAdjustment, 'String'));
-%         mindelV = minAdjustmentpx*k;
-%         rate=str2num(get(handles.feedbackRate, 'String'));
-%         delay = 1.0/rate
-%         zfocuscounter = 0;
-%         N = round(str2num(get(handles.N, 'String')));
-%         while get(handles.track, 'Value') == 1
-%             global ao1 ao2 nidevice;
-%             frame = getsnapshot(vid);
-%             rot = str2num(get(handles.rot, 'String'));
-%         %     Im=imrotate (frame,rot,'bilinear','crop');
-%         %     [X Y] = centroid_fun(Im,handles);
-%             [X Y] = centroid_fun(frame,handles);
-%             set(handles.xcurrent, 'String', num2str(X));
-%             set(handles.ycurrent, 'String', num2str(Y));
-%             delX = X-X0;
-%             delY = Y-Y0;
-%             Vxold = str2num(get(handles.Vx, 'String'));
-%             Vyold = str2num(get(handles.Vy,'String'));    
-%             delVx = delX*k*gain;
-%             delVy = delY*k*gain;
-%             %only move if greater than 1 pixel which is < 50 nm
-%             if (abs(delVx)>mindelV) | (abs(delVy) > mindelV)
-%             %only move if voltage stays positive
-%             Vxnew = max([0, Vxold - delVx])
-%             Vynew = max([0, Vyold - delVy])
-%             s = daq.createSession('ni');
-%             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
-%             s.outputSingleScan([Vxnew Vynew]); 
-%             set(handles.Vx, 'String', num2str(Vxnew));
-%             set(handles.Vy, 'String', num2str(Vynew));
-%             end
-%             pause(delay);
-%             zfocuscounter = zfocuscounter + 1;
-%             if zfocuscounter == N
-%                 zfocuscounter = 0;
-%                if get(handles.zFeedback, 'Value') == 2
-%                    figure(2)
-%                    close(2)
-%                    findfocus(handles)
-%                end
-%             end
-%         end
+       %Get Initial Centroid Position 
+       c.centroid_init=1;
+      end
+      
     end
 
-%     function [X Y] = centroid_fun(frame, handles)
-%         %first invert and threshold and plot
-%         threshold = str2num(get(handles.threshold, 'String'))
-%         if get(handles.invert, 'Value')==2
-%             b = 255-threshold;
-%             iframe = round((abs(b-frame)+b-frame)/2);
-%         else
-%             iframe = round((frame-threshold + abs(frame-threshold))/2);
-%         end
-%         axes(handles.axes1)
-%         imagesc(iframe)
-%         colormap('Gray');
-%         set(handles.figureTitle, 'String', 'Tracked image');
-%         %next calculate the centroid, note that this always uses the ROI
-%         width = str2num(get(handles.width, 'String'));
-%         height = str2num(get(handles.height, 'String'));
-%         Xind = 1:width;
-%         Yind = 1:height;
-%         X = round(sum(Xind.*sum(iframe, 1)/sum(sum(iframe)))*100)/100;
-%         Y = round(sum(Yind.*(sum(iframe, 2)/sum(sum(iframe)))')*100)/100;
-%     end
+    function [X,Y] = centroid_fun()
+                 st = regionprops( c.roi_image, 'Area', 'Centroid','MajorAxisLength','MinorAxisLength');
+                 sel = [st.Area] > pi*15*15;
+                 st = st(sel);
+                 X=st.Centroid(1); Y=st.Centroid(2);
+                 diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
+                 radii = diameters/2;
+                 set(c.hroi,'CData',c.roi_image);
+                 try
+                    delete(c.hg2);
+                    delete(c.hg3);
+                 catch
+                end
+                 c.hg2=viscircles(st.Centroid ,radii,'EdgeColor','r','LineWidth',1.5); hold on;
+                 c.hg3=scatter(st.Centroid(1),st.Centroid(2),50,'g','LineWidth',4);    hold off;     
+    end
 
-% st = regionprops( ~IBW, 'Area', 'Centroid');
-%                  sel = [st.Area] > pi*13*13/(640*480) & [st.Area] < pi*20*20/(640*480); 
-%                  st = st(sel);
-%                  c.circles=st.Centroid;
-% 
-%                  diameters = mean([stats.MajorAxisLength stats.MinorAxisLength],2);
-%                  radii = diameters/2;
 end
     
