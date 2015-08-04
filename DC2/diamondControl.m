@@ -268,7 +268,7 @@ function varargout = diamondControl(varargin)
             speed = 0;
         else
 %             speed = (num - .1*(num/abs(num)))*(num - .1*(num/abs(num))); % Continuous
-            speed = num*num*num/(ignore*ignore*ignore*8); % *dir(num);
+            speed = num*num/(ignore*ignore*4)*dir(num);
         end
     end
     function out = direction(num)
