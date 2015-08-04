@@ -118,10 +118,18 @@ function varargout = diamondControl(varargin)
     % Spectra Fields (unfinished) -----------------------------------------
     set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);           
     
+    % Tracking Fields
+    set(c.start_vid, 'Callback',  @startvid_Callback);
+    set(c.stop_vid, 'Callback',  @stopvid_Callback);
+    set(c.track_clear, 'Callback',  @cleartrack_Callback);
+    set(c.track_set, 'Callback',  @settrack_Callback);
+    
+    
     % UI Fields -----------------------------------------------------------
-   % set(c.parent, 'ButtonDownFcn', @click_Callback);
+    % set(c.parent, 'ButtonDownFcn', @click_Callback);
     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
     set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+    set(gcf,'WindowButtonDownFcn', @click_trackCallback);
     
     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
@@ -146,6 +154,7 @@ function varargout = diamondControl(varargin)
     setGalvoAxesLimits();
     
     set(c.parent, 'Visible', 'On');
+    
     
     % Initiate Everything...
     initAll();
@@ -391,10 +400,17 @@ function varargout = diamondControl(varargin)
        %Need to check if the counter is disabled
        try
         if get(c.counterButton, 'Value') == 1
-            display('Closing Counter...')
+            display('Closing SPCM Counter...')
             stop(c.lhC);
             delete(c.lhC);
         end
+        try
+            display('Closing Track Counter...')
+            stop(c.tktime);
+            delete(c.tktime);
+        catch err
+           display(err.message);
+       end       
        catch err
            display(err.message);
        end
@@ -516,39 +532,16 @@ function varargout = diamondControl(varargin)
         vidRes = c.vid.VideoResolution;
         nBands = c.vid.NumberOfBands;
         hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(1) 1]);
-%         setappdata(hImage,'UpdatePreviewWindowFcn',@mypreview_fcn);
         preview(c.vid, hImage);
-
+        
+        axes(c.track_Axes) ;
+        frame = getsnapshot(c.vid);
+        c.track_img=imshow(frame);
+        
 %         set(c.imageAxes, 'ButtonDownFcn', @makePopout_Callback);
 %         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
     end
-        %     function mypreview_fcn(obj,event,himage)
-%         frame = event.Data;
-% 
-%         filter = fspecial('unsharp', 0.01);
-%         I1 = imfilter(flipdim(frame,1), filter);
-% 
-%         adjust contrast
-%         Ix = imtophat(I1,strel('disk',33));
-%         I2 = imadjust(Ix);
-%         temp=image(I2);
-%              
-%                  Circle detection code
-%                  IBW=im2bw(I2,0.6)
-%                  [centers, radii] = imfindcircles(IBW,[12 22])
-%                  try
-%                      delete(hg1);
-%                      delete(hg2);
-%                  catch
-%                  end
-%                 hg1=viscircles(centers, radii,'EdgeColor','b')
-% 
-%     Set the value of the text label.
-% 
-%     Display image data.
-%         event.Data=get(temp,'CData');
-%         himage.CData = event.Data;
-%     end
+ 
     function initAll()
         % Self-explainatory
         try
@@ -1317,13 +1310,15 @@ function varargout = diamondControl(varargin)
         fprintf(fh, 'Trigger Spectrum\n');
         fclose(fh);
     end
-    function image = waitForSpectrum(filename)
+    function spectrum = waitForSpectrum(filename)
         file = '';
-        image = -1;
+        spectrum = -1;
         
         t = now;
         
-        while c.running
+        i = 0;
+        
+        while c.running && i < 60
             try
                 disp('    waiting')
                 d = dir('Z:\WinSpec_Scan\s*.*');
@@ -1331,19 +1326,22 @@ function varargout = diamondControl(varargin)
                 file = strcat('Z:\WinSpec_Scan\', d.name);
                 if d.datenum > t % file == 'Z:\WinSpec_Scan\spec.SPE'
                     pause(.5);
-                    image = readSPE(file);
+                    spectrum = readSPE(file);
                 end
             catch error
                % disp(error)
                 pause(.5);
             end
             
-            if image ~=-1
+            if spectrum ~=-1
                 break
             end
+            i = i + 1;
         end
         
-        if c.running
+        pause(.5);
+        
+        if c.running && spectrum ~=-1
             disp('    got the data!');
 
             %plot data -> delete file
@@ -1351,14 +1349,37 @@ function varargout = diamondControl(varargin)
     %         axis([1 512 min(image) max(image)])
 
             if filename ~= 0    % If there is a filename, save there.
-                save([filename '.mat'],'image');
+                save([filename '.mat'],'spectrum');
                 disp('    Saved .mat file and cleared folder')
-                movefile(file, [filename '.SPE']);
+                
+                i = 0;
+                while i < 20
+                    try
+                        movefile(file, [filename '.SPE']);
+                        break;
+                    catch err
+                        pause(.5);
+                        display(err.message);
+                    end
+                    i = i + 1;
+                end
             else                % Otherwise only delete
-                delete(file);
+                i = 0;
+                while i < 20
+                    try
+                        delete(file);
+                        break;
+                    catch err
+                        pause(.5);
+                        display(err.message);
+                    end
+                    i = i + 1;
+                end
             end
 
             set(c.spectrumButton, 'Enable', 'on');
+        elseif spectrum ~=-1
+            display('Failed to get data; proceeding');
         end
     end
     function takeSpectrum_Callback(~,~)
@@ -1591,18 +1612,6 @@ function varargout = diamondControl(varargin)
             display(message);
 
             prefix = [subDirectory '\'];
-
-            
-            [fileNorm, pathNorm] = uigetfile('*.SPE','Select the bare-diamond spectrum');
-
-            if isequal(fileNorm, 0)
-                normal = 0;
-            else
-                normal = readSPE([pathNorm fileNorm]);
-
-                save([filename '.mat'],'normal');
-                copyfile([pathNorm fileNorm], [filename '.SPE']);
-            end
             
             
             results = true;
@@ -1617,17 +1626,40 @@ function varargout = diamondControl(varargin)
                 end 
             
                 fprintf(fhb, '  Set  |       Works       |\r\n');         % Change this in the future to be compatable with all possibilities.
-                fprintf(fhb, '  Set  | 1 | 2 | 3 | 4 | 5 |');
+                fprintf(fhb, ' [x,y] | 1 | 2 | 3 | 4 | 5 |');
 
                 fprintf(fh, '  Set  |                          Counts                           |\r\n');
-                fprintf(fh, '  Set  |     1     |     2     |     3     |     4     |     5     |');
+                fprintf(fh, ' [x,y] |     1     |     2     |     3     |     4     |     5     |');
 
                 fprintf(fhv, 'Welcome to the verbose version of the results summary...\r\n\r\n');
             catch err
                 display(err.message);
                 results = false;
             end
+
             
+            [fileNorm, pathNorm] = uigetfile('*.SPE','Select the bare-diamond spectrum');
+
+            if isequal(fileNorm, 0)
+                spectrumNorm = 0;
+            else
+                spectrumNorm = readSPE([pathNorm fileNorm]);
+                
+%                 png = plot(c.lowerAxes, 1:512, spectrumNorm);
+%                 xlim(c.lowerAxes, [1 512]);
+%                 
+%                 saveas(png, [prefix 'normalization_spectrum.png']);
+                save([prefix 'normalization_spectrum.mat'], 'spectrumNorm');
+                copyfile([pathNorm fileNorm], [prefix 'normalization_spectrum.SPE']);
+            end
+            
+            if results
+                if spectrumNorm == 0
+                    fprintf(fhv, 'No bare-diamond normalization was selected.\r\n\r\n');
+                else
+                    fprintf(fhv, ['Bare diamond normalization was selected from:\r\n  ' pathNorm fileNorm '\r\n\r\n']);
+                end
+            end
         end
         
         original = c.micro;
@@ -1667,9 +1699,13 @@ function varargout = diamondControl(varargin)
                             
                             focus_Callback(0, 0);
                             
-                            start(c.vid);
-                            data = getdata(c.vid);
-                            img = data(360:-1:121, 161:480);    % Fixed flip...
+                            try
+                                start(c.vid);
+                                data = getdata(c.vid);
+                                img = data(360:-1:121, 161:480);    % Fixed flip...
+                            catch err
+                                display(err.message)
+                            end
 
                             display('  Optimizing...');
 
@@ -1710,24 +1746,40 @@ function varargout = diamondControl(varargin)
                             if results
                                 fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
                                 fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
+                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
+                                fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
                                 fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
                             end
 
                             display('  Taking Spectrum...');
 
-                            sendSpectrumTrigger();
-                            spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+                            try
+                                sendSpectrumTrigger();
+                                spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+                            catch err
+                                display(err.message)
+                            end
 
                             display('  Saving...');
                             
-                            finalSpectrum = 
-                            save([prefix name{i} '_spectrum' '.mat'], 'spectrum');
+%                             png = plot(c.lowerAxes, 1:512, spectrum);
+%                             xlim(c.lowerAxes, [1 512]);
+%                             saveas(png, [prefix name{i} '_spectrum' '.png']);
+                            
+                            if spectrumNorm ~= 0
+                                spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
+                                save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+
+%                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
+%                                 xlim(c.lowerAxes, [1 512]);
+%                                 saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
+                            end
 
                             save([prefix name{i} '_galvo' '.mat'], 'scan');
                             
-                            imwrite(intitial'/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % Transpose because the dims are flipped.
+                            imwrite(rot90(intitial,2)/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % rotate because the dims are flipped.
 
-                            imwrite(scan'/max(max(scan)), [prefix name{i} '_galvo' '.png']);
+                            imwrite(rot90(scan,2)/max(max(scan)), [prefix name{i} '_galvo' '.png']);
 
                             imwrite(img, [prefix name{i} '_blue' '.png']);
 
@@ -1737,8 +1789,15 @@ function varargout = diamondControl(varargin)
                                 counts = max(max(scan));
 %                                 counts2 = max(max(intitial));
 
-                                IBW = im2bw(scan, graythresh(scan));
-                                [centers, radii] = imfindcircles(IBW,[5 25]);
+                                J = imresize(scan, 5);
+                                J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
+
+                                level = graythresh(J);
+                                IBW = im2bw(J, level);
+                                [centers, radii] = imfindcircles(IBW, [15 60]);    
+
+%                                 IBW = im2bw(scan, graythresh(scan));
+%                                 [centers, radii] = imfindcircles(IBW,[5 25]);
 
                                 if d == ndrange(1)
                                     fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] |']);
@@ -2093,7 +2152,6 @@ function varargout = diamondControl(varargin)
            set(c.counterAxes, 'ButtonDownFcn', '');
         end
     end
-
     function click_Callback(hObject, ~)
         try
             delete(c.pop);
@@ -2208,9 +2266,74 @@ function varargout = diamondControl(varargin)
 %         
 %         renderUpper();
 %     end
+    function startvid_Callback(hObject,~)
+         if hObject ~= 0 && ~c.vid_on
+             disp('Started vid...')
 
+                c.tktime = timer;
+                c.tktime.TasksToExecute = Inf;
+                c.tktime.Period = 1/c.ratevid;
+                c.tktime.TimerFcn = @(~,~)tkListener;
+                c.tktime.ExecutionMode = 'fixedSpacing';
+                
+                c.vid_on=1;
+                c.seldisk=0;
+                
+                start(c.tktime);
+         end
+    end
+    function stopvid_Callback(~,~)
+        disp('Stopped vid...')
+        stop(c.tktime);
+        delete(c.tktime);
+        c.vid_on = 0;
+    end
+    function tkListener(~, ~)
+            frame = getsnapshot(c.vid);
+           
+        if c.vid_on && ~c.seldisk
+            %Sharpen image
+            filter = fspecial('unsharp', 1);
+            I1 = imfilter(flipdim(frame,1), filter);
+
+            %Adjust contrast
+            I2 = imtophat(I1,strel('disk',35));
+            I3 = imadjust(I2);
+                
+                %Circle detection code
+                 IBW=im2bw(I3,0.7);
+                 set(c.track_img,'CData',I3); 
+                 [c.circles, c.radii] = imfindcircles(IBW,[12 20]);
+                 try
+                     delete(c.hg1);
+                 catch
+                 end
+                 if ~isempty(c.radii)
+                    axes(c.track_Axes);
+                    c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
+                 end
+        end
+    end
+    function click_trackCallback(~,~)
+        c.trackpt = get (gca, 'CurrentPoint');
+        w=strcat('%0','3.1f');   
+        if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480)
+             set(c.track_stat,'String',strcat(['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]));
+             axes(c.track_Axes);
+             for i=1:length(c.radii)
+                if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
+                        && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
+                    c.selcircle(1)=c.circles(i,1); 
+                    c.selcircle(2)=c.circles(i,2);
+                    c.selradii=c.radii(i);
+                    viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
+                    c.seldisk=1;
+                end
+             end
+        end
+    end
+    function cleartrack_Callback(~,~)
+     c.seldisk=0;
+    end
 end
-
-
-
-
+    

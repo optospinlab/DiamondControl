@@ -456,6 +456,17 @@ c.autoTab =         uitab(c.automationPanel, 'Title', 'Automation!');
 % A list of all buttons to disable when a scan/etc is running.
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
+c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
+    c.ratevid = 2;     % vid update rate /sec
+    c.vid_on=0; c.seldisk=0;
+     
+    c.start_vid =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Start Vid', 'Position', [bp plh-bp-3*bh bw bh]);  
+    c.stop_vid =       uicontrol('Parent', c.trackTab, 'Style', 'pushbutton',   'String', 'Stop Vid', 'Position', [bw+bp plh-bp-3*bh bw bh]);
+    c.track_Axes =     axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [bp plh-bp-15*bh bp+2*bw 2*bw]);
+    c.track_stat =     uicontrol('Parent', c.trackTab, 'Style', 'text', 'String', 'Status: Nothing selected', 'Position', [bp plh-bp-16*bh 2*bw 2*bh]);   
+    c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton',   'String', 'Clear', 'Position', [bp plh-bp-18*bh bw bh]);
+    c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton',   'String', 'Set Disk', 'Position', [bp+bw plh-bp-18*bh bw bh]);
+   
 end
 
 
