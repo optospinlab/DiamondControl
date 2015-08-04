@@ -1318,20 +1318,20 @@ function varargout = diamondControl(varargin)
         
         i = 0;
         
-        while c.running && i < 60
+        while c.running && i < 120
             try
-                disp('    waiting')
+                disp(['    waiting' num2str(i)])
                 d = dir('Z:\WinSpec_Scan\s*.*');
                 
                 file = strcat('Z:\WinSpec_Scan\', d.name);
                 if d.datenum > t % file == 'Z:\WinSpec_Scan\spec.SPE'
-                    pause(.5);
                     spectrum = readSPE(file);
                 end
             catch error
-               % disp(error)
-                pause(.5);
+                disp(error)
             end
+            
+            pause(.5);
             
             if spectrum ~=-1
                 break
@@ -1341,7 +1341,7 @@ function varargout = diamondControl(varargin)
         
         pause(.5);
         
-        if c.running && spectrum ~=-1
+        if spectrum ~=-1
             disp('    got the data!');
 
             %plot data -> delete file
@@ -1351,7 +1351,7 @@ function varargout = diamondControl(varargin)
             if filename ~= 0    % If there is a filename, save there.
                 save([filename '.mat'],'spectrum');
                 disp('    Saved .mat file and cleared folder')
-                
+
                 i = 0;
                 while i < 20
                     try
@@ -1376,11 +1376,10 @@ function varargout = diamondControl(varargin)
                     i = i + 1;
                 end
             end
-
-            set(c.spectrumButton, 'Enable', 'on');
         elseif spectrum ~=-1
             display('Failed to get data; proceeding');
         end
+        set(c.spectrumButton, 'Enable', 'on');
     end
     function takeSpectrum_Callback(~,~)
         sendSpectrumTrigger();
@@ -2348,44 +2347,25 @@ function varargout = diamondControl(varargin)
     %         rate=str2num(get(handles.feedbackRate, 'String'));
     %         delay = 1.0/rate
     %         zfocuscounter = 0;
-    %         N = round(str2num(get(handles.N, 'String')));
-    %         while get(handles.track, 'Value') == 1
-    %             global ao1 ao2 nidevice;
-    %             frame = getsnapshot(vid);
-    %             rot = str2num(get(handles.rot, 'String'));
-    %         %     Im=imrotate (frame,rot,'bilinear','crop');
-    %         %     [X Y] = centroid_fun(Im,handles);
-    %             [X Y] = centroid_fun(frame,handles);
-    %             set(handles.xcurrent, 'String', num2str(X));
-    %             set(handles.ycurrent, 'String', num2str(Y));
+    
     %             delX = X-X0;
     %             delY = Y-Y0;
-    %             Vxold = str2num(get(handles.Vx, 'String'));
-    %             Vyold = str2num(get(handles.Vy,'String'));    
+    
     %             delVx = delX*k*gain;
     %             delVy = delY*k*gain;
+    
     %             %only move if greater than 1 pixel which is < 50 nm
     %             if (abs(delVx)>mindelV) | (abs(delVy) > mindelV)
-    %             %only move if voltage stays positive
-    %             Vxnew = max([0, Vxold - delVx])
-    %             Vynew = max([0, Vyold - delVy])
-    %             s = daq.createSession('ni');
-    %             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
-    %             s.outputSingleScan([Vxnew Vynew]); 
-    %             set(handles.Vx, 'String', num2str(Vxnew));
-    %             set(handles.Vy, 'String', num2str(Vynew));
-    %             end
-    %             pause(delay);
-    %             zfocuscounter = zfocuscounter + 1;
-    %             if zfocuscounter == N
-    %                 zfocuscounter = 0;
-    %                if get(handles.zFeedback, 'Value') == 2
-    %                    figure(2)
-    %                    close(2)
-    %                    findfocus(handles)
-    %                end
-    %             end
-    %         end
+        %             %only move if voltage stays positive
+        %             Vxnew = max([0, Vxold - delVx])
+        %             Vynew = max([0, Vyold - delVy])
+   
+        %             s = daq.createSession('ni');
+        %             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
+        %             s.outputSingleScan([Vxnew Vynew]); 
+        %             set(handles.Vx, 'String', num2str(Vxnew));
+        %             set(handles.Vy, 'String', num2str(Vynew));
+        %         end
     
             elseif ~c.seldisk
                 [c.circles, c.radii] = imfindcircles(IBW,[12 20]);
@@ -2461,13 +2441,19 @@ function varargout = diamondControl(varargin)
                  diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
                  radii = diameters/2;
                  set(c.hroi,'CData',c.roi_image);
+                 
                  try
                     delete(c.hg2);
                     delete(c.hg3);
                  catch
-                end
+                 end
+                 
+                try
                  c.hg2=viscircles(st.Centroid ,radii,'EdgeColor','r','LineWidth',1.5); hold on;
-                 c.hg3=scatter(st.Centroid(1),st.Centroid(2),50,'g','LineWidth',4);    hold off;     
+                 c.hg3=scatter(st.Centroid(1),st.Centroid(2),50,'g','LineWidth',4);    hold off;    
+                catch err
+                    disp(err.message)
+                end
     end
 
 end
