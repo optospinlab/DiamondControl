@@ -34,7 +34,7 @@ vidRes = vid.VideoResolution; nBands = vid.NumberOfBands;
 closepreview;  %close preview if still running
 
 while run
-    frame = getsnapshot(c.vid);
+    frame = getsnapshot(vid);
     close all
 
     
