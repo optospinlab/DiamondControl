@@ -1588,7 +1588,6 @@ function varargout = diamondControl(varargin)
         c.autoScanning = true;
 %         [V, V0, v, nxrange, nyrange, ndrange] = varin;
         
-        
         nxrange = getStoredR('x');    % Range of the major grid
         nyrange = getStoredR('y');
 
@@ -1613,7 +1612,6 @@ function varargout = diamondControl(varargin)
 
             prefix = [subDirectory '\'];
             
-            
             results = true;
             
             try
@@ -1636,7 +1634,6 @@ function varargout = diamondControl(varargin)
                 display(err.message);
                 results = false;
             end
-
             
             [fileNorm, pathNorm] = uigetfile('*.SPE','Select the bare-diamond spectrum');
 
@@ -1645,9 +1642,14 @@ function varargout = diamondControl(varargin)
             else
                 spectrumNorm = readSPE([pathNorm fileNorm]);
                 
-%                 png = plot(c.lowerAxes, 1:512, spectrumNorm);
-%                 xlim(c.lowerAxes, [1 512]);
+%                 tempP = plot(1, 'Visible', 'off');
+%                 tempA = get(tempP, 'Parent');
+%                 png = plot(tempA, 1:512, spectrumNorm);
+%                 xlim(tempA, [1 512]);
 %                 
+% %                 png = plot(c.lowerAxes, 1:512, spectrumNorm);
+% %                 xlim(c.lowerAxes, [1 512]);
+% %                 
 %                 saveas(png, [prefix 'normalization_spectrum.png']);
                 save([prefix 'normalization_spectrum.mat'], 'spectrumNorm');
                 copyfile([pathNorm fileNorm], [prefix 'normalization_spectrum.SPE']);
@@ -1670,160 +1672,183 @@ function varargout = diamondControl(varargin)
             for y = nyrange(1):nyrange(2)
                 for d = ndrange(1):ndrange(2)
                     if c.autoScanning
-                        c.micro = p(1:2,i)' - [10 10];
-                        setPos();
+                        try
+                            c.micro = p(1:2,i)' - [10 10];
+                            setPos();
 
-                        while sum(abs(c.microActual - c.micro)) > .1
-                            pause(.1);
-                            getPos();
-                            renderUpper();
-                        end
-
-                        c.micro = p(1:2,i)';
-                        setPos();
-
-                        while sum(abs(c.microActual - c.micro)) > .1
-                            pause(.1);
-                            getPos();
-                            renderUpper();
-                        end
-
-                        piezoOutSmooth([5 5 p(3,i)]);
-
-                        display(['Arrived at ' name{i}]);
-
-                        if ~onlyTest
-                            old = [c.piezo c.galvo];
-                            
-                            display('  Focusing...');
-                            
-                            focus_Callback(0, 0);
-                            
-                            try
-                                start(c.vid);
-                                data = getdata(c.vid);
-                                img = data(360:-1:121, 161:480);    % Fixed flip...
-                            catch err
-                                display(err.message)
+                            while sum(abs(c.microActual - c.micro)) > .1
+                                pause(.1);
+                                getPos();
+                                renderUpper();
                             end
 
-                            display('  Optimizing...');
+                            c.micro = p(1:2,i)';
+                            setPos();
 
-                            piezoOptimizeXY();
-                            intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
-                            
-                            if results
-                                fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) ']\r\n']);
-                                fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
-                                fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
-                                fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
-                                fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
-                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
-                                fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
-                                fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(intitial)))) ' counts/sec.\r\n']);
-                            end
-                                
-                            old = [c.piezo c.galvo];
-                            
-                            piezoOptimizeZ();
-                            piezoOptimizeXY();
-                            
-                            if results
-                                fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
-                                fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
-                                fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
-                                fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
-                            end
-                            
-                            old = [c.piezo c.galvo];
-                            
-                            piezoOptimizeZ();
-
-                            display('  Scanning...');
-
-                            scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
-                            
-                            if results
-                                fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
-                                fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
-                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
-                                fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
-                                fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
+                            while sum(abs(c.microActual - c.micro)) > .1
+                                pause(.1);
+                                getPos();
+                                renderUpper();
                             end
 
-                            display('  Taking Spectrum...');
+                            piezoOutSmooth([5 5 p(3,i)]);
 
-                            try
-                                sendSpectrumTrigger();
-                                spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
-                            catch err
-                                display(err.message)
-                            end
+                            display(['Arrived at ' name{i}]);
 
-                            display('  Saving...');
-                            
-%                             png = plot(c.lowerAxes, 1:512, spectrum);
-%                             xlim(c.lowerAxes, [1 512]);
-%                             saveas(png, [prefix name{i} '_spectrum' '.png']);
-                            
-                            if spectrumNorm ~= 0
-                                spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
-                                save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+                            if ~onlyTest
+                                old = [c.piezo c.galvo];
 
-%                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
-%                                 xlim(c.lowerAxes, [1 512]);
-%                                 saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
-                            end
+                                display('  Focusing...');
 
-                            save([prefix name{i} '_galvo' '.mat'], 'scan');
-                            
-                            imwrite(rot90(intitial,2)/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % rotate because the dims are flipped.
+                                focus_Callback(0, 0);
 
-                            imwrite(rot90(scan,2)/max(max(scan)), [prefix name{i} '_galvo' '.png']);
-
-                            imwrite(img, [prefix name{i} '_blue' '.png']);
-
-                            if results
-                                display('  Remarking...');
-
-                                counts = max(max(scan));
-%                                 counts2 = max(max(intitial));
-
-                                J = imresize(scan, 5);
-                                J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
-
-                                level = graythresh(J);
-                                IBW = im2bw(J, level);
-                                [centers, radii] = imfindcircles(IBW, [15 60]);    
-
-%                                 IBW = im2bw(scan, graythresh(scan));
-%                                 [centers, radii] = imfindcircles(IBW,[5 25]);
-
-                                if d == ndrange(1)
-                                    fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] |']);
-                                    fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] |']);
+                                try
+                                    start(c.vid);
+                                    data = getdata(c.vid);
+                                    img = data(360:-1:121, 161:480);    % Fixed flip...
+                                catch err
+                                    display(err.message)
                                 end
 
-                                if ~isempty(centers)
-                                    fprintf(fhb, ' W |');
-                                    fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
-                                    fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
-                                else
-                                    fprintf(fhb, '   |');
-                                    fprintf(fh, ['   ' num2str(round(counts), '%07i') ' |']);
-                                    fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
+                                display('  Optimizing...');
+
+                                piezoOptimizeXY();
+                                intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+
+                                if results
+                                    fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) ']\r\n']);
+                                    fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
+                                    fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
+                                    fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
+                                    fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
+                                    fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
+                                    fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
+                                    fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(intitial)))) ' counts/sec.\r\n']);
                                 end
-                            end
 
-                            display('  Finished...');
-                            
-                            resetGalvo_Callback(0,0);
+                                old = [c.piezo c.galvo];
 
-                            while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
+                                piezoOptimizeZ();
+                                piezoOptimizeXY();
+
+                                if results
+                                    fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
+                                    fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
+                                    fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
+                                    fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
+                                end
+
+                                old = [c.piezo c.galvo];
+
+                                piezoOptimizeZ();
+
+                                display('  Scanning...');
+
+                                scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+
+                                if results
+                                    fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
+                                    fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
+                                    fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
+                                    fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
+                                    fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
+                                end
+
+                                display('  Taking Spectrum...');
+
+                                try
+                                    sendSpectrumTrigger();
+                                    spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+                                catch err
+                                    display(err.message)
+                                end
+
+                                display('  Saving...');
+                
+%                                 tempP = plot(1, 'Visible', 'off');
+%                                 tempA = get(tempP, 'Parent');
+%                                 png = plot(tempA, 1:512, spectrumNorm);
+%                                 xlim(tempA, [1 512]);
+%     %                             png = plot(c.lowerAxes, 1:512, spectrum);
+%     %                             xlim(c.lowerAxes, [1 512]);
+%                                 saveas(png, [prefix name{i} '_spectrum' '.png']);
+
+                                if spectrumNorm ~= 0
+                                    spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
+                                    save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+
+                
+%                                     tempP = plot(1, 'Visible', 'off');
+%                                     tempA = get(tempP, 'Parent');
+%                                     png = plot(tempA, 1:512, spectrumNorm);
+%                                     xlim(tempA, [1 512]);
+%     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
+%     %                                 xlim(c.lowerAxes, [1 512]);
+%                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
+                                end
+
+                                save([prefix name{i} '_galvo' '.mat'], 'scan');
+
+                                imwrite(rot90(intitial,2)/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % rotate because the dims are flipped.
+                                imwrite(rot90(scan,2)/max(max(scan)), [prefix name{i} '_galvo' '.png']);
+
+                                imwrite(img, [prefix name{i} '_blue' '.png']);
+
+                                if results
+                                    display('  Remarking...');
+
+                                    counts = max(max(scan));
+    %                                 counts2 = max(max(intitial));
+
+                                    J = imresize(scan, 5);
+                                    J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
+
+                                    level = graythresh(J);
+                                    IBW = im2bw(J, level);
+                                    [centers, radii] = imfindcircles(IBW, [15 60]);    
+
+    %                                 IBW = im2bw(scan, graythresh(scan));
+    %                                 [centers, radii] = imfindcircles(IBW,[5 25]);
+
+                                    if d == ndrange(1)
+                                        fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] |']);
+                                        fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] |']);
+                                    end
+
+                                    if ~isempty(centers)
+                                        fprintf(fhb, ' W |');
+                                        fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
+                                        fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
+                                    else
+                                        fprintf(fhb, '   |');
+                                        fprintf(fh, ['   ' num2str(round(counts), '%07i') ' |']);
+                                        fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
+                                    end
+                                end
+
+                                display('  Finished...');
+
+                                resetGalvo_Callback(0,0);
+
+                                while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
+                                    pause(.5);
+                                end
+                            else
                                 pause(.5);
                             end
-                        else
-                            pause(.5);
+                        catch err
+                            if results
+                                try
+                                    fprintf(fhb, ' F |');
+                                    fprintf(fh, [' F ' num2str(0, '%07i') ' |']);
+                                    fprintf(fhv, '    Something went horribly wrong with this device... Skipping to the next one.\r\n\r\n');
+                                catch err2
+                                    display(['Something went horribly when trying to say that something went horribly wrong with device ' name{i}]);
+                                    display(err2.message);
+                                end
+                            end
+                            display(['Something went horribly wrong with device ' name{i} '... Here is the error message:']);
+                            display(err.message);
                         end
                         
                         i = i+1;
