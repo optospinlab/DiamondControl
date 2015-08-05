@@ -34,6 +34,7 @@ c.running = false;
 c.linAct = [0 0];
 c.pv = [];
 c.pc = [];
+c.plottingFigure = figure('Visible', 'off', 'tag', 'Diamond Control Plotting');
 
 % Helper variables for GUI setup ==========================================
 global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;

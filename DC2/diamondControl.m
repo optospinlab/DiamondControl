@@ -1710,15 +1710,8 @@ function varargout = diamondControl(varargin)
             else
                 spectrumNorm = readSPE([pathNorm fileNorm]);
                 
-%                 tempP = plot(1, 'Visible', 'off');
-%                 tempA = get(tempP, 'Parent');
-%                 png = plot(tempA, 1:512, spectrumNorm);
-%                 xlim(tempA, [1 512]);
-%                 
-% %                 png = plot(c.lowerAxes, 1:512, spectrumNorm);
-% %                 xlim(c.lowerAxes, [1 512]);
-% %                 
-%                 saveas(png, [prefix 'normalization_spectrum.png']);
+                savePlotPng(1:512, spectrumNorm, [prefix 'normalization_spectrum.png']);
+
                 save([prefix 'normalization_spectrum.mat'], 'spectrumNorm');
                 copyfile([pathNorm fileNorm], [prefix 'normalization_spectrum.SPE']);
             end
@@ -1827,15 +1820,21 @@ function varargout = diamondControl(varargin)
                                 end
 
                                 display('  Taking Spectrum...');
-
+                                
+                                spectrum = 0;
+                                
                                 try
                                     sendSpectrumTrigger();
                                     spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
                                 catch err
-                                    display(err.message)
+                                    display(err.message);
                                 end
 
                                 display('  Saving...');
+                                
+                                if spectrum ~= 0
+                                    savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
+                                end
                 
 %                                 tempP = plot(1, 'Visible', 'off');
 %                                 tempA = get(tempP, 'Parent');
@@ -1845,9 +1844,11 @@ function varargout = diamondControl(varargin)
 %     %                             xlim(c.lowerAxes, [1 512]);
 %                                 saveas(png, [prefix name{i} '_spectrum' '.png']);
 
-                                if spectrumNorm ~= 0
+                                if spectrumNorm ~= 0 && spectrum ~= 0
                                     spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
                                     save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+                                    
+                                    savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
 
                 
 %                                     tempP = plot(1, 'Visible', 'off');
@@ -1947,6 +1948,11 @@ function varargout = diamondControl(varargin)
     end
     function autoStop_Callback(~, ~)
         c.autoScanning = false;
+    end
+    function savePlotPng(X, Y, filename)
+        p = plot(c.plottingFigure, X, Y);
+        xlim([X(1) X(end)]);
+        saveas(p, filename);
     end
 
     % UI ==================================================================
