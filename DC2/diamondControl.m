@@ -776,10 +776,12 @@ function varargout = diamondControl(varargin)
     function [final] = piezoOptimizeXY(range, upspeed, pixels)
         [final, X, Y] = piezoScanXYFull(range, upspeed, pixels);
         
-        m = min(min(final)); M = max(max(final));
-        data = (final - m)/(M - m);
+        [x, y] = myMeanAdvanced(final, X, Y);
         
-        [x, y] = myMean(data.*(data > .7), X, Y);
+%         m = min(min(final)); M = max(max(final));
+%         data = (final - m)/(M - m);
+%         
+%         [x, y] = myMean(data.*(data > .7), X, Y);
         
         piezoOutSmooth([0       0       c.piezo(3)]);
         piezoOutSmooth([X(1)    Y(1)    c.piezo(3)]);
@@ -848,10 +850,12 @@ function varargout = diamondControl(varargin)
     function [final] = galvoOptimize(range, upspeed, pixels)
         [final, X, Y] = galvoScanFull(false, range, upspeed, pixels);
         
-        m = min(min(final)); M = max(max(final));
-        data = (final - m)/(M - m);
+        [x, y] = myMeanAdvanced(final, X, Y);
         
-        [x, y] = myMean(data.*(data > .7), X, Y);
+%         m = min(min(final)); M = max(max(final));
+%         data = (final - m)/(M - m);
+%         
+%         [x, y] = myMean(data.*(data > .7), X, Y);
         
         galvoOutSmooth([.2 .2]);
         galvoOutSmooth([X(1) Y(1)]);
@@ -882,6 +886,59 @@ function varargout = diamondControl(varargin)
 %         dim = size(data);
 %         x = sum(data*((X((length(X)-dim(2)+1):end))'))/total;
 %         y = sum((Y((length(Y)-dim(1)+1):end))*data)/total;
+    end
+    function [x, y] = myMeanAdvanced(final, X, Y)
+        m = min(min(final)); M = max(max(final));
+        if m ~= M
+            data = (final - m)/(M - m);
+
+            try
+                [mx, my] = myMean(data*(data == 1), X, Y);
+
+    %             data = data*
+
+                dim = size(data);
+    %             factor = zeros(dim(1));
+
+                for x1 = 1:dim(1)
+                    for y1 = 1:dim(1)
+                        data(y1, x1) = data(y1, x1)/(1 + (X(x1) - mx)^2 + (Y(y1) - my)^2);
+                    end
+                end
+            catch err
+                display(['Attenuation failed:' err.message]);
+            end
+
+            list = .4:.1:.9;
+
+            X0 = zeros(1, length(list));
+            Y0 = zeros(1, length(list));
+
+            i = 1;
+
+            for threshold = list
+                [X0(i), Y0(i)] = myMean(data*(data > threshold), X, Y);
+
+                i = i+1;
+            end
+
+            while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
+                D = (X0.^2) + (Y0.^2);
+
+                [~, idx] = max(D);
+
+                X0(idx) = [];
+                Y0(idx) = [];
+
+                display('outlier removed');
+            end
+
+            x = mean(X0);
+            y = mean(Y0);
+        else
+            x = mean(X);
+            y = mean(Y);
+        end
     end
     function y = linInterp(x1, y1, x2, y2, x)    % Perhaps make it a spline in the future...
         if x1 < x2
@@ -1711,14 +1768,18 @@ function varargout = diamondControl(varargin)
 
                                 display('  Focusing...');
 
-                                focus_Callback(0, 0);
-
-                                try
-                                    start(c.vid);
-                                    data = getdata(c.vid);
-                                    img = data(360:-1:121, 161:480);    % Fixed flip...
-                                catch err
-                                    display(err.message)
+                                if get(c.autoTaskFocus, 'Value') == 1
+                                    focus_Callback(0, 0);
+                                end
+                                
+                                if get(c.autoTaskBlue, 'Value') == 1
+                                    try
+                                        start(c.vid);
+                                        data = getdata(c.vid);
+                                        img = data(360:-1:121, 161:480);    % Fixed flip...
+                                    catch err
+                                        display(err.message)
+                                    end
                                 end
 
                                 display('  Optimizing...');
