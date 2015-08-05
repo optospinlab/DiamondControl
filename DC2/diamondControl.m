@@ -54,6 +54,8 @@ function varargout = diamondControl(varargin)
     set(c.gotoGReset, 'Callback',  @resetGalvo_Callback);           % Resets the XY to [0 0] (should I approach from a direction?)
     set(c.gotoGTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
+    set(c.go_mouse, 'Callback', @go_mouse_Callback); 
+    
     % Galvo Fields --------------------------------------------------------
     set(c.galvoButton, 'Callback', @galvoScan_Callback);            % Starts a Galvo scan. Below are parameters defining that scan.
     set(c.galvoR, 'Callback', @galvoVar_Callback);                  %  - R for Range in um/side (approx) where the side is the side of the scanning square
@@ -143,15 +145,6 @@ function varargout = diamondControl(varargin)
     
 %     set(c.microInit, 'Callback', @microInit_Callback);
     
-    % Create the joystick object =====
-    try
-        c.joy = vrjoystick(1);
-        c.joystickEnabled = 1;
-    catch err
-        display(err.message);
-        c.joystickEnabled = 0;
-    end
-    
     % We do resizing programatically
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
     
@@ -162,7 +155,6 @@ function varargout = diamondControl(varargin)
     setGalvoAxesLimits();
     
     set(c.parent, 'Visible', 'On');
-    
     
     % Initiate Everything...
     initAll();
@@ -418,7 +410,15 @@ function varargout = diamondControl(varargin)
             delete(c.tktime);
         catch err
            display(err.message);
-       end       
+        end     
+        try
+            display('Closing Track Counter...')
+            stop(c.centroidtime);
+            delete(c.centroidtime);
+        catch err
+           display(err.message);
+        end     
+       
        catch err
            display(err.message);
        end
@@ -530,28 +530,41 @@ function varargout = diamondControl(varargin)
     end
     function videoInit()
         % Get video source
-        c.vid = videoinput('avtmatlabadaptor64_r2009b', 1, 'F0M5_Mono8_640x480');
-%         src = getselectedsource(c.vid);
+        try
+            c.vid = videoinput('avtmatlabadaptor64_r2009b', 1, 'F0M5_Mono8_640x480');
+    %         src = getselectedsource(c.vid);
 
-        c.vid.FramesPerTrigger = 1;
-        
-        % Send the image from the source to the imageAxes
-        axes(c.imageAxes);
-        vidRes = c.vid.VideoResolution;
-        nBands = c.vid.NumberOfBands;
-        hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(1) 1]);
-        preview(c.vid, hImage);
+            c.vid.FramesPerTrigger = 1;
+
+            % Send the image from the source to the imageAxes
+            axes(c.imageAxes);
+            vidRes = c.vid.VideoResolution;
+            nBands = c.vid.NumberOfBands;
+            hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(1) 1]);
+            preview(c.vid, hImage);
+        catch err
+            disp(err.message)
+        end
         
         axes(c.track_Axes) ;
-        frame = getsnapshot(c.vid);
+        %frame = getsnapshot(c.vid);
+        %Testing image 
+        frame= flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png')),1);
         c.track_img=imshow(frame);
-        
-%         set(c.imageAxes, 'ButtonDownFcn', @makePopout_Callback);
-%         set(hImage, 'ButtonDownFcn', @makePopout_Callback);
+
     end
     function initAll()
         % Self-explainatory
         try
+            % Create the joystick object =====
+            try
+                c.joy = vrjoystick(1);
+                c.joystickEnabled = 1;
+            catch err
+                display(err.message);
+                c.joystickEnabled = 0;
+            end
+            
             daqInit_Callback(0,0);
             videoInit();
             microInit_Callback(0,0);
@@ -1765,6 +1778,14 @@ function varargout = diamondControl(varargin)
                                     focus_Callback(0, 0);
                                 end
                                 
+                                if results
+                                    fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) ']\r\n']);
+                                    fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
+                                    fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
+                                end
+                                
+                                old = [c.piezo c.galvo];
+                                
                                 if get(c.autoTaskBlue, 'Value') == 1
                                     try
                                         start(c.vid);
@@ -1781,9 +1802,6 @@ function varargout = diamondControl(varargin)
                                 intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
 
                                 if results
-                                    fprintf(fhv, ['We moved to DEVICE ' num2str(d) ' of SET [' num2str(x) ',' num2str(y) ']\r\n']);
-                                    fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
-                                    fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
                                     fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
                                     fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
                                     fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
@@ -1805,7 +1823,7 @@ function varargout = diamondControl(varargin)
 
                                 old = [c.piezo c.galvo];
 
-                                piezoOptimizeZ();
+%                                 piezoOptimizeZ();
 
                                 display('  Scanning...');
 
@@ -2173,12 +2191,6 @@ function varargout = diamondControl(varargin)
             end
         end
     end
-    function makePopout_Callback(~, ~)
-        display('POPOUT');
-        fig = figure();
-        copyobj(c.imageAxes, fig);  % Temporary; need to figure out how to make this universal (type issues and parent problems)...
-        set(c.imageAxes, 'Position', [.13 .11 .77 .815], 'ButtonDownFcn', []);
-    end
     function bool = myIn(num, range)
         bool = (num > range(1)) && (num < range(2));
     end
@@ -2266,6 +2278,15 @@ function varargout = diamondControl(varargin)
     end
 
     % TRACKING ============================================================
+    function out_img=img_enhance(in_img)
+            %Sharpen 
+            filter = fspecial('unsharp', 1);
+            I1 = imfilter(in_img, filter);
+
+            %Adjust contrast
+            I2 = imtophat(I1,strel('disk',35));
+            out_img = imadjust(I2);       
+    end
     function startvid_Callback(hObject,~)
          if hObject ~= 0 && ~c.vid_on
             set(c.track_stat,'String','Status: Started vid');
@@ -2276,85 +2297,109 @@ function varargout = diamondControl(varargin)
                 c.tktime.TimerFcn = @(~,~)tkListener;
                 c.tktime.ExecutionMode = 'fixedSpacing';
                 
+                c.centroidtime = timer;
+                c.centroidtime.TasksToExecute = Inf;
+                c.centroidtime.Period = 1/c.ratetrack;
+                c.centroidtime.TimerFcn = @(~,~)centroidListener;
+                c.centroidtime.ExecutionMode = 'fixedSpacing';
+                    
                 c.vid_on=1;
                 c.seldisk=0;
-                c.centroid_init=0;
                 
                 start(c.tktime);
          end
     end
     function tkListener(~, ~)
-        % frame = getsnapshot(c.vid);
-         frame= flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png')),1);
+        % frame = flipdim(getsnapshot(c.vid),1);
+         frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
          
         if c.vid_on 
-            %Sharpen image
-            filter = fspecial('unsharp', 1);
-            I1 = imfilter(flipdim(frame,1), filter);
-
-            %Adjust contrast
-            I2 = imtophat(I1,strel('disk',35));
-            I3 = imadjust(I2);
-                
-            IBW=im2bw(I3,0.7);
+            I3 = img_enhance(frame);          
             set(c.track_img,'CData',I3); 
+            
+            
+            IBW=im2bw(I3,0.7); %Convert to BW and Threshold
+            [c.circles, c.radii] = imfindcircles(IBW,[12 20]); %Track Full image
+            
+             try
+                 delete(c.hg1);
+             catch
+             end
+             if ~isempty(c.radii)
+                axes(c.track_Axes);
+                c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
+             end
+             
+       end
+    end
+    function centroidListener(~,~)
+       
+        % frame = flipdim(getsnapshot(c.vid),1);
+        
+        tic
+        frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
  
-            if ~isempty(c.roi)  
-                c.roi_image = imcrop(IBW,c.roi);
-                if c.centroid_init
-                    
-                    axes(c.roi_Axes); 
-                    c.hroi=imshow(c.roi_image);
-                    
-                    [c.centroidXi,c.centroidYi]=centroid_fun();
-                    set(c.track_stat,'String',['Got Initial Centroid']);
-                    c.centroid_init=0;
-                else
-                    [c.centroidX,c.centroidY]=centroid_fun();
-                    set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
+        IBW=im2bw(frame,0.7);
+        %c.roi_image=imcrop(IBW,c.roi);
+        roi = round(c.roi);
+        c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
+        
+        
+            if c.centroid_init
+                axes(c.roi_Axes); 
+                c.hroi=imshow(c.roi_image);
+
+                [c.centroidXi,c.centroidYi]=centroid_fun();
+                set(c.track_stat,'String',['Got Initial Centroid']);
+                c.centroid_init=0;
+
+            else 
+            
+                 [c.centroidX,c.centroidY, R]=centroid_fun();
+                 set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
+                 set(c.hroi,'CData',c.roi_image);
+                 try
+                    delete(c.hg2);
+                    delete(c.hg3);
+                 catch
+                 end
+
+                try
+                 c.hg2=viscircles([c.centroidX c.centroidY] ,R,'EdgeColor','r','LineWidth',1.5); hold on;
+                 c.hg3=scatter(c.centroidX, c.centroidY,50,'g','LineWidth',4);    hold off;    
+                catch err
+                    disp(err.message)
                 end
-    
-                k = 0.0144; %calibration constant between pixels and voltage
+                
+%                 k = 0.0144; %calibration constant between pixels and voltage
 
-    %         gain = str2num(get(handles.gain, 'String'));
-    %         minAdjustmentpx = str2num(get(handles.minAdjustment, 'String'));
-    %         mindelV = minAdjustmentpx*k;
-    %         rate=str2num(get(handles.feedbackRate, 'String'));
-    %         delay = 1.0/rate
-    %         zfocuscounter = 0;
-    
-    %             delX = X-X0;
-    %             delY = Y-Y0;
-    
-    %             delVx = delX*k*gain;
-    %             delVy = delY*k*gain;
-    
-    %             %only move if greater than 1 pixel which is < 50 nm
-    %             if (abs(delVx)>mindelV) | (abs(delVy) > mindelV)
-        %             %only move if voltage stays positive
-        %             Vxnew = max([0, Vxold - delVx])
-        %             Vynew = max([0, Vyold - delVy])
-   
-        %             s = daq.createSession('ni');
-        %             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
-        %             s.outputSingleScan([Vxnew Vynew]); 
-        %             set(handles.Vx, 'String', num2str(Vxnew));
-        %             set(handles.Vy, 'String', num2str(Vynew));
-        %         end
-    
-            elseif ~c.seldisk
-                [c.circles, c.radii] = imfindcircles(IBW,[12 20]);
+            %         gain = str2num(get(handles.gain, 'String'));
+            %         minAdjustmentpx = str2num(get(handles.minAdjustment, 'String'));
+            %         mindelV = minAdjustmentpx*k;
+            %         rate=str2num(get(handles.feedbackRate, 'String'));
+            %         delay = 1.0/rate
+            %         zfocuscounter = 0;
 
-                     try
-                         delete(c.hg1);
-                     catch
-                     end
-                     if ~isempty(c.radii)
-                        axes(c.track_Axes);
-                        c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
-                     end
+            %             delX = X-X0;
+            %             delY = Y-Y0;
+
+            %             delVx = delX*k*gain;
+            %             delVy = delY*k*gain;
+
+            %             %only move if greater than 1 pixel which is < 50 nm
+            %             if (abs(delVx)>mindelV) | (abs(delVy) > mindelV)
+                %             %only move if voltage stays positive
+                %             Vxnew = max([0, Vxold - delVx])
+                %             Vynew = max([0, Vyold - delVy])
+
+                %             s = daq.createSession('ni');
+                %             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
+                %             s.outputSingleScan([Vxnew Vynew]); 
+                %             set(handles.Vx, 'String', num2str(Vxnew));
+                %             set(handles.Vy, 'String', num2str(Vynew));
+                %         end
             end
-        end
+            toc
     end
     function click_trackCallback(~,~)
         c.trackpt = get (gca, 'CurrentPoint');
@@ -2370,60 +2415,78 @@ function varargout = diamondControl(varargin)
                     c.selradii=c.radii(i);
                     viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
                     c.seldisk=1;
+                    stop(c.tktime);
                 end
              end
         end
     end
     function stopvid_Callback(~,~)
-        set(c.track_stat,'String','Status: Stopped vid');
-        stop(c.tktime);
-        delete(c.tktime);
-        c.vid_on = 0;
+        if c.vid_on
+            set(c.track_stat,'String','Status: Stopped Everything');
+
+            try
+            stop(c.tktime);
+            delete(c.tktime);
+            catch err
+                disp(err.message)
+            end
+
+            try
+                stop(c.centroidtime);
+                delete(c.centroidtime);
+            catch err
+                disp(err.message)
+            end
+
+            c.vid_on = 0;
+        end
     end
     function cleartrack_Callback(~,~)
-     c.seldisk=0;
-     c.centroid_init=0;
-     c.roi='';
-     axes(c.roi_Axes); cla;
-     try
-         delete(c.hg1);
-     catch
-     end
-     set(c.track_stat,'String','Status: ROI cleared');
+        if c.vid_on && c.seldisk
+            c.seldisk=0;
+            start(c.tktime);
+            
+            try
+                stop(c.centroidtime);
+            catch err
+                disp(err.message)
+            end
+             
+             c.roi='';
+             axes(c.roi_Axes); cla;
+             try
+                 delete(c.hg1);
+             catch
+             end
+             try
+                    delete(c.hg2);
+                    delete(c.hg3);
+             catch
+             end
+             set(c.track_stat,'String','Status: ROI cleared');
+        end
     end
     function settrack_Callback(~,~)
-    
       if isempty(c.roi) && c.seldisk 
        %Set the ROI for tracking
        c.roi=[c.selcircle(1)-c.selradii-c.roi_pad c.selcircle(2)-c.selradii-c.roi_pad 2*(c.selradii+c.roi_pad) 2*(c.selradii+c.roi_pad)];   
        set(c.track_stat,'String','Status: New ROI Selected');
        
-       %Get Initial Centroid Position 
-       c.centroid_init=1;
+       %Get Initial Centroid Position  
+       c.centroid_init=1;        
+       start(c.centroidtime);
       end
-      
     end
-    function [X,Y] = centroid_fun()
-                 st = regionprops( c.roi_image, 'Area', 'Centroid','MajorAxisLength','MinorAxisLength');
-                 sel = [st.Area] > pi*15*15;
-                 st = st(sel);
-                 X=st.Centroid(1); Y=st.Centroid(2);
-                 diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
-                 radii = diameters/2;
-                 set(c.hroi,'CData',c.roi_image);
-                 
-                 try
-                    delete(c.hg2);
-                    delete(c.hg3);
-                 catch
-                 end
-                 
-                try
-                 c.hg2=viscircles(st.Centroid ,radii,'EdgeColor','r','LineWidth',1.5); hold on;
-                 c.hg3=scatter(st.Centroid(1),st.Centroid(2),50,'g','LineWidth',4);    hold off;    
-                catch err
-                    disp(err.message)
-                end
+    function [X,Y,R] = centroid_fun()
+         st = regionprops( c.roi_image, 'Area', 'Centroid','MajorAxisLength','MinorAxisLength');
+         sel = [st.Area] > pi*15*15;
+         st = st(sel);
+         X=st.Centroid(1); Y=st.Centroid(2);
+         diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
+         R = diameters/2;
+    end
+    function go_mouse_Callback()
+        [X,Y]=ginput(1)
     end
 
 end
