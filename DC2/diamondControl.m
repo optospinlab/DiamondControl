@@ -148,6 +148,15 @@ function varargout = diamondControl(varargin)
     % We do resizing programatically
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
     
+            % Create the joystick object =====
+            try
+                c.joy = vrjoystick(1);
+                c.joystickEnabled = 1;
+            catch err
+                display(err.message);
+                c.joystickEnabled = 0;
+            end
+    
     % Initial rendering
     resizeUI_Callback(0, 0);
     renderUpper();
@@ -268,7 +277,7 @@ function varargout = diamondControl(varargin)
             speed = 0;
         else
 %             speed = (num - .1*(num/abs(num)))*(num - .1*(num/abs(num))); % Continuous
-            speed = num*num/(ignore*ignore*4)*dir(num);
+            speed = num*num/(ignore*ignore*4)*direction(num);
         end
     end
     function out = direction(num)
@@ -540,7 +549,7 @@ function varargout = diamondControl(varargin)
             axes(c.imageAxes);
             vidRes = c.vid.VideoResolution;
             nBands = c.vid.NumberOfBands;
-            hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(1) 1]);
+            hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(2) 1]);
             preview(c.vid, hImage);
         catch err
             disp(err.message)
@@ -556,14 +565,6 @@ function varargout = diamondControl(varargin)
     function initAll()
         % Self-explainatory
         try
-            % Create the joystick object =====
-            try
-                c.joy = vrjoystick(1);
-                c.joystickEnabled = 1;
-            catch err
-                display(err.message);
-                c.joystickEnabled = 0;
-            end
             
             daqInit_Callback(0,0);
             videoInit();
@@ -2515,8 +2516,18 @@ function varargout = diamondControl(varargin)
          diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
          R = diameters/2;
     end
-    function go_mouse_Callback()
-        [X,Y]=ginput(1)
+    function go_mouse_Callback(~,~)
+        [X,Y]=ginput(1);
+        
+        if c.imageAxes==gca
+           deltaX = X - 640/2;
+           deltaY = -(Y - 480/2);
+           deltaXm = deltaX*78/640; 
+           deltaYm = deltaY*62/480;
+           c.micro = c.micro + [deltaXm deltaYm];
+           setPos();
+        end
+        
     end
 
 end
