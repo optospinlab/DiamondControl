@@ -1,5 +1,7 @@
 function c = diamondControlGUI(varargin)
 
+display('  Making GUI');
+
 if ~isempty(varargin)
     if length(varargin) == 1
         varargin = varargin{1};
@@ -29,6 +31,8 @@ end
 
 set(c.parent, 'defaulttextinterpreter', 'latex');
 
+display('  Making Variables');
+
 % 'Global' Variables stored in the GUI object, in the style of Todd
 c.running = false;
 c.linAct = [0 0];
@@ -40,7 +44,7 @@ c.plottingFigure = figure('Visible', 'off', 'tag', 'Diamond Control Plotting');
 global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
 pw = 250;           % Panel Width, the width of the side panel
 puh = 180;          % Upper Panel Height
-plh = 650;          % Lower Panel Height
+plh = 700;          % Lower Panel Height
 
 bp = 5;             % Button Padding
 bw = (pw-4*bp)/2;   % Button Width, the width of a button/object
@@ -138,11 +142,12 @@ c.device = 'd_';
 c.set = 's_';
 
 % AXES ====================================================================
+display('  Making Axes');
 c.axesMode =    0;     % 0:Both, 1:Upper, 2:Lower
-c.upperAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.lowerAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.imageAxes =   axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.counterAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
 
 % Add popout figures here.
 % c.upperFigure =     figure('Visible', 'Off');
@@ -156,7 +161,8 @@ c.counterAxes = axes('Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manua
 % c.counterAxes2 = axes('XLimMode', 'manual', 'YLimMode', 'manual');
 
 % PANELS ==================================================================
-c.ioPanel =         uitabgroup('Units', 'pixels');
+display('  Making Panels');
+c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels');
 c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
     c.microText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Micrometers:', 'Position',[bp      puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
     c.microXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp       puh-bp-4*bh bw/2 bh],	'HorizontalAlignment', 'right');
@@ -195,7 +201,7 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Mouse/Key');
     c.keyEnabled =      uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable Arrow Keys?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
 
     
-c.automationPanel = uitabgroup('Units', 'pixels');
+c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels');
 c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoMLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Micrometers: ',   'Position', [bp plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
     c.gotoMXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp      plh-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -303,96 +309,162 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoScanning = false;
             
         c.autoTab =         uitab('Parent', c.autoPanel, 'Title', 'Grid');
-            c.autoText0 =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Define ranges for N and n: ',   'Position', [bp         plhi-bp-3*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = 3;
+            c.autoText0 =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Define ranges for N and n: ',   'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
 
-            c.autoNXRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min NX: ',   'Position', [bp         plhi-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoNXRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-4*bh bw/2 bh]);
-            c.autoNXRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max NX: ',   'Position', [2*bp+bw        plhi-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoNXRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 3,            'Position', [2*bp+3*bw/2    plhi-bp-4*bh bw/2 bh]);
+            c.autoNXRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min NX: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoNXRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoNXRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max NX: ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoNXRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 3,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
 
-            c.autoNYRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min NY: ',   'Position', [bp         plhi-bp-5*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoNYRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-5*bh bw/2 bh]);
-            c.autoNYRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max NY: ',   'Position', [2*bp+bw        plhi-bp-5*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoNYRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-5*bh bw/2 bh]);
+            c.autoNYRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min NY: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoNYRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoNYRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max NY: ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoNYRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
 
-            c.autonRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min n: ',     'Position', [bp         plhi-bp-6*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autonRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,             'Position', [bp+bw/2    plhi-bp-6*bh bw/2 bh]);
-            c.autonRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max n: ',     'Position', [2*bp+bw        plhi-bp-6*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autonRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 5,             'Position', [2*bp+3*bw/2    plhi-bp-6*bh bw/2 bh]);
+            c.autonRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min nx: ',     'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autonRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,             'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autonRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max nx: ',     'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autonRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 5,             'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
 
+            c.autonyRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min ny: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autonyRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autonyRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max ny: ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autonyRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+2;
 
+            
+            
+            c.autoText =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Input positions of 3 separate sister devices: ',   'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            
+            c.autoV123nT =  uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'nx123: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV123n =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV123nyT =  uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'ny123: ',   'Position', [2*bp+bw         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV123ny =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
 
-            c.autoText =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Input positions of 3 separate sister devices: ',   'Position', [bp         plhi-bp-8*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            c.autoV1T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 1: ', 'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            c.autoV1NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV1NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV1NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV1NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV1XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV1X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV1YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV1Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV1ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV1Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV1Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
+            k = k+1;
+            
 
-            c.autoV123nT =  uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'n123: ',   'Position', [bp         plhi-bp-9*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV123n =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [bp+bw/2    plhi-bp-9*bh bw/2 bh]);
-
-            c.autoV1T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 1: ', 'Position', [bp         plhi-bp-10*bh 2*bw bh],         'HorizontalAlignment', 'left');
-            c.autoV1NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-11*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV1NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-11*bh bw/2 bh]);
-            c.autoV1NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-11*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV1NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-11*bh bw/2 bh]);
-            c.autoV1XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-12*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV1X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-12*bh bw/2 bh]);
-            c.autoV1YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-12*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV1Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-12*bh bw/2 bh]);
-            c.autoV1ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-13*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV1Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-13*bh bw/2 bh]);
-            c.autoV1Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-13*bh bw bh]);
-
-            c.autoV2T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 2: ', 'Position', [bp         plhi-bp-14*bh 2*bw bh],         'HorizontalAlignment', 'left');
-            c.autoV2NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-15*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV2NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,            'Position', [bp+bw/2    plhi-bp-15*bh bw/2 bh]);
-            c.autoV2NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-15*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV2NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-15*bh bw/2 bh]);
-            c.autoV2XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-16*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV2X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 100,            'Position', [bp+bw/2    plhi-bp-16*bh bw/2 bh]);
-            c.autoV2YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-16*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV2Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-16*bh bw/2 bh]);
-            c.autoV2ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-17*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV2Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-17*bh bw/2 bh]);
-            c.autoV2Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-17*bh bw bh]);
-
-            c.autoV3T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 3: ', 'Position', [bp         plhi-bp-18*bh 2*bw bh],         'HorizontalAlignment', 'left');
-            c.autoV3NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-19*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV3NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-19*bh bw/2 bh]);
-            c.autoV3NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-19*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV3NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [2*bp+3*bw/2    plhi-bp-19*bh bw/2 bh]);
-            c.autoV3XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-20*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV3X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-20*bh bw/2 bh]);
-            c.autoV3YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-20*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV3Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', -100,            'Position', [2*bp+3*bw/2    plhi-bp-20*bh bw/2 bh]);
-            c.autoV3ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-21*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV3Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-21*bh bw/2 bh]);
-            c.autoV3Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-21*bh bw bh]);
-
-
-            c.autoText2 =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Input position of a non-sister device: ',   'Position', [bp         plhi-bp-23*bh 2*bw bh],         'HorizontalAlignment', 'left');
-
-            c.autoV4nT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'n4: ',   'Position', [bp         plhi-bp-24*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [bp+bw/2    plhi-bp-24*bh bw/2 bh]);
-
-            c.autoV4T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 4: ', 'Position', [bp         plhi-bp-25*bh 2*bw bh],         'HorizontalAlignment', 'left');
-            c.autoV4NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-26*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-26*bh bw/2 bh]);
-            c.autoV4NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-26*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-26*bh bw/2 bh]);
-            c.autoV4XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-27*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 10,           'Position', [bp+bw/2    plhi-bp-27*bh bw/2 bh]);
-            c.autoV4YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-27*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', -2,           'Position', [2*bp+3*bw/2    plhi-bp-27*bh bw/2 bh]);
-            c.autoV4ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-28*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-28*bh bw/2 bh]);
-            c.autoV4Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-28*bh bw bh]);
+            c.autoV2T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 2: ', 'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            c.autoV2NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV2NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV2NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV2NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV2XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV2X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 100,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV2YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV2Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV2ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV2Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV2Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
+            k = k+1;
+            
+            c.autoV3T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 3: ', 'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            c.autoV3NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV3NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV3NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV3NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV3XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV3X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV3YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV3Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', -100,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV3ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV3Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV3Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
+            k = k+2;
+            
+            
+            c.autoText2 =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Input position of 2 non-sister devices: ',   'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            
+            c.autoV4T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 4: ', 'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            
+            c.autoV4nT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'nx: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV4nyT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'ny: ',   'Position', [2*bp+bw         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4ny =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            
+            c.autoV4NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV4NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV4XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 10,           'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV4YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', -2,           'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV4ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV4Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV4Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
+            k = k+1;
+            
+            
+            c.autoV5T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 5: ', 'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            k = k+1;
+            
+            c.autoV5nT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'nx: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5nyT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'ny: ',   'Position', [2*bp+bw         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5ny =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            
+            c.autoV5NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5NX =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5NYT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NY: ',       'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5NY =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV5XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 10,           'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', -2,           'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            k = k+1;
+            c.autoV5ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoV5Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
         
         c.autoTabT =         uitab('Parent', c.autoPanel, 'Title', 'Tasks');
             c.autoTaskFocus = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Focus upon arrival?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-3*bh 2*bw bh]); 
 %             c.autoTaskReset = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Reset piezos and galvos?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
             
             c.autoTaskBlue = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take blue image?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
+            c.autoTaskGalvo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Galvo scan?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-5*bh 2*bw bh]); 
 
-            c.autoTaskBlue = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take blue image?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
-
+            c.autoTaskNumRepeatT = uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Repeat Optimization #: ',   'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+            c.autoTaskNumRepeat  = uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 2,     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
+            
+            c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take spectrum?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-7*bh 2*bw bh]); 
+            
+            
 % A list of all buttons to disable when a scan/etc is running.
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
@@ -413,6 +485,7 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.track_Axes =     axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-14*bh bp+2*bw 2*bw]);
     c.roi_Axes=        axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-32*bh bp+2*bw 2*bw]);
   
+display('  Finished...');
 end
 
 

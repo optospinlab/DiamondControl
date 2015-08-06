@@ -157,7 +157,7 @@ function varargout = diamondControl(varargin)
     set(c.parent, 'Visible', 'On');
     
     % Initiate Everything...
-    initAll();
+%     initAll();
     
     % Start main loop
     main();
@@ -1471,6 +1471,15 @@ function varargout = diamondControl(varargin)
         set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
         xlim(c.lowerAxes, [1 512]);
         ylim(c.lowerAxes, [min(image) max(image)]);
+        
+        if image ~= 0
+            savePlotPng(1:512, image, 'spectrum.png');
+        end
+    end
+    function savePlotPng(X, Y, filename)
+        p = plot(c.plottingFigure, X, Y);
+        xlim([X(1) X(end)]);
+        saveas(p, filename);
     end
 
     % AUTOMATION ==========================================================
@@ -1797,62 +1806,96 @@ function varargout = diamondControl(varargin)
                                 end
 
                                 display('  Optimizing...');
-
-                                piezoOptimizeXY();
-                                intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
-
+                                display('    XY...');       piezoOptimizeXY();
+                                display('    Galvo...');    intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+                                
+                                scan = initial; % in case there is only one repeat tasked.
+                                
                                 if results
                                     fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
                                     fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
                                     fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
                                     fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
                                     fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(intitial)))) ' counts/sec.\r\n']);
+                                    fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
+                                    fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
                                 end
+                                
+                                j = 1;
+                                
+                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String')));
+                                    old = [c.piezo c.galvo];
 
+                                    display('    Z...');    piezoOptimizeZ();
+                                    display('    XY...');   piezoOptimizeXY();
+                                    
+                                    if get(c.autoTaskGalvo, 'Value') == 1
+                                        if j == round(str2double(get(c.autoTaskNumRepeat, 'String')));
+                                            display('  Scanning...');
+                                        else
+                                            display('    Galvo...');
+                                        end
+
+                                        scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+                                    end
+                                        
+                                    if results
+                                        fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
+                                        fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
+                                        fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
+                                        fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
+                                        if get(c.autoTaskGalvo, 'Value') == 1
+                                            fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
+                                            fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
+                                        end
+                                        fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
+                                    end
+                                end
+                                
                                 old = [c.piezo c.galvo];
-
+                                
+%                                 display('    Z...');
                                 piezoOptimizeZ();
-                                piezoOptimizeXY();
-
-                                if results
-                                    fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
-                                    fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
-                                    fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
-                                    fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
-                                end
-
-                                old = [c.piezo c.galvo];
-
-%                                 piezoOptimizeZ();
-
-                                display('  Scanning...');
-
-                                scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
-
-                                if results
-                                    fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
-                                    fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
-                                    fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
-                                    fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
-                                    fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
-                                end
-
-                                display('  Taking Spectrum...');
                                 
-                                spectrum = 0;
+                                if results
+                                        fprintf(fhv, ['    Z was optimized a final time to ' num2str(c.piezo(3)) ' V\r\n']);
+                                        fprintf(fhv, ['                               from ' num2str(old(3)) ' V.\r\n']);
+                                end
                                 
-                                try
-                                    sendSpectrumTrigger();
-                                    spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
-                                catch err
-                                    display(err.message);
+                                if get(c.autoTaskSpectrum, 'Value') == 1
+                                    display('  Taking Spectrum...');
+
+                                    spectrum = 0;
+
+                                    try
+                                        sendSpectrumTrigger();
+                                        spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+                                    catch err
+                                        display(err.message);
+                                    end
+                                
+                                    if spectrum ~= 0
+                                        savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
+                                    end
+
+                                    if spectrumNorm ~= 0 && spectrum ~= 0
+                                        spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
+                                        save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+
+                                        savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
+
+
+    %                                     tempP = plot(1, 'Visible', 'off');
+    %                                     tempA = get(tempP, 'Parent');
+    %                                     png = plot(tempA, 1:512, spectrumNorm);
+    %                                     xlim(tempA, [1 512]);
+    %     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
+    %     %                                 xlim(c.lowerAxes, [1 512]);
+    %                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
+                                    end
                                 end
 
                                 display('  Saving...');
-                                
-                                if spectrum ~= 0
-                                    savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
-                                end
                 
 %                                 tempP = plot(1, 'Visible', 'off');
 %                                 tempA = get(tempP, 'Parent');
@@ -1862,26 +1905,12 @@ function varargout = diamondControl(varargin)
 %     %                             xlim(c.lowerAxes, [1 512]);
 %                                 saveas(png, [prefix name{i} '_spectrum' '.png']);
 
-                                if spectrumNorm ~= 0 && spectrum ~= 0
-                                    spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
-                                    save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
-                                    
-                                    savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
+                                if get(c.autoTaskGalvo, 'Value') == 1
+                                    save([prefix name{i} '_galvo' '.mat'], 'scan');
 
-                
-%                                     tempP = plot(1, 'Visible', 'off');
-%                                     tempA = get(tempP, 'Parent');
-%                                     png = plot(tempA, 1:512, spectrumNorm);
-%                                     xlim(tempA, [1 512]);
-%     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
-%     %                                 xlim(c.lowerAxes, [1 512]);
-%                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
+                                    imwrite(rot90(intitial,2)/max(max(intitial)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
+                                    imwrite(rot90(scan,2)/max(max(scan)),           [prefix name{i} '_galvo'        '.png']);
                                 end
-
-                                save([prefix name{i} '_galvo' '.mat'], 'scan');
-
-                                imwrite(rot90(intitial,2)/max(max(intitial)), [prefix name{i} '_galvo_debug' '.png']);  % rotate because the dims are flipped.
-                                imwrite(rot90(scan,2)/max(max(scan)), [prefix name{i} '_galvo' '.png']);
 
                                 imwrite(img, [prefix name{i} '_blue' '.png']);
 
@@ -1890,13 +1919,19 @@ function varargout = diamondControl(varargin)
 
                                     counts = max(max(scan));
     %                                 counts2 = max(max(intitial));
+    
+                                    works = true;
+                                    
+                                    if get(c.autoTaskGalvo, 'Value') == 1
+                                        J = imresize(scan, 5);
+                                        J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
 
-                                    J = imresize(scan, 5);
-                                    J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
+                                        level = graythresh(J);
+                                        IBW = im2bw(J, level);
+                                        [centers, radii] = imfindcircles(IBW, [15 60]);
 
-                                    level = graythresh(J);
-                                    IBW = im2bw(J, level);
-                                    [centers, radii] = imfindcircles(IBW, [15 60]);    
+                                        works = ~isempty(centers);
+                                    end
 
     %                                 IBW = im2bw(scan, graythresh(scan));
     %                                 [centers, radii] = imfindcircles(IBW,[5 25]);
@@ -1906,7 +1941,7 @@ function varargout = diamondControl(varargin)
                                         fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] |']);
                                     end
 
-                                    if ~isempty(centers)
+                                    if works
                                         fprintf(fhb, ' W |');
                                         fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
                                         fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
@@ -1966,11 +2001,6 @@ function varargout = diamondControl(varargin)
     end
     function autoStop_Callback(~, ~)
         c.autoScanning = false;
-    end
-    function savePlotPng(X, Y, filename)
-        p = plot(c.plottingFigure, X, Y);
-        xlim([X(1) X(end)]);
-        saveas(p, filename);
     end
 
     % UI ==================================================================
