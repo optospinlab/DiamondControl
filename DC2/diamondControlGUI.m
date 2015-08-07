@@ -120,6 +120,39 @@ c.piezoMin =    [0 0 0];
 c.piezoMax =    [10 10 10];
 c.piezoStep = .025;
 
+% PLE DEVice and CHaNnels
+c.devPleOut =   'cDAQ1Mod1';
+c.chnPerotOut = 'ao2';
+c.chnGrateOut = 'ao3';
+
+c.devPleDigitOut = 'Dev1';
+c.chnPleDigitOut = 'Port0/Line0';
+
+c.devPleIn =   'Dev1';    
+c.chnPerotIn = 'ai0';
+c.chnNormIn =  'ai1';
+c.chnSPCMIn =  'ctr1';
+
+% PLE
+c.FSR = 4.118;    % Change? An old measurement.
+c.freqBase = 0;   % From Wavemeter
+c.perotBase = 0;  % Original from FP
+c.prevFreq = 0;
+
+c.perotMax = 10;  % Maximum Voltage to perot...
+c.grateMax = 10;  %  "       "   ...to grating.
+
+c.rate = 2^14;   % Max is 200K; 'configuration limit' is 10K, 2^13 ~ 8K
+c.perotLength = 2^9;  % 2^9 = 512
+c.upScans = 30;    % One PerotScan is 2^9 points
+c.downScans = 2;    % One PerotScan is 2^9 points
+
+c.firstPerotLength = 2^10;
+c.fullPerotLength = 1250;
+
+c.grateCurr = 0;
+c.dGrateCurr = 2^-5;
+
 % Galvos
 c.galvoRange =  8;      % 8 um
 c.galvoRangeMax =  50;  % 50 um    
@@ -143,11 +176,19 @@ c.set = 's_';
 
 % AXES ====================================================================
 display('  Making Axes');
-c.axesMode =    0;     % 0:Both, 1:Upper, 2:Lower
+set(gcf,'Renderer','Zbuffer');
+
+c.videoEnabled = 0;
+c.hImage = 0;
+
+c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower
 c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
 c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
 c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
 c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+
+c.pleAxesAll =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
+c.pleAxesOne =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
 
 % Add popout figures here.
 % c.upperFigure =     figure('Visible', 'Off');
@@ -245,7 +286,7 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
      
     c.go_mouse =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-18*bh 2*bw bh]);
     
-c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scanning');
+c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
     c.scanningPanel = uitabgroup('Parent', c.scanningTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
 
         c.piezoTab =  uitab('Parent', c.scanningPanel, 'Title', 'Piezo');
@@ -464,7 +505,21 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             
             c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take spectrum?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-7*bh 2*bw bh]); 
             
+c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
+    c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
+        c.pleScanTab =      uitab('Parent', c.plePanel, 'Title', 'PLE Scan');
+            c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall); 
+            c.pleCont =       uicontrol('Parent', c.pleScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp       plhi-bp-3*bh    bw bh], 'Callback', @pleCall); 
+            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-4*bh-bw    2*bw-5*bp bw]);
+            set(c.axesSide, 'FontSize', 6);
             
+        c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
+            c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 
+            c.perotHzOutT =   uicontrol('Parent', c.perotScanTab, 'Style', 'text',         'String', 'Linewidth:', 'HorizontalAlignment', 'left',  'Position', [bp plhi-bp-4*bh 2*bw bh]); 
+            c.perotHzOut =    uicontrol('Parent', c.perotScanTab, 'Style', 'text',         'String', ' --- ', 'HorizontalAlignment', 'left',  'Position', [bp plhi-bp-8*bh 2*bw 4*bh], 'FontSize', 24); 
+            c.perotFsrOut =   uicontrol('Parent', c.perotScanTab, 'Style', 'text',         'String', 'FSR:  ---', 'HorizontalAlignment', 'left',        'Position', [bp plhi-bp-9*bh 2*bw bh]); 
+            c.perotRampOn =   uicontrol('Parent', c.perotScanTab, 'Style', 'checkbox',     'String', 'Ramp?', 'HorizontalAlignment', 'left',            'Position', [bp plhi-bp-10*bh 2*bw bh]); 
+
 % A list of all buttons to disable when a scan/etc is running.
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 

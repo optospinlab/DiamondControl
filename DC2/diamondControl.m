@@ -122,11 +122,15 @@ function varargout = diamondControl(varargin)
     set(c.autoProceed, 'Callback',  @proceed_Callback);             % Button to proceed to the next device. The use has the option to use this to proceed or 
                                                                     % to autoproceed using a checkbox.
     set(c.autoStop, 'Callback',  @autoStop_Callback);
+    
     % Counter Fields -----------------------------------------
     set(c.counterButton, 'Callback',  @counter_Callback);           
                                        % to autoproceed using a checkbox.
     % Spectra Fields (unfinished) -----------------------------------------
-    set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);           
+    set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);          
+    
+    % PLE Fields
+    set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
     
     % Tracking Fields
     set(c.start_vid, 'Callback',  @startvid_Callback);
@@ -148,14 +152,14 @@ function varargout = diamondControl(varargin)
     % We do resizing programatically
     set(c.parent, 'ResizeFcn', @resizeUI_Callback);
     
-            % Create the joystick object =====
-            try
-                c.joy = vrjoystick(1);
-                c.joystickEnabled = 1;
-            catch err
-                display(err.message);
-                c.joystickEnabled = 0;
-            end
+    % Create the joystick object =====
+    try
+        c.joy = vrjoystick(1);
+        c.joystickEnabled = 1;
+    catch err
+        display(err.message);
+        c.joystickEnabled = 0;
+    end
     
     % Initial rendering
     resizeUI_Callback(0, 0);
@@ -166,7 +170,7 @@ function varargout = diamondControl(varargin)
     set(c.parent, 'Visible', 'On');
     
     % Initiate Everything...
-%     initAll();
+    initAll();
     
     % Start main loop
     main();
@@ -549,13 +553,14 @@ function varargout = diamondControl(varargin)
             axes(c.imageAxes);
             vidRes = c.vid.VideoResolution;
             nBands = c.vid.NumberOfBands;
-            hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(2) 1]);
-            preview(c.vid, hImage);
+            c.hImage = image(zeros(vidRes(2), vidRes(1), nBands), 'YData', [vidRes(2) 1]);
+            preview(c.vid, c.hImage);
+            c.videoEnabled = 1;
         catch err
             disp(err.message)
         end
         
-        axes(c.track_Axes) ;
+        axes(c.track_Axes);
         %frame = getsnapshot(c.vid);
         %Testing image 
         frame= flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png')),1);
@@ -1483,7 +1488,7 @@ function varargout = diamondControl(varargin)
         saveas(p, filename);
     end
 
-    % AUTOMATION ==========================================================
+    % AUTOMATION! =========================================================
     function setCurrent_Callback(hObject, ~)
         switch hObject
             case c.autoV1Get
@@ -2093,6 +2098,10 @@ function varargout = diamondControl(varargin)
                 set(c.upperAxes,    'Position', [3*(w-pw)/4 - s/2 gp s s]);
 %             end
         end
+        
+        % PLE Panel Position =====
+        set(c.pleAxesOne,    'Position', [0      2*gp    w-pw   .3*h-2*gp]);
+        set(c.pleAxesAll,    'Position', [0      .3*h    w-pw   .7*h]);
 
         % (old) Axes Position =====
 %         if c.axesMode == 0 % Both
@@ -2307,6 +2316,66 @@ function varargout = diamondControl(varargin)
         set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
         uiwait(c.pop);
     end
+
+    % PLE! ================================================================
+    function axesMode_Callback(~, eventdata)
+        if strcmp(eventdata.NewValue.Title, 'PLE!')
+            c.axesMode = 1;
+            
+%             stoppreview(c.vid);
+%             cla(c.imageAxes);
+            
+            set(c.pleAxesOne, 'Visible', 'On');
+            set(c.pleAxesAll, 'Visible', 'On');
+            
+            set(c.upperAxes, 'Visible', 'Off');
+            set(c.lowerAxes, 'Visible', 'Off');
+            set(c.imageAxes, 'Visible', 'Off');
+            set(c.hImage, 'Visible', 'Off');
+            set(c.counterAxes, 'Visible', 'Off');
+        elseif strcmp(eventdata.OldValue.Title, 'PLE!')
+            c.axesMode = 0;
+            
+%             preview(c.vid, c.hImage);
+            
+            set(c.pleAxesOne, 'Visible', 'Off');
+            set(c.pleAxesAll, 'Visible', 'Off');
+            
+            set(c.upperAxes, 'Visible', 'On');
+            set(c.lowerAxes, 'Visible', 'On');
+            set(c.imageAxes, 'Visible', 'On');
+            set(c.hImage, 'Visible', 'On');
+            set(c.counterAxes, 'Visible', 'On');
+            
+        end
+    end
+    function updateScanGraph()
+        interval = perotLength + floor((rate - upScans*perotLength)/upScans);
+        leftover = (rate - upScans*interval);
+
+        c.grateInUp =   linspace(0, c.grateMax - (leftover + 1)*(grateMax/rate), upScans*interval);
+        c.grateInDown = linspace(c.grateMax - (leftover + 1)*(grateMax/rate), 0, downScans*interval);
+        c.grateIn =     [grateInUp grateInDown];
+
+        c.perotInUp =   linspace(0, perotMax - perotMax/perotLength, perotLength);
+        c.perotInDown = linspace(perotMax - perotMax/perotLength, 0, interval-perotLength);
+        c.perotIn =     [];
+
+        for scan = 1:(upScans+downScans)
+            c.perotIn = [c.perotIn  c.perotInUp   c.perotInDown];
+        end
+
+        %         perotIn = [perotIn  zeros(1, interval)];
+
+        if sizeA(perotIn) ~= sizeA(grateIn)
+            error('The perot and grating data are not the same sizeA.');
+        end
+
+        X = (1:sizeA(grateIn))/rate;
+        plot(axesSide, X, perotIn, X, grateIn, X, 5*(X>1));
+        xlim(axesSide, [0 (upScans+downScans)/upScans]);
+    end
+
 
     % TRACKING ============================================================
     function out_img=img_enhance(in_img)
