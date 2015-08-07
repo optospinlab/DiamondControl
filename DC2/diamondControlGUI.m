@@ -284,7 +284,9 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
   
     c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
      
-    c.go_mouse =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-18*bh 2*bw bh]);
+    c.go_mouse_control = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp         plh-bp-22*bh 2*bw bh],         'HorizontalAlignment', 'center');
+    c.go_mouse =       uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-24*bh 2*bw bh]);
+    c.go_mouse_fine =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-26*bh 2*bw bh]);
     
 c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
     c.scanningPanel = uitabgroup('Parent', c.scanningTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);

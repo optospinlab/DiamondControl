@@ -55,6 +55,7 @@ function varargout = diamondControl(varargin)
     set(c.gotoGTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
     set(c.go_mouse, 'Callback', @go_mouse_Callback); 
+    set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
     
     % Galvo Fields --------------------------------------------------------
     set(c.galvoButton, 'Callback', @galvoScan_Callback);            % Starts a Galvo scan. Below are parameters defining that scan.
@@ -451,6 +452,13 @@ function varargout = diamondControl(varargin)
     function microInit_Callback(~, ~)
         while c.microInitiated == 0
             display('Starting Initialization Sequence');
+            
+            instr=instrfind;
+            if ~isempty(instr)
+                %disp('fix')
+                fclose(instr);
+            end
+            
             try
                 % X-axis actuator =====
                 c.microXPort = 'COM5'; % USB Port that X is connected to (we view it as a serial port)
@@ -2586,19 +2594,103 @@ function varargout = diamondControl(varargin)
          R = diameters/2;
     end
     function go_mouse_Callback(~,~)
-        [X,Y]=ginput(1);
+        pt=impoint(c.imageAxes);
+        setColor(pt,'r');
         
-        if c.imageAxes==gca
-           deltaX = X - 640/2;
-           deltaY = -(Y - 480/2);
-           deltaXm = deltaX*78/640; 
-           deltaYm = deltaY*62/480;
-           c.micro = c.micro + [deltaXm deltaYm];
-           setPos();
+        pos=getPosition(pt);
+        X=pos(1); Y=pos(2);
+        
+       deltaX = X - 640/2;
+       deltaY = -(Y - 480/2);
+
+       %Always approach from same direction (from bottom left)
+       offset=5; % in um
+
+       deltaXm = deltaX*78/640;
+       deltaYm = deltaY*62/480;
+       deltaXmo= deltaXm - offset;
+       deltaYmo= deltaYm - offset;
+
+       %disp([num2str(X) ',' num2str(Y) '|' num2str(deltaX) ',' num2str(deltaY) '|' num2str(deltaXm) ',' num2str(deltaYm) '|'  num2str(deltaXmo) ',' num2str(deltaYmo)])
+       c.micro = c.micro + [deltaXmo deltaYmo];
+       setPos();
+
+       %wait to complete the move
+%            waitfor(c.microXX, 'String');
+
+        while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
         end
-        
+
+       %Approach from bottom left
+       c.micro = c.micro + [offset offset];
+       setPos(); 
+       renderUpper();
+
+        while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
+        end
+           
+        %Need to add feedbcak for backlash and hysteresis compensation
+
+        setPosition(pt,[640/2 480/2]);
+        setColor(pt,'g');
+        pause(1);
+        delete(pt);
     end
 
+    function go_mouse_fine_Callback(~,~)
+        %Allow only small change
+        axes(c.imageAxes);
+        mask=rectangle('Position',[640/2-50,480/2-50,100,100],'EdgeColor','r');
+
+        pt=impoint(c.imageAxes);
+        setColor(pt,'m');
+        
+        pos=getPosition(pt);
+        X=pos(1); Y=pos(2);
+        if (X>640/2-50 && X<640/2+50) && (Y>480/2-50 && Y<480/2+50)
+           
+            disp('inside mask')
+            deltaX = -(X - 640/2);
+            deltaY = (Y - 480/2);
+            
+            %calibration constant between pixels and voltage
+            %Requires recalibration
+            k = 0.025; 
+            
+            %Always approach from same direction (from bottom left)
+            offset = 2; % in um
+
+            deltaXm = deltaX*k;
+            deltaYm = deltaY*k;
+            deltaXmo= deltaXm + offset*k;
+            deltaYmo= deltaYm + offset*k;
+
+            piezoOutSmooth(c.piezo + [deltaXmo deltaYmo 0]);
+            pause(0.5);
+            disp('m1')
+            
+            %Approach from bottom left
+            piezoOutSmooth(c.piezo + [-offset*k -offset*k 0]);
+            pause(0.2);
+            renderUpper();
+            disp('m2')
+            
+            setPosition(pt,[640/2 480/2]);
+            setColor(pt,'g');
+            pause(1);
+        else
+            disp('clicked outside mask');
+        end
+        delete(pt);
+        delete(mask);
+    end
+        
 end
 
 
