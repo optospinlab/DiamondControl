@@ -130,28 +130,77 @@ c.chnPleDigitOut = 'Port0/Line0';
 
 c.devPleIn =   'Dev1';    
 c.chnPerotIn = 'ai0';
+c.chnSPCMPle =  'ctr1';
 c.chnNormIn =  'ai1';
-c.chnSPCMIn =  'ctr1';
 
 % PLE
+c.sPle = 0;
+c.sdPle = 0;
+c.pleLh = 0;        % Empty variable for listener.
+
 c.FSR = 4.118;    % Change? An old measurement.
 c.freqBase = 0;   % From Wavemeter
 c.perotBase = 0;  % Original from FP
-c.prevFreq = 0;
+c.freqPrev = 0;
+c.perotPrev = 0;
 
 c.perotMax = 10;  % Maximum Voltage to perot...
 c.grateMax = 10;  %  "       "   ...to grating.
 
-c.rate = 2^14;   % Max is 200K; 'configuration limit' is 10K, 2^13 ~ 8K
-c.perotLength = 2^9;  % 2^9 = 512
-c.upScans = 30;    % One PerotScan is 2^9 points
-c.downScans = 2;    % One PerotScan is 2^9 points
+c.pleRate = 2^12;
+c.pleRateOld = 2^14;
+c.perotLength = 2^9;
+c.upScans = 30;
+c.downScans = 2;
+
+c.interval = perotLength + floor((oldrate - upScans*perotLength)/upScans);
+c.leftover = (oldrate - upScans*interval);
 
 c.firstPerotLength = 2^10;
 c.fullPerotLength = 1250;
 
+c.up = true;
 c.grateCurr = 0;
 c.dGrateCurr = 2^-5;
+
+c.intervalCounter = 0;
+
+c.q = 1;
+c.qmax = 400;
+c.qmaxPle = 50;
+
+c.freqs = [];
+c.times = [];
+c.rfreqs = [];
+c.rtimes = [];
+
+% c.finalGraphX = zeros(1, c.firstPerotLength);       % Frequency
+% c.finalGraphY = zeros(1, c.firstPerotLength);       % Intensity
+% 
+% c.finalColorX = zeros(1,interval*upScans*qmax);
+% c.finalColorY = zeros(1,interval*upScans*qmax);
+% c.finalColorC = zeros(1,interval*upScans*qmax);
+% 
+% c.finalPerotColorX = zeros(firstPerotLength, qmax);
+% c.finalPerotColorY = zeros(firstPerotLength, qmax);
+
+c.finalGraphX = [];       % Frequency
+c.finalGraphY = [];       % Intensity
+
+c.finalColorX = [];
+c.finalColorY = [];
+c.finalColorC = [];
+
+c.finalPerotColorX = [];
+c.finalPerotColorY = [];
+
+c.perotIn = 0;
+c.perotInUp = 0;
+c.perotInDown = 0;
+c.grateIn = 0;
+c.grateInUp = 0;
+c.grateInDown = 0;
+c.pleIn = 0;
 
 % Galvos
 c.galvoRange =  8;      % 8 um
@@ -512,8 +561,9 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
         c.pleScanTab =      uitab('Parent', c.plePanel, 'Title', 'PLE Scan');
             c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall); 
             c.pleCont =       uicontrol('Parent', c.pleScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp       plhi-bp-3*bh    bw bh], 'Callback', @pleCall); 
-            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-4*bh-bw    2*bw-5*bp bw]);
+            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-5*bh-bw    2*bw-5*bp bw]);
             set(c.axesSide, 'FontSize', 6);
+            c.pleDebug =   uicontrol('Parent', c.perotScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?', 'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 

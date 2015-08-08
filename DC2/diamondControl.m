@@ -588,11 +588,12 @@ function varargout = diamondControl(varargin)
 %             focus_Callback(0,0);
             
             getCurrent();
-
             c.running = 1;
         catch err
             display(err.message);
         end
+        
+        updateScanGraph();
     end
     % --- MICROMETER ------------------------------------------------------
     function out = pos(serial_obj, device_addr)
@@ -2326,6 +2327,18 @@ function varargout = diamondControl(varargin)
     end
 
     % PLE! ================================================================
+    function initPle()   
+        c.sPle = daq.createSession('ni');
+        c.sPle.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
+        c.sPle.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');   % Detector (SPCM) In
+        c.sPle.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
+        
+        c.sPle.addAnalogOutputChannel(c.devPleOut,  c.chnPerotOut,  'Voltage');     % Perot Out
+        c.sPle.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
+
+        c.sdPle = daq.createSession('ni');
+        c.sdPle.addDigitalChannel(    c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+    end
     function axesMode_Callback(~, eventdata)
         if strcmp(eventdata.NewValue.Title, 'PLE!')
             c.axesMode = 1;
@@ -2339,7 +2352,9 @@ function varargout = diamondControl(varargin)
             set(c.upperAxes, 'Visible', 'Off');
             set(c.lowerAxes, 'Visible', 'Off');
             set(c.imageAxes, 'Visible', 'Off');
-            set(c.hImage, 'Visible', 'Off');
+            try
+                set(c.hImage, 'Visible', 'Off');
+            end
             set(c.counterAxes, 'Visible', 'Off');
         elseif strcmp(eventdata.OldValue.Title, 'PLE!')
             c.axesMode = 0;
@@ -2352,36 +2367,432 @@ function varargout = diamondControl(varargin)
             set(c.upperAxes, 'Visible', 'On');
             set(c.lowerAxes, 'Visible', 'On');
             set(c.imageAxes, 'Visible', 'On');
-            set(c.hImage, 'Visible', 'On');
+            try
+                set(c.hImage, 'Visible', 'On');
+            end
             set(c.counterAxes, 'Visible', 'On');
             
         end
     end
     function updateScanGraph()
-        interval = perotLength + floor((rate - upScans*perotLength)/upScans);
-        leftover = (rate - upScans*interval);
+        c.interval = c.perotLength + floor((c.pleRate - c.upScans*c.perotLength)/c.upScans);
+        c.leftover = (c.pleRate - c.upScans*interval);
 
-        c.grateInUp =   linspace(0, c.grateMax - (leftover + 1)*(grateMax/rate), upScans*interval);
-        c.grateInDown = linspace(c.grateMax - (leftover + 1)*(grateMax/rate), 0, downScans*interval);
-        c.grateIn =     [grateInUp grateInDown];
+        c.grateInUp =   linspace(0, c.grateMax - (leftover + 1)*(c.grateMax/c.pleRate), c.upScans*interval);
+        c.grateInDown = linspace(c.grateMax - (leftover + 1)*(c.grateMax/c.pleRate), 0, c.downScans*interval);
+        c.grateIn =     [c.grateInUp c.grateInDown];
 
-        c.perotInUp =   linspace(0, perotMax - perotMax/perotLength, perotLength);
-        c.perotInDown = linspace(perotMax - perotMax/perotLength, 0, interval-perotLength);
+        c.perotInUp =   linspace(0, c.perotMax - c.perotMax/c.perotLength, c.perotLength);
+        c.perotInDown = linspace(c.perotMax - c.perotMax/c.perotLength, 0, interval-c.perotLength);
         c.perotIn =     [];
 
-        for scan = 1:(upScans+downScans)
+        for scan = 1:(c.upScans+c.downScans)
             c.perotIn = [c.perotIn  c.perotInUp   c.perotInDown];
         end
 
         %         perotIn = [perotIn  zeros(1, interval)];
 
-        if sizeA(perotIn) ~= sizeA(grateIn)
+        if sizeA(c.perotIn) ~= sizeA(c.grateIn)
             error('The perot and grating data are not the same sizeA.');
         end
 
-        X = (1:sizeA(grateIn))/rate;
-        plot(axesSide, X, perotIn, X, grateIn, X, 5*(X>1));
-        xlim(axesSide, [0 (upScans+downScans)/upScans]);
+        X = (1:sizeA(c.grateIn))/c.pleRate;
+        plot(c.axesSide, X, c.perotIn, X, c.grateIn, X, 5*(X > 1));
+        xlim(c.axesSide, [0 (c.pleRateOld/c.pleRate)*(c.upScans + c.downScans)/c.upScans]);
+    end
+    function updateGraph()
+%         [x] = find(c.finalColorY, 1, 'last');
+        
+        c.finalGraphX = linspace(0, 10, c.interval*c.upScans);
+    %     finalColorC((x+1):(x+sizeA(finalGraphX))) = finalGraphY;
+        c.finalColorY(:,q) = c.finalGraphY;
+        c.finalColorP(:,q) = c.finalGraphP;
+
+        if (c.q == c.qmaxPle)
+            c.finalColorY = circshift(c.finalColorY, [0,-1]);
+            c.finalColorP = circshift(c.finalColorP, [0,-1]);
+        end
+        
+        if get(c.pleDebug, 'Value') == 1
+            plot(c.pleAxesOne, c.finalGraphX, c.finalGraphP);
+        else
+            plot(c.pleAxesOne, c.finalGraphX, c.finalGraphY);
+        end
+
+%         xmin = min(min(c.finalColorX));
+%         xmax = max(max(c.finalColorX));
+%         plot(c.pleAxesOne, c.finalGraphX, c.finalGraphY);
+%         set(c.pleAxesOne, 'Xlim', [xmin xmax]);
+%         xlabel(c.pleAxesOne, 'Frequency (GHz)');
+
+        set(c.pleAxesOne, 'Xlim', [0 10]);
+        xlabel(c.pleAxesOne, 'Grating Angle Potential (V)');
+        
+        if get(pleDebug, 'Value') == 1
+            surf(c.pleAxesAll, c.finalGraphX, c.qmaxPle:-1:1, transpose(c.finalColorP),'EdgeColor','None');
+        else
+            surf(c.pleAxesAll, c.finalGraphX, c.qmaxPle:-1:1, transpose(c.finalColorY),'EdgeColor','None');
+        end
+
+%         mesh(c.pleAxesAll,[c.finalColorX(c.finalColorY~=0); c.finalColorX(c.finalColorY~=0)], [c.finalColorY(c.finalColorY~=0); c.finalColorY(c.finalColorY~=0)], [c.finalColorC(c.finalColorY~=0); c.finalColorC(c.finalColorY~=0)],'mesh','column','marker','.','markersize',1)
+        % surf(axesAll, linspace(xmin, xmax, sizeA(finalColorY)), 100:-1:1, transpose(finalColorY),'EdgeColor','None');
+        set(c.pleAxesAll, 'Xlim', [0 10]);
+        set(c.pleAxesAll, 'Ylim', [c.qmaxPle-c.q 2*c.qmaxPle-c.q]);
+        set(c.pleAxesAll, 'Xtick', []);
+        set(c.pleAxesAll, 'Xticklabel', []);
+        view(c.pleAxesAll,2); 
+    
+        c.q = c.q + 1*(c.q ~= c.qmaxPle);
+    end
+    function updateGraphPerot(xmin, xmax)
+        %     finalPerotColorX(:,q) = finalGraphX;
+        c.finalPerotColorY(:, c.q) = c.finalGraphY;
+
+        if (c.q == c.qmax)
+        %         finalPerotColorX = circshift(finalPerotColorX, [0,-1]);
+            c.finalPerotColorY = circshift(c.finalPerotColorY, [0,-1]);
+        end
+
+        ymin = min(c.finalGraphY);
+        ymax = max(c.finalGraphY);
+        dif = (ymax - ymin)/10;
+
+        X = linspace(xmin, xmax, c.firstPerotLength);
+
+        plot(c.pleAxesOne, X, c.finalGraphY);
+        set(c.pleAxesOne, 'Xlim', [xmin xmax]);
+        set(c.pleAxesOne, 'Ylim', [ymin-dif ymax+dif]);
+    %     xlabel(axesOne, 'Frequency (GHz)');
+
+        %     h = surf(axesAll, linspace(xmin, xmax, w), 1:100, finalGraph,'EdgeColor','None');
+        surf(c.pleAxesAll, X, c.qmax:-1:1, transpose(c.finalPerotColorY), 'EdgeColor', 'None');
+        set(c.pleAxesAll, 'Xlim', [xmin xmax]);
+        set(c.pleAxesAll, 'Ylim', [c.qmax+1-c.q     2*c.qmax-c.q]);
+        set(c.pleAxesAll, 'Xtick', []);
+        set(c.pleAxesAll, 'Xticklabel', []);
+        view(c.pleAxesAll, 2);
+
+        c.q = c.q + 1*(c.q ~= c.qmax);
+    end
+    function perotCall(src,~)
+%         once = false;
+
+        %     if src == perotOnce
+        %         once = true;
+        %         turnEverythingElseOff(perotCont)
+        %     else
+        
+%         if get(c.perotCont, 'Value') == 1
+%             turnEverythingElseOff(c.perotCont)
+%         end
+
+        if (get(c.perotCont, 'Value') == 1) % || once)
+            % Initalize i/o
+%             setStatus('Creating Session');
+%             s = daq.createSession('ni');
+%             s.addAnalogInputChannel( 'Dev1', chanPerotIn, 'Voltage');     % Perot In
+%             s.addAnalogOutputChannel('Dev1', chanPerotOut, 'Voltage');     % Perot Out
+% 
+%             s2 = daq.createSession('ni');
+%             s2.addAnalogOutputChannel('Dev1', chanGrateOut, 'Voltage');     % Grating Angle Out
+
+            % wa1500 = initWaveDAQ();
+
+            display('Setting up data');
+            c.perotInUp =   linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength);
+            c.perotInDown = linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength);
+            c.perotIn =     [c.perotInDown, c.perotInUp];
+
+            c.gratingCurr = 0;
+            
+            queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+
+            c.sPle.startForeground();
+
+            c.up = true;
+            c.sPle.IsContinuous = true;
+            c.sPle.Rate = 20000;
+
+            c.sPle.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.sPle.NotifyWhenDataAvailableExceeds = c.fullPerotLength;
+
+        %         s.IsNotifyWhenScansQueuedBelowAuto = false;
+        %         s.NotifyWhenScansQueuedBelow = 3125;
+
+            c.pleLh = c.sPle.addlistener('DataAvailable', @intevalCallPerot);
+
+            for a = 1:2
+                queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+            end
+
+            c.sPle.startBackground();
+            display('Scanning');
+        end
+    end
+    function intevalCallPerot(~, event)
+%         outputSingleScan(s2, grateCurr);
+
+        queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+
+        ramp = get(c.perotRampOn, 'Value');
+
+        if c.up && ramp == 1
+            c.grateCurr = c.grateCurr + c.dGrateCurr;
+        elseif ramp == 1 && ~c.up
+            c.grateCurr = c.grateCurr - c.dGrateCurr;
+        elseif ramp == 0 && c.grateCurr ~= 0
+            c.grateCurr = c.grateCurr - c.dGrateCurr;
+            if c.grateCurr < 0
+                c.grateCurr = 0;
+            end
+        end
+
+        if c.grateCurr + c.dGrateCurr > c.grateMax
+            c.up = false;
+        end
+        if c.grateCurr - c.dGrateCurr < 0
+            c.up = true;
+        end
+
+        [perotOut] = event.Data;
+%         tic
+        [out, wid] = findPeaks(transpose(perotOut((1+c.fullPerotLength-c.firstPerotLength):c.fullPerotLength)));
+%         toc
+
+        fsrbase = diff(out(out~=0));
+        %     std(fsrbase)
+
+        if std(fsrbase) < 30
+            c.FSR = mean(fsrbase);  % Take the mean of the differences to find the FSR.
+        else
+            % display('FSR irregular');
+        end
+
+        set(c.perotHzOut, 'String', returnHzString(1000000000*10*(sum(wid)/sum(wid~=0))/FSR)); % 
+        set(c.perotFsrOut, 'String', ['FSR:  ' num2str((c.perotMax - c.perotMax/c.firstPerotLength)*round(100*c.FSR/c.firstPerotLength)/100) ' V']); % 
+
+        c.finalGraphY = perotOut((1+c.fullPerotLength-c.firstPerotLength):c.fullPerotLength);
+        c.finalGraphX = linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength);
+
+        xmin = 10*((1-out(1))/c.FSR);
+        xmax = 10*((c.firstPerotLength-out(1))/c.FSR);
+
+        updateGraphPerot(xmin, xmax);
+
+        % display('done!');
+
+        if get(c.perotCont, 'Value') ~= 1     % Check if button is still pressed
+            setStatus('Stopping');
+            delete(c.pleLh);
+            stop(c.sPle);
+
+%             c.sPle.NotifyWhenDataAvailableExceeds = 50;
+            c.sPle.IsNotifyWhenScansQueuedBelowAuto = false;
+            c.sPle.NotifyWhenScansQueuedBelow = 50;
+
+            queueOutputData(c.sPle, [c.perotInDown.' linspace(c.grateCurr, 0, length(c.perotInDown))']);
+
+            c.sPle.startForeground();
+            
+            c.sPle.IsContinuous = false;
+
+%             while grateCurr - dGrateCurr > 0
+%                 grateCurr = grateCurr - dGrateCurr;
+%                 outputSingleScan(s2, grateCurr);
+%             end
+% 
+%             outputSingleScan(s2, 0);
+
+        %         delete(lh2);
+%             turnEverythingOn();
+        %         set(c.perotHzOut, 'String', 'Linewidth:  ---');
+        %         set(c.perotFsrOut, 'String', 'FSR:  ---');
+%             setStatus('Ready');
+        end
+    end
+    function pleCall(src,~)
+        once = false;
+
+        if src == c.pleOnce
+            once = true;
+%             turnEverythingElseOff(0);
+        elseif get(c.pleCont, 'Value') == 1
+%             turnEverythingElseOff(pleCont);
+        end
+
+        if (get(c.pleCont, 'Value') == 1 || once)
+            % Initalize i/o
+%             setStatus('Creating Session');
+%             s = daq.createSession('ni');
+% 
+%             s.addAnalogInputChannel( 'Dev1', chanPerotIn,   'Voltage');     % Perot In
+%             s.addAnalogInputChannel( 'Dev1', chanNormIn,    'Voltage');     % Normalization In
+%             s.addCounterInputChannel('Dev1', chanSPCMIn,    'EdgeCount');   % Detector (SPCM) In
+% 
+%             s.addAnalogOutputChannel('Dev1', chanPerotOut,  'Voltage');     % Perot Out
+%             s.addAnalogOutputChannel('Dev1', chanGrateOut,  'Voltage');     % Grating Angle Out
+% 
+%             d = daq.createSession('ni');
+%             d.addDigitalChannel(     'Dev1', chanDigitOut,  'OutputOnly');  % Modulator (for repumping)
+
+            display('Interfacing with Wavemeter');
+            wa1500 = initWaveDAQ();
+
+            display('Aquiring Base Frequency');
+            c.sPle.Rate = 20000;
+            for x = 1:10
+                queueOutputData(c.sPle, [linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).' (0*ones(1, c.firstPerotLength)).']);
+                queueOutputData(c.sPle, [linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).' (0*ones(1, c.fullPerotLength - c.firstPerotLength)).']);
+            end
+            [perotInit, ~, ~] = c.sPle.startForeground();    % This will take 1 second; enough time for the wavemeter to register.
+            
+%             pause(1);
+            c.freqBase = readWavelength(wa1500);
+
+            % Interpret perotInit!
+            [out, ~] = findPeaks(perotInit((c.fullPerotLength*9 + 1):(c.fullPerotLength*9 + 1 + c.firstPerotLength)));
+            fsrbase = diff(out(out~=0));
+
+%             FSR = 4.118; % FIX!!!
+%             if std(fsrbase) < 30
+%                 FSR = mean(fsrbase);  % Take the mean of the differences to find the FSR.
+%             else
+%                 display('FSR irregular');
+%             end
+
+            c.FSR = 432/2;
+
+            c.perotBase = out(1);
+            c.prevFreq = c.perotBase;
+            c.rfreq = [];
+            c.rtime = [];
+            c.freqs = [];
+            c.times = [];
+            c.q = 1;
+            c.prevCount = 0;
+
+            dispaly('Setting Up Data');
+
+            c.intervalCounter = 0;
+
+            % "Setting up data"
+            % finalGraph = 
+
+            c.sPle.IsContinuous = true;
+            c.sPle.Rate = rate;
+
+            c.sPle.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.sPle.NotifyWhenDataAvailableExceeds = interval;
+
+            c.pleLh = c.sPle.addlistener('DataAvailable', @invervalCall);
+
+            c.pleIn = [c.perotIn.'   c.grateIn.'];
+        
+            c.finalGraphX = zeros(1, c.interval*c.upScans);
+            c.finalGraphY = zeros(1, c.interval*c.upScans);
+            c.finalGraphP = zeros(1, c.interval*c.upScans);
+
+            c.finalColorY = zeros(c.interval*c.upScans, c.qmaxPle);
+            c.finalColorP = zeros(c.interval*c.upScans, c.qmaxPle);
+
+            updateScanGraph();
+
+            queueOutputData(c.sPle, c.pleIn);
+            queueOutputData(c.sPle, c.pleIn);
+            queueOutputData(c.sPle, c.pleIn);
+        
+            c.sdPle.outputSingleScan(1);
+
+            s.startBackground();
+
+            display('Scanning Up');
+        end
+    end
+    function invervalCall(src, event)
+        c.intervalCounter = c.intervalCounter + 1;
+
+        if c.intervalCounter == c.upScans
+            c.sdPle.outputSingleScan(0);
+
+            display('Scanning Down');
+        end
+
+        if c.intervalCounter == c.upScans + c.downScans - 1
+            queueOutputData(s, pleIn);
+
+        end
+
+        if c.intervalCounter == c.upScans + c.downScans
+            c.sdPle.outputSingleScan(1);
+
+            updateGraph();
+
+            display('Scanning Up');
+
+            if get(c.pleCont, 'Value') ~= 1     % Check if button is still pressed
+                c.sdPle.outputSingleScan(0);
+                stop(c.sPle);
+                delete(c.pleLh);
+%                 turnEverythingOn();
+                display('Ready');
+            end
+
+            c.intervalCounter = 0;
+            c.freqPrev = 0; %freqBase;
+            c.perotPrev = c.perotBase;
+            c.freqs = zeros(1, 3*c.upScans);
+            c.times = zeros(1, 3*c.upScans);
+            c.rfreq = zeros(1, 3*c.upScans);
+            c.rtime = zeros(1, 3*c.upScans);
+        elseif c.intervalCounter <= c.upScans    % Even if intervalCounter is 15...
+            perotOut =  event.Data(:,1);
+            detectOut = event.Data(:,2);
+            normOut =   event.Data(:,3);
+            time = event.TimeStamps;
+            
+            first = 0;
+            if (c.intervalCounter-1) > 1
+                first = c.finalGraphY((c.intervalCounter-1)*c.interval);
+            end
+
+            c.finalGraphY((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = [first diff(detectOut).'].'; %./normOut; % + (detectOut == 0)
+            c.finalGraphP((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = perotOut.*transpose(1:c.interval <= c.perotLength);
+            c.finalGraphX((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = time;
+        
+            [peaks, ~] = findPeaks(transpose(perotOut(1:c.perotLength)));
+        
+            c.rfreq = [c.rfreq	peaks(peaks~=0)];
+            c.rtime = [c.rtime	time(floor(peaks(peaks~=0))).'];
+
+            j = 1;
+            while peaks(j) ~= 0
+                fsrFromPrev = (peaks(j) - c.perotPrev)/c.FSR;
+            
+                if ~isnan(fsrFromPrev)
+                    fsrFromPrev = fsrFromPrev - round(fsrFromPrev);
+
+                    if (fsrFromPrev < 0)
+    %                     display('Warning: Interpreted As Going Backwards!');
+                    elseif (fsrFromPrev > 4*1.8/c.upScans)
+    %                     display('Warning: Possible Modehop!');
+        %             else
+                    end
+                    
+                    c.freqs = [c.freqs	(c.freqPrev + 10*(fsrFromPrev))];    % In GHz
+                    c.times = [c.times  time(floor(peaks(j)))];
+
+                    c.perotPrev = peaks(j);
+                    c.freqPrev = (c.freqPrev + 10*(fsrFromPrev));
+
+                end
+
+                j = j + 1;
+            end
+        end
+    end
+    function s = sizeA(array)
+        dim = size(array);
+        s = dim(2);
     end
 
 
