@@ -723,7 +723,7 @@ function varargout = diamondControl(varargin)
         daqOutSmooth([c.piezo to]);
     end
     function daqOut()
-        % Abruptly sends all the DAQ devices to the location defined by 'to'.
+        % Abruptly sends all the DAQ devices to the location defined by c.piezo and c.galvo.
         if c.outputEnabled && c.daqInitiated && ~c.isCounting
             c.s.outputSingleScan([c.piezo c.galvo]);
         end
@@ -856,20 +856,13 @@ function varargout = diamondControl(varargin)
             total = sum(sum(data));
             fz = sum((data').*(up(1:pixels,3)'))/total;
 
-            if fz > 10
-                fz = 10;
-            end
-            if fz < 0
-                fz = 0;
+            if fz > 10 || fz > (prev + .5) || fz < 0 || fz < (prev - .5) || isnan(fz)
+                fz = prev;
             end
             
-            if fz > 0
-                c.piezo(3) = fz;
-
-                queueOutputData(c.s, up((up(:,3) <= fz), :));
-
-                c.s.startForeground();
-            end
+            piezoOutSmooth([c.piezo(1) c.piezo(2) fz]);
+        else
+            piezoOutSmooth([c.piezo(1) c.piezo(2) prev]);
         end
     end
     function galvoOpt_Callback(~, ~)
@@ -933,22 +926,39 @@ function varargout = diamondControl(varargin)
                         data(y1, x1) = data(y1, x1)/(1 + (X(x1) - mx)^2 + (Y(y1) - my)^2);
                     end
                 end
+                
+            m = min(min(data)); M = max(max(data));
+            
+            if m ~= M
+                data = (data - m)/(M - m);
+            end
+            
             catch err
-                display(['Attenuation failed:' err.message]);
+                display(['Attenuation failed: ' err.message]);
             end
 
             list = .4:.1:.9;
 
-            X0 = zeros(1, length(list));
-            Y0 = zeros(1, length(list));
+            X0 = []; % zeros(1, length(list));
+            Y0 = []; % zeros(1, length(list));
 
-            i = 1;
+%             i = 1;
 
             for threshold = list
-                [X0(i), Y0(i)] = myMean(data*(data > threshold), X, Y);
-
-                i = i+1;
+                try
+                    [a, b] = myMean(data.*(data > threshold), X, Y);
+                    
+                    X0 = [X0 a];
+                    Y0 = [Y0 b];
+                    
+%                     i = i+1;
+                catch err
+                    display(err.message);
+                end
             end
+            
+%             X0
+%             Y0
 
             while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
                 D = (X0.^2) + (Y0.^2);
@@ -958,7 +968,7 @@ function varargout = diamondControl(varargin)
                 X0(idx) = [];
                 Y0(idx) = [];
 
-                display('outlier removed');
+                display('      outlier removed');
             end
 
             x = mean(X0);
@@ -986,7 +996,6 @@ function varargout = diamondControl(varargin)
 %     end
 
     % PIEZOSCAN ===========================================================
-
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
         % Method 1
 %         range = .8;
@@ -1492,8 +1501,8 @@ function varargout = diamondControl(varargin)
         end
     end
     function savePlotPng(X, Y, filename)
-        p = plot(c.plottingFigure, X, Y);
-        xlim([X(1) X(end)]);
+        p = plot(c.plottingAxes, X, Y);
+        xlim(c.plottingAxes, [X(1) X(end)]);
         saveas(p, filename);
     end
 
@@ -1821,28 +1830,28 @@ function varargout = diamondControl(varargin)
                                 end
 
                                 display('  Optimizing...');
-                                display('    XY...');       piezoOptimizeXY();
-                                display('    Galvo...');    intitial = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+                                display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                                display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
                                 
-                                scan = initial; % in case there is only one repeat tasked.
+                                scan = scan0; % in case there is only one repeat tasked.
                                 
                                 if results
                                     fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
                                     fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
                                     fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
                                     fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
-                                    fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(intitial)))) ' counts/sec.\r\n']);
+                                    fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(scan0)))) ' counts/sec.\r\n']);
                                     fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
                                     fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
                                 end
                                 
-                                j = 1;
+                                j = 2;
                                 
-                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String')));
+                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String')))
                                     old = [c.piezo c.galvo];
 
                                     display('    Z...');    piezoOptimizeZ();
-                                    display('    XY...');   piezoOptimizeXY();
+                                    display('    XY...');   piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
                                     
                                     if get(c.autoTaskGalvo, 'Value') == 1
                                         if j == round(str2double(get(c.autoTaskNumRepeat, 'String')));
@@ -1863,8 +1872,10 @@ function varargout = diamondControl(varargin)
                                             fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
                                             fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
                                         end
-                                        fprintf(fhv, ['    Another scan was taken, with a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
+                                        fprintf(fhv, ['    This gives us a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
                                     end
+                                    
+                                    j = j + 1;
                                 end
                                 
                                 old = [c.piezo c.galvo];
@@ -1893,21 +1904,21 @@ function varargout = diamondControl(varargin)
                                         savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
                                     end
 
-                                    if spectrumNorm ~= 0 && spectrum ~= 0
-                                        spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
-                                        save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
-
-                                        savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
-
-
-    %                                     tempP = plot(1, 'Visible', 'off');
-    %                                     tempA = get(tempP, 'Parent');
-    %                                     png = plot(tempA, 1:512, spectrumNorm);
-    %                                     xlim(tempA, [1 512]);
-    %     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
-    %     %                                 xlim(c.lowerAxes, [1 512]);
-    %                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
-                                    end
+%                                     if spectrumNorm ~= 0 && spectrum ~= 0
+%                                         spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
+%                                         save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+% 
+%                                         savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
+% 
+% 
+%     %                                     tempP = plot(1, 'Visible', 'off');
+%     %                                     tempA = get(tempP, 'Parent');
+%     %                                     png = plot(tempA, 1:512, spectrumNorm);
+%     %                                     xlim(tempA, [1 512]);
+%     %     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
+%     %     %                                 xlim(c.lowerAxes, [1 512]);
+%     %                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
+%                                     end
                                 end
 
                                 display('  Saving...');
@@ -1921,11 +1932,14 @@ function varargout = diamondControl(varargin)
 %                                 saveas(png, [prefix name{i} '_spectrum' '.png']);
 
                                 if get(c.autoTaskGalvo, 'Value') == 1
+%                                     display('here');
                                     save([prefix name{i} '_galvo' '.mat'], 'scan');
 
-                                    imwrite(rot90(intitial,2)/max(max(intitial)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
+                                    imwrite(rot90(scan0,2)/max(max(scan0)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
                                     imwrite(rot90(scan,2)/max(max(scan)),           [prefix name{i} '_galvo'        '.png']);
                                 end
+                                
+                                imwrite(piezo0/max(max(piezo0)),   [prefix name{i} '_piezo_debug'  '.png']);
 
                                 imwrite(img, [prefix name{i} '_blue' '.png']);
 
