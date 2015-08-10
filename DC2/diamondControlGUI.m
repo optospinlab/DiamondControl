@@ -122,6 +122,7 @@ c.piezoMax =    [10 10 10];
 c.piezoStep = .025;
 
 % PLE DEVice and CHaNnels
+c.pleInitiated = false;
 c.devPleOut =   'cDAQ1Mod1';
 c.chnPerotOut = 'ao2';
 c.chnGrateOut = 'ao3';
@@ -131,12 +132,14 @@ c.chnPleDigitOut = 'Port0/Line0';
 
 c.devPleIn =   'Dev1';    
 c.chnPerotIn = 'ai0';
-c.chnSPCMPle =  'ctr1';
+c.chnSPCMPle =  'ctr0';
 c.chnNormIn =  'ai1';
 
 % PLE
-c.sPle = 0;
-c.sdPle = 0;
+c.output = 0;   % Badly-named variable to hold the DAQ output matrix when going between functions.
+c.ple = [0 0];
+% c.sPle = 0; % Broken due to matlab limitations.
+c.sd = 0;
 c.pleLh = 0;        % Empty variable for listener.
 
 c.FSR = 4.118;    % Change? An old measurement.
@@ -154,11 +157,11 @@ c.perotLength = 2^9;
 c.upScans = 30;
 c.downScans = 2;
 
-c.interval = perotLength + floor((oldrate - upScans*perotLength)/upScans);
-c.leftover = (oldrate - upScans*interval);
+c.interval = c.perotLength + floor((c.pleRateOld - c.upScans*c.perotLength)/c.upScans);
+c.leftover = (c.pleRateOld - c.upScans*c.interval);
 
-c.firstPerotLength = 2^10;
-c.fullPerotLength = 1250;
+c.firstPerotLength = 2^11; %2^10;
+c.fullPerotLength = 2500; %1250;
 
 c.up = true;
 c.grateCurr = 0;
@@ -560,11 +563,11 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
 c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
     c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
         c.pleScanTab =      uitab('Parent', c.plePanel, 'Title', 'PLE Scan');
-            c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall); 
             c.pleCont =       uicontrol('Parent', c.pleScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp       plhi-bp-3*bh    bw bh], 'Callback', @pleCall); 
+            c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall, 'Enable', 'Off'); 
             c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-5*bh-bw    2*bw-5*bp bw]);
             set(c.axesSide, 'FontSize', 6);
-            c.pleDebug =   uicontrol('Parent', c.perotScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?', 'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
+            c.pleDebug =   uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?', 'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 

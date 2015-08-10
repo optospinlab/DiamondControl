@@ -132,6 +132,9 @@ function varargout = diamondControl(varargin)
     
     % PLE Fields
     set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
+    set(c.pleOnce, 'Callback',  @pleCall);
+    set(c.pleCont, 'Callback',  @pleCall);
+    set(c.perotCont, 'Callback',  @perotCall);
     
     % Tracking Fields
     set(c.start_vid, 'Callback',  @startvid_Callback);
@@ -196,6 +199,7 @@ function varargout = diamondControl(varargin)
             renderUpper();
                     
             pause(.1); % 60 Hz (should later make this run so we actually delay to 60 Hz)
+            drawnow
         end
     end
 
@@ -389,8 +393,9 @@ function varargout = diamondControl(varargin)
         c.outputEnabled = false;
         
         saveState();
-        display('Saved State');
+        display('  Saved State');
         
+        display('  Goodbye micrometers...');
         try     % Release the Micrometers
             cmd(c.microXSerial, c.microXAddr, 'RS');
             fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
@@ -402,41 +407,46 @@ function varargout = diamondControl(varargin)
             display(err.message);
         end
         
+        display('  Goodbye DAQ I/O...');
         try     % Reset and release the DAQ devices
             daqOutSmooth([0 0 0 0 0]);
             
             c.s.release();   
+            c.sd.release();
             display('Released DAQs...');
         catch err
             display(err.message);
         end
         
-       %Need to check if the counter is disabled
-       try
-        if get(c.counterButton, 'Value') == 1
-            display('Closing SPCM Counter...')
-            stop(c.lhC);
-            delete(c.lhC);
+        display('  Goodbye Counter...');
+        % Need to check if the counter is disabled
+        try
+            if get(c.counterButton, 'Value') == 1
+                display('    Closing SPCM Counter...')
+                stop(c.lhC);
+                delete(c.lhC);
+            end
+            
+            try
+                display('    Closing Track Counter...')
+                stop(c.tktime);
+                delete(c.tktime);
+            catch err
+                display(err.message);
+            end     
+            try
+                display('    Closing Track Counter...')
+                stop(c.centroidtime);
+                delete(c.centroidtime);
+            catch err
+                display(err.message);
+            end     
+
+        catch err
+            display(err.message);
         end
-        try
-            display('Closing Track Counter...')
-            stop(c.tktime);
-            delete(c.tktime);
-        catch err
-           display(err.message);
-        end     
-        try
-            display('Closing Track Counter...')
-            stop(c.centroidtime);
-            delete(c.centroidtime);
-        catch err
-           display(err.message);
-        end     
-       
-       catch err
-           display(err.message);
-       end
         
+        display('  Goodbye graphics...');
         % Release the graphics
         delete(c.imageAxes);
         delete(c.upperAxes);
@@ -444,7 +454,6 @@ function varargout = diamondControl(varargin)
 %         delete(c.counterAxes);
         
         delete(c.parent);
-        display('Released Graphics...');
     end
 
     % OUTPUTS =============================================================
@@ -538,8 +547,21 @@ function varargout = diamondControl(varargin)
             c.s.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoY,      'Voltage');
             set(c.galvoText, 'ForegroundColor', 'black');
             
+            % PLE       o 6:7
+            c.s.addAnalogOutputChannel(c.devPleOut,  c.chnPerotOut,  'Voltage');     % Perot Out
+            c.s.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
+
             % Counter   i 1
             c.s.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
+            
+            % PLE       i 2:3
+            c.s.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
+            c.s.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
+
+            % PLE digital
+            c.sd = daq.createSession('ni');
+            c.sd.addDigitalChannel(    c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+
 
             daqOut();
 %             piezoOutSmooth([5 5 0]);
@@ -577,8 +599,8 @@ function varargout = diamondControl(varargin)
     end
     function initAll()
         % Self-explainatory
-        try
-            
+%         try
+            initPle();
             daqInit_Callback(0,0);
             videoInit();
             microInit_Callback(0,0);
@@ -589,9 +611,9 @@ function varargout = diamondControl(varargin)
             
             getCurrent();
             c.running = 1;
-        catch err
-            display(err.message);
-        end
+%         catch err
+%             display(err.message);
+%         end
         
         updateScanGraph();
     end
@@ -691,21 +713,27 @@ function varargout = diamondControl(varargin)
     function daqOutSmooth(to)
         % Smoothly sends all the DAQ devices to the location defined by 'to'.
         if c.outputEnabled && c.daqInitiated && ~c.isCounting
-            prev = [c.piezo c.galvo];   % Get the previous location.
+            prev = [c.piezo c.galvo c.ple];   % Get the previous location.
             c.piezo = to(1:3);          % Set the new location.
             c.galvo = to(4:5);
-            curr = [c.piezo c.galvo];
+            c.ple =   to(6:7);
             
             limit();                    % Make sure we aren't going over-bounds.
             
-            steplist = [c.piezoStep c.piezoStep c.piezoStep c.galvoStep c.galvoStep];
+            steplist = [c.piezoStep c.piezoStep c.piezoStep c.galvoStep c.galvoStep, c.piezoStep, c.piezoStep];
             
-            steps = round(max(abs(curr - prev)./steplist));    % Calculates which device 'furthest away from the target' and uses that device to define the speed.
+            steps = round(max(abs(to - prev)./steplist));    % Calculates which device 'furthest away from the target' and uses that device to define the speed.
             prevRate = c.s.Rate;
             c.s.Rate = 1000;
             
             if steps > 0    % If there is something to do...
-                queueOutputData(c.s,   [linspace(prev(1), curr(1), steps)'  linspace(prev(2), curr(2), steps)' linspace(prev(3), curr(3), steps)' linspace(prev(4), curr(4), steps)' linspace(prev(5), curr(5), steps)']);
+                queueOutputData(c.s,   [linspace(prev(1), to(1), steps)'... % There's probably a less-verbose way to do this, but... historical reasons.
+                                        linspace(prev(2), to(2), steps)'...
+                                        linspace(prev(3), to(3), steps)'...
+                                        linspace(prev(4), to(4), steps)'...
+                                        linspace(prev(5), to(5), steps)'...
+                                        linspace(prev(6), to(6), steps)'...
+                                        linspace(prev(7), to(7), steps)']);
                 c.s.startForeground();
             end
             
@@ -716,18 +744,58 @@ function varargout = diamondControl(varargin)
     end
     function piezoOutSmooth(to)
         % Only modifies the piezo.
-        daqOutSmooth([to c.galvo]);
+        daqOutSmooth([to c.galvo c.ple]);
     end
     function galvoOutSmooth(to)
         % Only modifies the galvo.
-        daqOutSmooth([c.piezo to]);
+        daqOutSmooth([c.piezo to c.ple]);
     end
     function daqOut()
         % Abruptly sends all the DAQ devices to the location defined by c.piezo and c.galvo.
         if c.outputEnabled && c.daqInitiated && ~c.isCounting
-            c.s.outputSingleScan([c.piezo c.galvo]);
+            c.s.outputSingleScan([c.piezo c.galvo c.ple]);
         end
         getCurrent();       % Sets the UI to the current location.
+    end
+    function final = daqOutQueueClever(array)
+        finalLength = max(cellfun(@length, array));
+            
+        curr =  [c.piezo c.galvo c.ple];
+        final = zeros(finalLength, length(array));
+        
+%         length(array)
+        
+        i = 1;
+
+        for y = array
+            x = cell2mat(y);
+            if sum(isnan(x)) == 1
+                final(:,i) = ones(1, finalLength)*curr(i);
+            elseif length(x) == 1
+                final(:,i) = ones(1, finalLength)*x;
+            elseif length(x) > 1 && isvector(x)
+                if length(x) == finalLength
+                    final(:,i) = x; % Future update? Transpose if neccessary [edit: transpose apparently is automatic]
+                elseif length(x) < finalLength
+                    final(:,i) = [x ones(1, finalLength - length(x))*x(end)];   % Extend the short list by repeating last element.
+                else
+                    display('Something broken with the lengths.');
+                end
+            else
+                display('fourth category?');
+                display(x);
+            end
+            
+            i = i + 1;
+        end
+        
+%         final
+        
+    	queueOutputData(c.s, final);
+        
+        c.piezo = final(end, 1:3);
+        c.galvo = final(end, 4:5);
+        c.ple   = final(end, 6:7);
     end
     % --- RESETS ----------------------------------------------------------
     function resetMicro_Callback(~, ~)
@@ -832,15 +900,20 @@ function varargout = diamondControl(varargin)
         u = pixels+1;
         d = round(pixels/8);
             
-        up =    [c.piezo(1)*ones(u,1) c.piezo(2)*ones(u,1) linspace(0, range, u)' c.galvo(1)*ones(u,1) c.galvo(2)*ones(u,1)];
-        down =  [c.piezo(1)*ones(d,1) c.piezo(2)*ones(d,1) linspace(range, 0, d)' c.galvo(1)*ones(d,1) c.galvo(2)*ones(d,1)];
+%         up =    [c.piezo(1)*ones(u,1) c.piezo(2)*ones(u,1) linspace(0, range, u)' c.galvo(1)*ones(u,1) c.galvo(2)*ones(u,1)];
+%         down =  [c.piezo(1)*ones(d,1) c.piezo(2)*ones(d,1) linspace(range, 0, d)' c.galvo(1)*ones(d,1) c.galvo(2)*ones(d,1)];
+        up =    linspace(0, range, u)';
+        down =  linspace(range, 0, d)';
 
         piezoOutSmooth([c.piezo(1) c.piezo(2) 0]);
         
-        queueOutputData(c.s, up);
-        queueOutputData(c.s, down);
+%         queueOutputData(c.s, up);
+%         queueOutputData(c.s, down);
+
+        daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
 
         [out, ~] = c.s.startForeground();
+        out = out(:,1);
 
         data = diff(out);
         data = data(1:pixels);
@@ -914,7 +987,7 @@ function varargout = diamondControl(varargin)
             data = (final - m)/(M - m);
 
             try
-                [mx, my] = myMean(data*(data == 1), X, Y);
+                [mx, my] = myMean(data.*(data == 1), X, Y);
 
     %             data = data*
 
@@ -927,11 +1000,11 @@ function varargout = diamondControl(varargin)
                     end
                 end
                 
-            m = min(min(data)); M = max(max(data));
-            
-            if m ~= M
-                data = (data - m)/(M - m);
-            end
+                m = min(min(data)); M = max(max(data));
+
+                if m ~= M
+                    data = (data - m)/(M - m);
+                end
             
             catch err
                 display(['Attenuation failed: ' err.message]);
@@ -957,22 +1030,30 @@ function varargout = diamondControl(varargin)
                 end
             end
             
-%             X0
-%             Y0
+            if isempty(X0) || isempty(Y0)
+                try
+                    [x, y] = myMean(data.*(data == 1), X, Y);
+                catch err
+                    display(err.message);
+                    
+                    x = mean(X);
+                    y = mean(Y);
+                end
+            else
+                while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
+                    D = (X0.^2) + (Y0.^2);
 
-            while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
-                D = (X0.^2) + (Y0.^2);
+                    [~, idx] = max(D);
 
-                [~, idx] = max(D);
+                    X0(idx) = [];
+                    Y0(idx) = [];
 
-                X0(idx) = [];
-                Y0(idx) = [];
+                    display('      outlier removed');
+                end
 
-                display('      outlier removed');
+                x = mean(X0);
+                y = mean(Y0);
             end
-
-            x = mean(X0);
-            y = mean(Y0);
         else
             x = mean(X);
             y = mean(Y);
@@ -987,13 +1068,13 @@ function varargout = diamondControl(varargin)
             y = (y1 + y2)/2;
         end
     end
-%     function data = displayImage()
+    function data = displayImage()
 %         start(c.vid);
 %         data = getdata(c.vid)
 %         
 %         axes(c.imageAxes);
 %         image(flipdim(data,1));
-%     end
+    end
 
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
@@ -1024,8 +1105,8 @@ function varargout = diamondControl(varargin)
 %             prev = 0;
         i = 1;
 
-        otherRows =     [c.piezo(3)*ones(steps,1)       c.galvo(1)*ones(steps,1)        c.galvo(2)*ones(steps,1)];
-        otherRowsFast = [c.piezo(3)*ones(stepsFast,1)   c.galvo(1)*ones(stepsFast,1)    c.galvo(2)*ones(stepsFast,1)];
+%         otherRows =     [c.piezo(3)*ones(steps,1)       c.galvo(1)*ones(steps,1)        c.galvo(2)*ones(steps,1)];
+%         otherRowsFast = [c.piezo(3)*ones(stepsFast,1)   c.galvo(1)*ones(stepsFast,1)    c.galvo(2)*ones(stepsFast,1)];
 
         prev = c.piezo;
 
@@ -1043,10 +1124,15 @@ function varargout = diamondControl(varargin)
         for y = up2
             yCopy = y;
 
-            queueOutputData(c.s, [up'     y*ones(length(up2),1) otherRows]);
+%             queueOutputData(c.s, [up'     y*ones(length(up2),1) otherRows]);
+
+            daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
             [out, ~] = c.s.startForeground();
+            out = out(:,1);
             
-            queueOutputData(c.s, [down'   linspace(y, y + up2(2) - up2(1), length(down))' otherRowsFast]);
+%             queueOutputData(c.s, [down'   linspace(y, y + up2(2) - up2(1), length(down))' otherRowsFast]);
+
+            daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
             c.s.startForeground();
             
             final(i,:) = [diff(out(:,1)') mean(diff(out(:,1)'))];
@@ -1253,8 +1339,8 @@ function varargout = diamondControl(varargin)
             c.s.Rate = rate;
 
             
-            piezoRows = [c.piezo(1)*ones(steps,1) c.piezo(2)*ones(steps,1) c.piezo(3)*ones(steps,1)];
-            piezoRowsFast = [c.piezo(1)*ones(stepsFast,1) c.piezo(2)*ones(stepsFast,1) c.piezo(3)*ones(stepsFast,1)];
+%             piezoRows = [c.piezo(1)*ones(steps,1) c.piezo(2)*ones(steps,1) c.piezo(3)*ones(steps,1)];
+%             piezoRowsFast = [c.piezo(1)*ones(stepsFast,1) c.piezo(2)*ones(stepsFast,1) c.piezo(3)*ones(stepsFast,1)];
             
             prev = c.galvo;
             
@@ -1278,11 +1364,15 @@ function varargout = diamondControl(varargin)
                     break;
                 end
                 %display('up');
-                queueOutputData(c.s, [piezoRows	up'     y*ones(length(up2),1)]);
+%                 queueOutputData(c.s, [piezoRows	up'     y*ones(length(up2),1)]);
+            
+                daqOutQueueClever({NaN, NaN, NaN, up', y*ones(length(up2),1), NaN, NaN});
                 [out, ~] = c.s.startForeground();
 
                 %display('down');
-                queueOutputData(c.s, [piezoRowsFast	down'   linspace(y, y + up2(2) - up2(1), length(down))']);
+%                 queueOutputData(c.s, [piezoRowsFast	down'   linspace(y, y + up2(2) - up2(1), length(down))']);
+            
+                daqOutQueueClever({NaN, NaN, NaN, down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN});
                 c.s.startForeground();
 
                 final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)') ]*rate;
@@ -2041,11 +2131,13 @@ function varargout = diamondControl(varargin)
             mx = min(p(1,:));   Mx = max(p(1,:));   Ax = (Mx + mx)/2;   Ox = .55*(Mx - mx) + 25;
             my = min(p(2,:));   My = max(p(2,:));   Ay = (My + my)/2;   Oy = .55*(My - my) + 25;
             
-            Of = Ox;
-            
-            if Ox < Oy
-                Of = Oy;
-            end
+%             Of = Ox;
+%             
+%             if Ox < Oy
+%                 Of = Oy;
+%             end
+
+            Of = max([Ox Oy]);
             
             scatter(c.upperAxes, p(1,:), p(2,:), 36, color);
             
@@ -2122,7 +2214,7 @@ function varargout = diamondControl(varargin)
 %             end
         end
         
-        % PLE Panel Position =====
+        % PLE Axes Position =====
         set(c.pleAxesOne,    'Position', [0      2*gp    w-pw   .3*h-2*gp]);
         set(c.pleAxesAll,    'Position', [0      .3*h    w-pw   .7*h]);
 
@@ -2341,17 +2433,21 @@ function varargout = diamondControl(varargin)
     end
 
     % PLE! ================================================================
-    function initPle()   
-        c.sPle = daq.createSession('ni');
-        c.sPle.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
-        c.sPle.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');   % Detector (SPCM) In
-        c.sPle.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
-        
-        c.sPle.addAnalogOutputChannel(c.devPleOut,  c.chnPerotOut,  'Voltage');     % Perot Out
-        c.sPle.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
-
-        c.sdPle = daq.createSession('ni');
-        c.sdPle.addDigitalChannel(    c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+    function initPle()  % Unused
+%         if c.pleInitiated == 0
+% %             c.sPle = daq.createSession('ni');
+%             c.s.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
+% %             c.sPle.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');   % Detector (SPCM) In
+%             c.s.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
+% % 
+%             c.s.addAnalogOutputChannel(c.devPleOut,  c.chnPerotOut,  'Voltage');     % Perot Out
+%             c.s.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
+% 
+%             c.sd = daq.createSession('ni');
+%             c.sd.addDigitalChannel(    c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+% 
+%             c.pleInitiated = 1;
+%         end
     end
     function axesMode_Callback(~, eventdata)
         if strcmp(eventdata.NewValue.Title, 'PLE!')
@@ -2389,15 +2485,15 @@ function varargout = diamondControl(varargin)
         end
     end
     function updateScanGraph()
-        c.interval = c.perotLength + floor((c.pleRate - c.upScans*c.perotLength)/c.upScans);
-        c.leftover = (c.pleRate - c.upScans*interval);
+        c.interval = c.perotLength + floor((c.pleRateOld - c.upScans*c.perotLength)/c.upScans);
+        c.leftover = (c.pleRateOld - c.upScans*c.interval);
 
-        c.grateInUp =   linspace(0, c.grateMax - (leftover + 1)*(c.grateMax/c.pleRate), c.upScans*interval);
-        c.grateInDown = linspace(c.grateMax - (leftover + 1)*(c.grateMax/c.pleRate), 0, c.downScans*interval);
+        c.grateInUp =   linspace(0, c.grateMax - (c.leftover + 1)*(c.grateMax/c.pleRate), c.upScans*c.interval);
+        c.grateInDown = linspace(c.grateMax - (c.leftover + 1)*(c.grateMax/c.pleRate), 0, c.downScans*c.interval);
         c.grateIn =     [c.grateInUp c.grateInDown];
 
         c.perotInUp =   linspace(0, c.perotMax - c.perotMax/c.perotLength, c.perotLength);
-        c.perotInDown = linspace(c.perotMax - c.perotMax/c.perotLength, 0, interval-c.perotLength);
+        c.perotInDown = linspace(c.perotMax - c.perotMax/c.perotLength, 0, c.interval-c.perotLength);
         c.perotIn =     [];
 
         for scan = 1:(c.upScans+c.downScans)
@@ -2405,6 +2501,9 @@ function varargout = diamondControl(varargin)
         end
 
         %         perotIn = [perotIn  zeros(1, interval)];
+        
+        sizeA(c.perotIn)
+        sizeA(c.grateIn)
 
         if sizeA(c.perotIn) ~= sizeA(c.grateIn)
             error('The perot and grating data are not the same sizeA.');
@@ -2519,109 +2618,124 @@ function varargout = diamondControl(varargin)
 
             c.gratingCurr = 0;
             
-            queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+            c.s.IsContinuous = false;
+            
+%             queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+            
+            daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotInUp.', c.gratingCurr});
 
-            c.sPle.startForeground();
+            c.s.startForeground();
 
             c.up = true;
-            c.sPle.IsContinuous = true;
-            c.sPle.Rate = 20000;
+            c.s.IsContinuous = true;
+            c.s.Rate = 20000;
 
-            c.sPle.IsNotifyWhenDataAvailableExceedsAuto = false;
-            c.sPle.NotifyWhenDataAvailableExceeds = c.fullPerotLength;
+            c.s.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.s.NotifyWhenDataAvailableExceeds = c.fullPerotLength;
+            
+            c.finalPerotColorY = zeros(c.firstPerotLength, c.qmax);
 
-        %         s.IsNotifyWhenScansQueuedBelowAuto = false;
-        %         s.NotifyWhenScansQueuedBelow = 3125;
+%                 s.IsNotifyWhenScansQueuedBelowAuto = false;
+%                 s.NotifyWhenScansQueuedBelow = 3125;
 
-            c.pleLh = c.sPle.addlistener('DataAvailable', @intevalCallPerot);
+            c.pleLh = c.s.addlistener('DataAvailable', @intevalCallPerot);
 
-            for a = 1:2
-                queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+%             for a = 1:2
+            output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.gratingCurr});
+%             end
+            for a = 1:10
+                queueOutputData(c.s, output);
             end
 
-            c.sPle.startBackground();
+            c.s.startBackground();
             display('Scanning');
         end
     end
     function intevalCallPerot(~, event)
-%         outputSingleScan(s2, grateCurr);
+        if c.outputEnabled
+    %         outputSingleScan(s2, grateCurr);
 
-        queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+    %         queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
+            daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.gratingCurr});
 
-        ramp = get(c.perotRampOn, 'Value');
+            ramp = get(c.perotRampOn, 'Value');
 
-        if c.up && ramp == 1
-            c.grateCurr = c.grateCurr + c.dGrateCurr;
-        elseif ramp == 1 && ~c.up
-            c.grateCurr = c.grateCurr - c.dGrateCurr;
-        elseif ramp == 0 && c.grateCurr ~= 0
-            c.grateCurr = c.grateCurr - c.dGrateCurr;
-            if c.grateCurr < 0
-                c.grateCurr = 0;
+            if c.up && ramp == 1
+                c.grateCurr = c.grateCurr + c.dGrateCurr;
+            elseif ramp == 1 && ~c.up
+                c.grateCurr = c.grateCurr - c.dGrateCurr;
+            elseif ramp == 0 && c.grateCurr ~= 0
+                c.grateCurr = c.grateCurr - c.dGrateCurr;
+                if c.grateCurr < 0
+                    c.grateCurr = 0;
+                end
             end
-        end
 
-        if c.grateCurr + c.dGrateCurr > c.grateMax
-            c.up = false;
-        end
-        if c.grateCurr - c.dGrateCurr < 0
-            c.up = true;
-        end
+            if c.grateCurr + c.dGrateCurr > c.grateMax
+                c.up = false;
+            end
+            if c.grateCurr - c.dGrateCurr < 0
+                c.up = true;
+            end
 
-        [perotOut] = event.Data;
-%         tic
-        [out, wid] = findPeaks(transpose(perotOut((1+c.fullPerotLength-c.firstPerotLength):c.fullPerotLength)));
-%         toc
+            [perotOut] = event.Data(:, 2);
+    %         tic
+            [out, wid] = findPeaks(transpose(perotOut((1+c.fullPerotLength-c.firstPerotLength):c.fullPerotLength)));
+    %         toc
 
-        fsrbase = diff(out(out~=0));
-        %     std(fsrbase)
+            fsrbase = diff(out(out~=0));
+            %     std(fsrbase)
 
-        if std(fsrbase) < 30
-            c.FSR = mean(fsrbase);  % Take the mean of the differences to find the FSR.
-        else
-            % display('FSR irregular');
-        end
+            if std(fsrbase) < 30
+                c.FSR = mean(fsrbase);  % Take the mean of the differences to find the FSR.
+            else
+                % display('FSR irregular');
+            end
 
-        set(c.perotHzOut, 'String', returnHzString(1000000000*10*(sum(wid)/sum(wid~=0))/FSR)); % 
-        set(c.perotFsrOut, 'String', ['FSR:  ' num2str((c.perotMax - c.perotMax/c.firstPerotLength)*round(100*c.FSR/c.firstPerotLength)/100) ' V']); % 
+            set(c.perotHzOut, 'String', returnHzString(1000000000*10*(sum(wid)/sum(wid~=0))/c.FSR)); % 
+            set(c.perotFsrOut, 'String', ['FSR:  ' num2str((c.perotMax - c.perotMax/c.firstPerotLength)*round(100*c.FSR/c.firstPerotLength)/100) ' V']); % 
 
-        c.finalGraphY = perotOut((1+c.fullPerotLength-c.firstPerotLength):c.fullPerotLength);
-        c.finalGraphX = linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength);
+            c.finalGraphY = perotOut((1+c.fullPerotLength-c.firstPerotLength):c.fullPerotLength);
+            c.finalGraphX = linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength);
 
-        xmin = 10*((1-out(1))/c.FSR);
-        xmax = 10*((c.firstPerotLength-out(1))/c.FSR);
+            xmin = 10*((1-out(1))/c.FSR);
+            xmax = 10*((c.firstPerotLength-out(1))/c.FSR);
 
-        updateGraphPerot(xmin, xmax);
+            updateGraphPerot(xmin, xmax);
+%             drawnow
 
-        % display('done!');
+            % display('done!');
 
-        if get(c.perotCont, 'Value') ~= 1     % Check if button is still pressed
-            setStatus('Stopping');
-            delete(c.pleLh);
-            stop(c.sPle);
+            if get(c.perotCont, 'Value') ~= 1     % Check if button is still pressed
+                display('Stopping');
+                delete(c.pleLh);
+                stop(c.s);
 
-%             c.sPle.NotifyWhenDataAvailableExceeds = 50;
-            c.sPle.IsNotifyWhenScansQueuedBelowAuto = false;
-            c.sPle.NotifyWhenScansQueuedBelow = 50;
+    %             c.sPle.NotifyWhenDataAvailableExceeds = 50;
+                c.s.IsNotifyWhenScansQueuedBelowAuto = false;
+                c.s.NotifyWhenScansQueuedBelow = 50;
 
-            queueOutputData(c.sPle, [c.perotInDown.' linspace(c.grateCurr, 0, length(c.perotInDown))']);
+                c.s.IsContinuous = false;
 
-            c.sPle.startForeground();
-            
-            c.sPle.IsContinuous = false;
+    %             queueOutputData(c.sPle, [c.perotInDown.' linspace(c.grateCurr, 0, length(c.perotInDown))']);
+                daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotInDown.', linspace(c.grateCurr, 0, length(c.perotInDown))'});
 
-%             while grateCurr - dGrateCurr > 0
-%                 grateCurr = grateCurr - dGrateCurr;
-%                 outputSingleScan(s2, grateCurr);
-%             end
-% 
-%             outputSingleScan(s2, 0);
+                c.s.startForeground();
 
-        %         delete(lh2);
-%             turnEverythingOn();
-        %         set(c.perotHzOut, 'String', 'Linewidth:  ---');
-        %         set(c.perotFsrOut, 'String', 'FSR:  ---');
-%             setStatus('Ready');
+
+    %             while grateCurr - dGrateCurr > 0
+    %                 grateCurr = grateCurr - dGrateCurr;
+    %                 outputSingleScan(s2, grateCurr);
+    %             end
+    % 
+    %             outputSingleScan(s2, 0);
+
+            %         delete(lh2);
+    %             turnEverythingOn();
+            %         set(c.perotHzOut, 'String', 'Linewidth:  ---');
+            %         set(c.perotFsrOut, 'String', 'FSR:  ---');
+    %             setStatus('Ready');
+            end
         end
     end
     function pleCall(src,~)
@@ -2653,11 +2767,18 @@ function varargout = diamondControl(varargin)
             wa1500 = initWaveDAQ();
 
             display('Aquiring Base Frequency');
-            c.sPle.Rate = 20000;
-            for x = 1:10
-                queueOutputData(c.sPle, [linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).' (0*ones(1, c.firstPerotLength)).']);
-                queueOutputData(c.sPle, [linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).' (0*ones(1, c.fullPerotLength - c.firstPerotLength)).']);
+            c.s.Rate = 20000;
+            
+            output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, NaN, linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).', 0});
+            for x = 1:9
+                queueOutputData(c.s, output);
             end
+            
+%             for x = 1:10
+% %                 queueOutputData(c.sPle, [linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).' (0*ones(1, c.firstPerotLength)).']);
+% %                 queueOutputData(c.sPle, [linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).' (0*ones(1, c.fullPerotLength - c.firstPerotLength)).']);
+%             end
+
             [perotInit, ~, ~] = c.sPle.startForeground();    % This will take 1 second; enough time for the wavemeter to register.
             
 %             pause(1);
@@ -2692,15 +2813,17 @@ function varargout = diamondControl(varargin)
             % "Setting up data"
             % finalGraph = 
 
-            c.sPle.IsContinuous = true;
-            c.sPle.Rate = rate;
+            c.s.IsContinuous = true;
+            c.s.Rate = c.pleRate;
 
-            c.sPle.IsNotifyWhenDataAvailableExceedsAuto = false;
-            c.sPle.NotifyWhenDataAvailableExceeds = interval;
+            c.s.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.s.NotifyWhenDataAvailableExceeds = interval;
 
-            c.pleLh = c.sPle.addlistener('DataAvailable', @invervalCall);
+            c.pleLh = c.s.addlistener('DataAvailable', @invervalCall);
 
-            c.pleIn = [c.perotIn.'   c.grateIn.'];
+            updateScanGraph();
+            
+%             c.pleIn = [c.perotIn.'   c.grateIn.'];  % Generated in updateScanGraph
         
             c.finalGraphX = zeros(1, c.interval*c.upScans);
             c.finalGraphY = zeros(1, c.interval*c.upScans);
@@ -2709,15 +2832,18 @@ function varargout = diamondControl(varargin)
             c.finalColorY = zeros(c.interval*c.upScans, c.qmaxPle);
             c.finalColorP = zeros(c.interval*c.upScans, c.qmaxPle);
 
-            updateScanGraph();
+            c.output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.grateIn.'});
 
-            queueOutputData(c.sPle, c.pleIn);
-            queueOutputData(c.sPle, c.pleIn);
-            queueOutputData(c.sPle, c.pleIn);
-        
-            c.sdPle.outputSingleScan(1);
+            queueOutputData(c.s, c.output);
+            queueOutputData(c.s, c.output);
+            
+%             queueOutputData(c.sPle, c.pleIn);
+%             queueOutputData(c.sPle, c.pleIn);
+%             queueOutputData(c.sPle, c.pleIn);
+            
+            c.sd.outputSingleScan(1);
 
-            s.startBackground();
+            c.s.startBackground();
 
             display('Scanning Up');
         end
@@ -2726,26 +2852,23 @@ function varargout = diamondControl(varargin)
         c.intervalCounter = c.intervalCounter + 1;
 
         if c.intervalCounter == c.upScans
-            c.sdPle.outputSingleScan(0);
+            c.sd.outputSingleScan(0);
 
             display('Scanning Down');
         end
-
         if c.intervalCounter == c.upScans + c.downScans - 1
-            queueOutputData(s, pleIn);
-
+            queueOutputData(c.s, c.output);
         end
-
         if c.intervalCounter == c.upScans + c.downScans
-            c.sdPle.outputSingleScan(1);
+            c.sd.outputSingleScan(1);
 
             updateGraph();
 
             display('Scanning Up');
 
             if get(c.pleCont, 'Value') ~= 1     % Check if button is still pressed
-                c.sdPle.outputSingleScan(0);
-                stop(c.sPle);
+                c.sd.outputSingleScan(0);
+                stop(c.s);  % Not sure if this will flush all of the data; may cause troubles.
                 delete(c.pleLh);
 %                 turnEverythingOn();
                 display('Ready');
@@ -2762,7 +2885,7 @@ function varargout = diamondControl(varargin)
             perotOut =  event.Data(:,1);
             detectOut = event.Data(:,2);
             normOut =   event.Data(:,3);
-            time = event.TimeStamps;
+            time =      event.TimeStamps;
             
             first = 0;
             if (c.intervalCounter-1) > 1
@@ -2808,7 +2931,63 @@ function varargout = diamondControl(varargin)
         dim = size(array);
         s = dim(2);
     end
+    function [out, wid] = findPeaks(array)
+        out = zeros(1, 5);
+        wid = zeros(1, 5);
+        n = 1;
 
+        bin = find((array - max(array)/2) >= 0);
+
+        i = 0;
+
+        xp = 0;
+
+        for x = bin;
+            if i == 0
+                i = x;
+            elseif xp ~= x - 1
+                % v = coeffvalues(fit( ((i-5):(x+5)).', array((i-5):(x+5)).', 'gauss1' ));
+
+                out(n) = (xp + i)/2; % v(2);
+                wid(n) = xp - i; % v(3);
+
+                n = n + 1;
+
+                if n == 4
+    %                 display('More than three peaks detected...');
+    %                 break;
+                end
+
+        %             if v(1) < m*.75
+        %                 error('Peak unusually small...');
+        %             end
+        %             
+        %             if v(3) > 5
+        %                 error('Very wide peak detected...');
+        %             end
+
+                i = x;
+            end
+            xp = x;
+        end
+
+        out(n) = (xp + i)/2; % v(2);
+        wid(n) = xp - i; % v(3);
+
+        out(n+1) = 0;
+        wid(n+1) = 0;
+    end
+    function str = returnHzString(hz)
+        str = [num2str(round(hz/10000000)/100) ' GHz'];
+
+        if hz < 1000
+            str = [num2str(round(hz)) ' Hz'];
+        elseif hz < 1000000
+            str = [num2str(round(hz/10)/100) ' kHz'];
+        elseif hz < 1000000000
+            str = [num2str(round(hz/10000)/100) ' MHz'];
+        end
+    end
 
     % TRACKING ============================================================
     function out_img=img_enhance(in_img)
@@ -3067,7 +3246,6 @@ function varargout = diamondControl(varargin)
         pause(1);
         delete(pt);
     end
-
     function go_mouse_fine_Callback(~,~)
         %Allow only small change
         axes(c.imageAxes);
@@ -3115,7 +3293,6 @@ function varargout = diamondControl(varargin)
         delete(pt);
         delete(mask);
     end
-        
 end
 
 
