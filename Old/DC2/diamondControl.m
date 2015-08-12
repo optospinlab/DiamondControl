@@ -199,7 +199,7 @@ function varargout = diamondControl(varargin)
             renderUpper();
                     
             pause(.1); % 60 Hz (should later make this run so we actually delay to 60 Hz)
-            drawnow
+%             drawnow
         end
     end
 
@@ -902,8 +902,8 @@ function varargout = diamondControl(varargin)
             
 %         up =    [c.piezo(1)*ones(u,1) c.piezo(2)*ones(u,1) linspace(0, range, u)' c.galvo(1)*ones(u,1) c.galvo(2)*ones(u,1)];
 %         down =  [c.piezo(1)*ones(d,1) c.piezo(2)*ones(d,1) linspace(range, 0, d)' c.galvo(1)*ones(d,1) c.galvo(2)*ones(d,1)];
-        up =    linspace(0, range, u)';
-        down =  linspace(range, 0, d)';
+        up =    linspace(0, range, u);
+        down =  linspace(range, 0, d);
 
         piezoOutSmooth([c.piezo(1) c.piezo(2) 0]);
         
@@ -957,6 +957,7 @@ function varargout = diamondControl(varargin)
         galvoOutSmooth([x y]);
     end
     function [x, y] = myMean(data, X, Y)
+        % Note that this will yeild an error if data is all zero. This is purposeful.
         % New Method
         dim = size(data);
         
@@ -1075,7 +1076,7 @@ function varargout = diamondControl(varargin)
 %         axes(c.imageAxes);
 %         image(flipdim(data,1));
     end
-
+.
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
         % Method 1
@@ -2473,6 +2474,8 @@ function varargout = diamondControl(varargin)
             
             set(c.pleAxesOne, 'Visible', 'Off');
             set(c.pleAxesAll, 'Visible', 'Off');
+            cla(c.pleAxesOne, 'reset');
+            cla(c.pleAxesAll, 'reset');
             
             set(c.upperAxes, 'Visible', 'On');
             set(c.lowerAxes, 'Visible', 'On');
@@ -2628,7 +2631,7 @@ function varargout = diamondControl(varargin)
 
             c.up = true;
             c.s.IsContinuous = true;
-            c.s.Rate = 20000;
+            c.s.Rate = 5000;
 
             c.s.IsNotifyWhenDataAvailableExceedsAuto = false;
             c.s.NotifyWhenDataAvailableExceeds = c.fullPerotLength;
@@ -2643,7 +2646,7 @@ function varargout = diamondControl(varargin)
 %             for a = 1:2
             output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.gratingCurr});
 %             end
-            for a = 1:10
+            for a = 1:3
                 queueOutputData(c.s, output);
             end
 
@@ -2658,7 +2661,7 @@ function varargout = diamondControl(varargin)
     %         queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
             daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.gratingCurr});
 
-            ramp = get(c.perotRampOn, 'Value');
+            ramp = get(c.perotRampOn, 'Value')
 
             if c.up && ramp == 1
                 c.grateCurr = c.grateCurr + c.dGrateCurr;

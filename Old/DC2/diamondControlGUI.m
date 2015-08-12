@@ -131,7 +131,7 @@ c.devPleDigitOut = 'Dev1';
 c.chnPleDigitOut = 'Port0/Line0';
 
 c.devPleIn =   'Dev1';    
-c.chnPerotIn = 'ai0';
+c.chnPerotIn = 'ai2';
 c.chnSPCMPle =  'ctr0';
 c.chnNormIn =  'ai1';
 
@@ -170,7 +170,7 @@ c.dGrateCurr = 2^-5;
 c.intervalCounter = 0;
 
 c.q = 1;
-c.qmax = 400;
+c.qmax = 200;
 c.qmaxPle = 50;
 
 c.freqs = [];
