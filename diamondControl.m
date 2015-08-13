@@ -19,7 +19,6 @@ function varargout = diamondControl(varargin)
     % Helper Global variables for UI construction
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
-    
     % CALLBACKS ===========================================================
     set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprects keypresses e.g. up/down arrow.
     set(c.parent, 'CloseRequestFcn', @closeRequest);                % Handles the closing of the figure.
@@ -197,6 +196,8 @@ function varargout = diamondControl(varargin)
             end
 
             renderUpper();
+            
+%             takeSpectrum_Callback(0, 0);
                     
             pause(.1); % 60 Hz (should later make this run so we actually delay to 60 Hz)
 %             drawnow
@@ -593,8 +594,8 @@ function varargout = diamondControl(varargin)
         axes(c.track_Axes);
         %frame = getsnapshot(c.vid);
         %Testing image 
-        frame= flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png')),1);
-        c.track_img=imshow(frame);
+        frame = flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png')),1);
+        c.track_img = imshow(frame);
 
     end
     function initAll()
@@ -890,7 +891,7 @@ function varargout = diamondControl(varargin)
     function piezoOptimizeZ()
         
         % Method 1
-        range = 5;
+        range = 10;
         pixels = 1000;
         
         prev = c.piezo(3);
@@ -917,17 +918,24 @@ function varargout = diamondControl(varargin)
 
         data = diff(out);
         data = data(1:pixels);
+        
+        plot(c.lowerAxes, up(1:pixels), data);
 
         m = min(min(data)); M = max(max(data));
 
         if m ~= M
             data = (data - m)/(M - m);
-            mask = ((up(1:pixels,3) > (prev - .5)) + (up(1:pixels,3) < (prev + .5))) == 2;
-            mask = mask(1:length(data));
-            data = data.*mask;
-            data = data.*(data > .5);
+            data = data.*((((up(1:pixels) > (prev - .5)) + ((up(1:pixels) < (prev + .5)))) == 2)');
+            
+            m = min(min(data)); M = max(max(data));
+            
+            if m ~= M
+                data = (data - m)/(M - m);
+                data = data.*(data > .5);
+            end
+            
             total = sum(sum(data));
-            fz = sum((data').*(up(1:pixels,3)'))/total;
+            fz = sum((data).*(up(1:pixels)'))/total;
 
             if fz > 10 || fz > (prev + .5) || fz < 0 || fz < (prev - .5) || isnan(fz)
                 fz = prev;
@@ -1076,7 +1084,7 @@ function varargout = diamondControl(varargin)
 %         axes(c.imageAxes);
 %         image(flipdim(data,1));
     end
-.
+
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
         % Method 1
@@ -1290,6 +1298,9 @@ function varargout = diamondControl(varargin)
                 c.piezoPixels = str2double(get(hObject, 'String'));
         end
     end
+    function piezoScan_Callback(~, ~)
+        piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+    end
 
     % GALVOSCAN ===========================================================
     function galvoScan_Callback(~, ~)
@@ -1496,8 +1507,10 @@ function varargout = diamondControl(varargin)
     end
 
     % SPECTROMETER ========================================================
-    function sendSpectrumTrigger()
+    function t = sendSpectrumTrigger()
         set(c.spectrumButton, 'Enable', 'off');
+        
+        t = now;
         
         % create the trigger file
         fh = fopen('Z:\WinSpec_Scan\matlabfile.txt', 'w');  
@@ -1507,32 +1520,27 @@ function varargout = diamondControl(varargin)
         fprintf(fh, 'Trigger Spectrum\n');
         fclose(fh);
     end
-    function spectrum = waitForSpectrum(filename)
+    function spectrum = waitForSpectrum(filename, t)
         file = '';
         spectrum = -1;
         
-        t = now;
-        
         i = 0;
         
-        while c.running && i < 120
+        while c.running && i < 120 && sum(spectrum == -1) == 1
             try
-                disp(['    waiting' num2str(i)])
-                d = dir('Z:\WinSpec_Scan\s*.*');
+%                 disp(['    waiting ' num2str(i)])
+                d = dir('Z:\WinSpec_Scan\spec.SPE');
                 
-                file = strcat('Z:\WinSpec_Scan\', d.name);
-                if d.datenum > t % file == 'Z:\WinSpec_Scan\spec.SPE'
-                    spectrum = readSPE(file);
+%                 display(['      datenum: ' num2str(d.datenum, 100) ',']);
+%                 display(['            t: ' num2str(t, 100)]);
+                if d.datenum > t - 4/(24*60*60) % file == 'Z:\WinSpec_Scan\spec.SPE'
+                    spectrum = readSPE('Z:\WinSpec_Scan\spec.SPE');
                 end
             catch error
-                disp(error)
+%                 disp(error)
             end
             
             pause(.5);
-            
-            if spectrum ~=-1
-                break
-            end
             i = i + 1;
         end
         
@@ -1552,7 +1560,7 @@ function varargout = diamondControl(varargin)
                 i = 0;
                 while i < 20
                     try
-                        movefile(file, [filename '.SPE']);
+                        movefile('Z:\WinSpec_Scan\spec.SPE', [filename '.SPE']);
                         break;
                     catch err
                         pause(.5);
@@ -1564,7 +1572,7 @@ function varargout = diamondControl(varargin)
                 i = 0;
                 while i < 20
                     try
-                        delete(file);
+                        delete('Z:\WinSpec_Scan\spec.SPE');
                         break;
                     catch err
                         pause(.5);
@@ -1575,21 +1583,23 @@ function varargout = diamondControl(varargin)
             end
         elseif spectrum ~=-1
             display('Failed to get data; proceeding');
+            k = waitforbuttonpress 
         end
         set(c.spectrumButton, 'Enable', 'on');
     end
     function takeSpectrum_Callback(~,~)
-        sendSpectrumTrigger();
-        image = waitForSpectrum(0);
+        image = waitForSpectrum(0, sendSpectrumTrigger());
         
-        plot(c.lowerAxes, 1:512, image)
-        set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-        xlim(c.lowerAxes, [1 512]);
-        ylim(c.lowerAxes, [min(image) max(image)]);
-        
-        if image ~= 0
-            savePlotPng(1:512, image, 'spectrum.png');
+        if image ~= -1
+            plot(c.lowerAxes, 1:512, image)
+            set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+            xlim(c.lowerAxes, [1 512]);
+            ylim(c.lowerAxes, [min(image) max(image)]);
         end
+        
+%         if image ~= -1
+%             savePlotPng(1:512, image, 'spectrum.png');
+%         end
     end
     function savePlotPng(X, Y, filename)
         p = plot(c.plottingAxes, X, Y);
@@ -1922,7 +1932,7 @@ function varargout = diamondControl(varargin)
 
                                 display('  Optimizing...');
                                 display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
-                                display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+                                display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
                                 
                                 scan = scan0; % in case there is only one repeat tasked.
                                 
@@ -1942,16 +1952,17 @@ function varargout = diamondControl(varargin)
                                     old = [c.piezo c.galvo];
 
                                     display('    Z...');    piezoOptimizeZ();
-                                    display('    XY...');   piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                                    display('    XY...');   piezoOptimizeXY(c.piezoRange/3, c.piezoSpeed, round(c.piezoPixels/3));
                                     
                                     if get(c.autoTaskGalvo, 'Value') == 1
                                         if j == round(str2double(get(c.autoTaskNumRepeat, 'String')));
                                             display('  Scanning...');
+                                            scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
                                         else
                                             display('    Galvo...');
+                                            scan = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
                                         end
 
-                                        scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
                                     end
                                         
                                     if results
@@ -1985,13 +1996,14 @@ function varargout = diamondControl(varargin)
                                     spectrum = 0;
 
                                     try
-                                        sendSpectrumTrigger();
-                                        spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+%                                         sendSpectrumTrigger();
+%                                         spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+                                        spectrum = waitForSpectrum([prefix name{i} '_spectrum'], sendSpectrumTrigger());
                                     catch err
                                         display(err.message);
                                     end
                                 
-                                    if spectrum ~= 0
+                                    if spectrum ~= -1
                                         savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
                                     end
 
@@ -2472,10 +2484,10 @@ function varargout = diamondControl(varargin)
             
 %             preview(c.vid, c.hImage);
             
-            set(c.pleAxesOne, 'Visible', 'Off');
-            set(c.pleAxesAll, 'Visible', 'Off');
             cla(c.pleAxesOne, 'reset');
             cla(c.pleAxesAll, 'reset');
+            set(c.pleAxesOne, 'Visible', 'Off');
+            set(c.pleAxesAll, 'Visible', 'Off');
             
             set(c.upperAxes, 'Visible', 'On');
             set(c.lowerAxes, 'Visible', 'On');

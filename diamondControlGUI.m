@@ -107,7 +107,7 @@ c.galvo =       [0 0];
 c.galvoBase =   [0 0];
 c.galvoMin =    [-5000 -5000];  % mV
 c.galvoMax =    [ 5000  5000];  % mV
-c.galvoStep =   .05;            % V
+c.galvoStep =   .001;           % V
 
 % Z Peizo DEVice and CHaNnels
 c.devPiezo =    'Dev1';        
