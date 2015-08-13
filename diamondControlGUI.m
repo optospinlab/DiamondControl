@@ -135,10 +135,16 @@ c.chnPerotIn = 'ai2';
 c.chnSPCMPle =  'ctr0';
 c.chnNormIn =  'ai1';
 
+c.devLEDDigitOut = 'Dev1';
+c.chnLEDDigitOut = 'Port0/Line7';
+c.ledBlink = 0;
+c.ledState = 0;
+
 % PLE
 c.output = 0;   % Badly-named variable to hold the DAQ output matrix when going between functions.
 c.ple = [0 0];
 % c.sPle = 0; % Broken due to matlab limitations.
+c.sp = 0;
 c.sd = 0;
 c.pleLh = 0;        % Empty variable for listener.
 

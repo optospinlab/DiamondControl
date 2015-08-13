@@ -535,35 +535,45 @@ function varargout = diamondControl(varargin)
     end
     function daqInit_Callback(~, ~)
         if c.daqInitiated == 0
-            c.s = daq.createSession('ni');
+            c.s = daq.createSession(    'ni');
             
             % Piezos    o 1:3
-            c.s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoX,      'Voltage');
-            c.s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoY,      'Voltage');
-            c.s.addAnalogOutputChannel(c.devPiezo,   c.chnPiezoZ,      'Voltage');
+            c.s.addAnalogOutputChannel( c.devPiezo,   c.chnPiezoX,      'Voltage');
+            c.s.addAnalogOutputChannel( c.devPiezo,   c.chnPiezoY,      'Voltage');
+            c.s.addAnalogOutputChannel( c.devPiezo,   c.chnPiezoZ,      'Voltage');
             set(c.piezoText, 'ForegroundColor', 'black');
             
             % Galvos    o 4:5
-            c.s.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoX,      'Voltage');
-            c.s.addAnalogOutputChannel(c.devGalvo,   c.chnGalvoY,      'Voltage');
+            c.s.addAnalogOutputChannel( c.devGalvo,   c.chnGalvoX,      'Voltage');
+            c.s.addAnalogOutputChannel( c.devGalvo,   c.chnGalvoY,      'Voltage');
             set(c.galvoText, 'ForegroundColor', 'black');
-            
-            % PLE       o 6:7
-            c.s.addAnalogOutputChannel(c.devPleOut,  c.chnPerotOut,  'Voltage');     % Perot Out
-            c.s.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
 
             % Counter   i 1
-            c.s.addCounterInputChannel(c.devSPCM,    c.chnSPCM,      'EdgeCount');
+            c.s.addCounterInputChannel( c.devSPCM,    c.chnSPCM,      'EdgeCount');
             
-            % PLE       i 2:3
-            c.s.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
-            c.s.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
+            
+            % PLE       o 1:2
+            c.sp.addAnalogOutputChannel(c.devPleOut,  c.chnPerotOut,  'Voltage');     % Perot Out
+            c.sp.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
+            
+            % PLE       i 1:2
+            c.sp = daq.createSession(   'ni');
+            c.sp.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');
+            c.sp.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
+            c.sp.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
 
+            
             % PLE digital
-            c.sd = daq.createSession('ni');
-            c.sd.addDigitalChannel(    c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+            c.sd = daq.createSession(   'ni');
+            c.sd.addDigitalChannel(     c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+    
 
-
+            % LED digital
+            c.sl = daq.createSession(   'ni');
+            c.sl.addDigitalChannel(     c.devLEDDigitOut, c.chnLEDDigitOut,  'OutputOnly');  % LED Warning lights
+            
+            ledSet(0);
+            
             daqOut();
 %             piezoOutSmooth([5 5 0]);
             
@@ -617,6 +627,33 @@ function varargout = diamondControl(varargin)
 %         end
         
         updateScanGraph();
+    end
+    % --- LED -------------------------------------------------------------
+    function ledSet(state)
+        if c.ledState ~= state
+            switch c.ledState
+                case 0
+                    c.ledBlink = 0;
+                    c.sl.outputSingleScan(0);
+                case 1
+                    c.ledBlink = 0;
+                    c.sl.outputSingleScan(1);
+                case 2
+                    c.ledBlink = 1;
+                    blink();
+            end
+        end
+    end
+    function blink()
+        while c.ledBlink
+            c.sl.outputSingleScan(1);
+            pause(.5);
+            
+            if c.ledBlink
+                c.sl.outputSingleScan(0);
+                pause(.5);
+            end
+        end
     end
     % --- MICROMETER ------------------------------------------------------
     function out = pos(serial_obj, device_addr)
@@ -714,14 +751,14 @@ function varargout = diamondControl(varargin)
     function daqOutSmooth(to)
         % Smoothly sends all the DAQ devices to the location defined by 'to'.
         if c.outputEnabled && c.daqInitiated && ~c.isCounting
-            prev = [c.piezo c.galvo c.ple];   % Get the previous location.
+            prev = [c.piezo c.galvo]; % c.ple];   % Get the previous location.
             c.piezo = to(1:3);          % Set the new location.
             c.galvo = to(4:5);
-            c.ple =   to(6:7);
+%             c.ple =   to(6:7);
             
             limit();                    % Make sure we aren't going over-bounds.
             
-            steplist = [c.piezoStep c.piezoStep c.piezoStep c.galvoStep c.galvoStep, c.piezoStep, c.piezoStep];
+            steplist = [c.piezoStep c.piezoStep c.piezoStep c.galvoStep c.galvoStep]; %, c.piezoStep, c.piezoStep];
             
             steps = round(max(abs(to - prev)./steplist));    % Calculates which device 'furthest away from the target' and uses that device to define the speed.
             prevRate = c.s.Rate;
@@ -732,9 +769,9 @@ function varargout = diamondControl(varargin)
                                         linspace(prev(2), to(2), steps)'...
                                         linspace(prev(3), to(3), steps)'...
                                         linspace(prev(4), to(4), steps)'...
-                                        linspace(prev(5), to(5), steps)'...
-                                        linspace(prev(6), to(6), steps)'...
-                                        linspace(prev(7), to(7), steps)']);
+                                        linspace(prev(5), to(5), steps)']);
+%                                         linspace(prev(6), to(6), steps)'...
+%                                         linspace(prev(7), to(7), steps)']);
                 c.s.startForeground();
             end
             
@@ -745,23 +782,27 @@ function varargout = diamondControl(varargin)
     end
     function piezoOutSmooth(to)
         % Only modifies the piezo.
-        daqOutSmooth([to c.galvo c.ple]);
+        daqOutSmooth([to c.galvo]); % c.ple]);
     end
     function galvoOutSmooth(to)
         % Only modifies the galvo.
-        daqOutSmooth([c.piezo to c.ple]);
+        daqOutSmooth([c.piezo to]); % c.ple]);
     end
     function daqOut()
         % Abruptly sends all the DAQ devices to the location defined by c.piezo and c.galvo.
         if c.outputEnabled && c.daqInitiated && ~c.isCounting
-            c.s.outputSingleScan([c.piezo c.galvo c.ple]);
+            c.s.outputSingleScan([c.piezo c.galvo]); % c.ple]);
         end
         getCurrent();       % Sets the UI to the current location.
     end
-    function final = daqOutQueueClever(array)
+    function final = daqOutQueueCleverFull(array, session)
         finalLength = max(cellfun(@length, array));
             
-        curr =  [c.piezo c.galvo c.ple];
+        if session == c.s
+            curr =  [c.piezo c.galvo];
+        else
+            curr =  [c.ple];
+        end
         final = zeros(finalLength, length(array));
         
 %         length(array)
@@ -792,11 +833,20 @@ function varargout = diamondControl(varargin)
         
 %         final
         
-    	queueOutputData(c.s, final);
+    	queueOutputData(session, final);
         
-        c.piezo = final(end, 1:3);
-        c.galvo = final(end, 4:5);
-        c.ple   = final(end, 6:7);
+        if session == c.s
+            c.piezo = final(end, 1:3);
+            c.galvo = final(end, 4:5);
+        else
+            c.ple   = final(end, 1:2);
+        end
+    end
+    function final = daqOutQueueClever(array)
+        final = daqOutQueueCleverFull(array(1:5), c.s);
+    end
+    function final = daqOutQueueCleverPLE(array)
+        final = daqOutQueueCleverFull(array(1:2), c.sp);
     end
     % --- RESETS ----------------------------------------------------------
     function resetMicro_Callback(~, ~)
@@ -1812,6 +1862,7 @@ function varargout = diamondControl(varargin)
         
         if ~onlyTest
             clk = clock;
+            ledSet(1);
 
             superDirectory = c.directory;              % Setup the folders
             dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];           % Today's folder is formatted in YYYY_MM_DD Form
@@ -2095,6 +2146,7 @@ function varargout = diamondControl(varargin)
                                 pause(.5);
                             end
                         catch err
+                            ledSet(2);
                             if results
                                 try
                                     fprintf(fhb, ' F |');
@@ -2127,6 +2179,7 @@ function varargout = diamondControl(varargin)
         setPos();
         
         c.autoScanning = false;
+        ledSet(0);
     end
     function proceed_Callback(~, ~)
         c.proceed = true;
@@ -2633,36 +2686,36 @@ function varargout = diamondControl(varargin)
 
             c.gratingCurr = 0;
             
-            c.s.IsContinuous = false;
+            c.sp.IsContinuous = false;
             
 %             queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
             
-            daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotInUp.', c.gratingCurr});
+            daqOutQueueCleverPLE({c.perotInUp.', c.gratingCurr});
 
-            c.s.startForeground();
+            c.sp.startForeground();
 
             c.up = true;
-            c.s.IsContinuous = true;
-            c.s.Rate = 5000;
+            c.sp.IsContinuous = true;
+            c.sp.Rate = 5000;
 
-            c.s.IsNotifyWhenDataAvailableExceedsAuto = false;
-            c.s.NotifyWhenDataAvailableExceeds = c.fullPerotLength;
+            c.sp.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.sp.NotifyWhenDataAvailableExceeds = c.fullPerotLength;
             
             c.finalPerotColorY = zeros(c.firstPerotLength, c.qmax);
 
 %                 s.IsNotifyWhenScansQueuedBelowAuto = false;
 %                 s.NotifyWhenScansQueuedBelow = 3125;
 
-            c.pleLh = c.s.addlistener('DataAvailable', @intevalCallPerot);
+            c.pleLh = c.sp.addlistener('DataAvailable', @intevalCallPerot);
 
 %             for a = 1:2
-            output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.gratingCurr});
+            output = daqOutQueueCleverPLE({c.perotIn.', c.gratingCurr});
 %             end
             for a = 1:3
-                queueOutputData(c.s, output);
+                queueOutputData(c.sp, output);
             end
 
-            c.s.startBackground();
+            c.sp.startBackground();
             display('Scanning');
         end
     end
@@ -2671,7 +2724,7 @@ function varargout = diamondControl(varargin)
     %         outputSingleScan(s2, grateCurr);
 
     %         queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
-            daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.gratingCurr});
+            daqOutQueueCleverPLE({c.perotIn.', c.gratingCurr});
 
             ramp = get(c.perotRampOn, 'Value')
 
@@ -2724,18 +2777,18 @@ function varargout = diamondControl(varargin)
             if get(c.perotCont, 'Value') ~= 1     % Check if button is still pressed
                 display('Stopping');
                 delete(c.pleLh);
-                stop(c.s);
+                stop(c.sp);
 
     %             c.sPle.NotifyWhenDataAvailableExceeds = 50;
-                c.s.IsNotifyWhenScansQueuedBelowAuto = false;
-                c.s.NotifyWhenScansQueuedBelow = 50;
+                c.sp.IsNotifyWhenScansQueuedBelowAuto = false;
+                c.sp.NotifyWhenScansQueuedBelow = 50;
 
-                c.s.IsContinuous = false;
+                c.sp.IsContinuous = false;
 
     %             queueOutputData(c.sPle, [c.perotInDown.' linspace(c.grateCurr, 0, length(c.perotInDown))']);
-                daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, c.perotInDown.', linspace(c.grateCurr, 0, length(c.perotInDown))'});
+                daqOutQueueCleverPLE({c.perotInDown.', linspace(c.grateCurr, 0, length(c.perotInDown))'});
 
-                c.s.startForeground();
+                c.sp.startForeground();
 
 
     %             while grateCurr - dGrateCurr > 0
@@ -2764,6 +2817,7 @@ function varargout = diamondControl(varargin)
         end
 
         if (get(c.pleCont, 'Value') == 1 || once)
+            ledSet(1);
             % Initalize i/o
 %             setStatus('Creating Session');
 %             s = daq.createSession('ni');
@@ -2784,9 +2838,9 @@ function varargout = diamondControl(varargin)
             display('Aquiring Base Frequency');
             c.s.Rate = 20000;
             
-            output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, NaN, linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).', 0});
+            output = daqOutQueueCleverPLE({linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).', 0});
             for x = 1:9
-                queueOutputData(c.s, output);
+                queueOutputData(c.sp, output);
             end
             
 %             for x = 1:10
@@ -2794,7 +2848,7 @@ function varargout = diamondControl(varargin)
 % %                 queueOutputData(c.sPle, [linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).' (0*ones(1, c.fullPerotLength - c.firstPerotLength)).']);
 %             end
 
-            [perotInit, ~, ~] = c.sPle.startForeground();    % This will take 1 second; enough time for the wavemeter to register.
+            [perotInit, ~, ~] = c.sp.startForeground();    % This will take 1 second; enough time for the wavemeter to register.
             
 %             pause(1);
             c.freqBase = readWavelength(wa1500);
@@ -2821,18 +2875,18 @@ function varargout = diamondControl(varargin)
             c.q = 1;
             c.prevCount = 0;
 
-            dispaly('Setting Up Data');
+            display('Setting Up Data');
 
             c.intervalCounter = 0;
 
             % "Setting up data"
             % finalGraph = 
 
-            c.s.IsContinuous = true;
-            c.s.Rate = c.pleRate;
+            c.sp.IsContinuous = true;
+            c.sp.Rate = c.pleRate;
 
-            c.s.IsNotifyWhenDataAvailableExceedsAuto = false;
-            c.s.NotifyWhenDataAvailableExceeds = interval;
+            c.sp.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.sp.NotifyWhenDataAvailableExceeds = interval;
 
             c.pleLh = c.s.addlistener('DataAvailable', @invervalCall);
 
@@ -2847,10 +2901,10 @@ function varargout = diamondControl(varargin)
             c.finalColorY = zeros(c.interval*c.upScans, c.qmaxPle);
             c.finalColorP = zeros(c.interval*c.upScans, c.qmaxPle);
 
-            c.output = daqOutQueueClever({NaN, NaN, NaN, NaN, NaN, NaN, c.perotIn.', c.grateIn.'});
+            c.output = daqOutQueueCleverPLE({c.perotIn.', c.grateIn.'});
 
-            queueOutputData(c.s, c.output);
-            queueOutputData(c.s, c.output);
+            queueOutputData(c.sp, c.output);
+            queueOutputData(c.sp, c.output);
             
 %             queueOutputData(c.sPle, c.pleIn);
 %             queueOutputData(c.sPle, c.pleIn);
@@ -2858,7 +2912,7 @@ function varargout = diamondControl(varargin)
             
             c.sd.outputSingleScan(1);
 
-            c.s.startBackground();
+            c.sp.startBackground();
 
             display('Scanning Up');
         end
@@ -2872,7 +2926,7 @@ function varargout = diamondControl(varargin)
             display('Scanning Down');
         end
         if c.intervalCounter == c.upScans + c.downScans - 1
-            queueOutputData(c.s, c.output);
+            queueOutputData(c.sp, c.output);
         end
         if c.intervalCounter == c.upScans + c.downScans
             c.sd.outputSingleScan(1);
@@ -2883,7 +2937,8 @@ function varargout = diamondControl(varargin)
 
             if get(c.pleCont, 'Value') ~= 1     % Check if button is still pressed
                 c.sd.outputSingleScan(0);
-                stop(c.s);  % Not sure if this will flush all of the data; may cause troubles.
+                ledSet(0);
+                stop(c.sp);  % Not sure if this will flush all of the data; may cause troubles.
                 delete(c.pleLh);
 %                 turnEverythingOn();
                 display('Ready');
