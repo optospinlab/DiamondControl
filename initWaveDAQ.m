@@ -37,7 +37,7 @@ function [wa1500] = initWaveDAQ()
 
 % remove all serial instruments from memory to clear any
 % open resources conflicts
-delete(instrfind) 
+% delete(instrfind) 
 
 % build matlab instrument to serial port COM1
 % then open channel, put wavemeter into query mode so it doesn't 

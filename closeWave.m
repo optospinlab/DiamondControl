@@ -16,4 +16,4 @@ function closeWave(wa1500)
 fclose(wa1500);
 delete(wa1500);
 clear wa1500;
-delete(instrfind);
+% delete(instrfind);

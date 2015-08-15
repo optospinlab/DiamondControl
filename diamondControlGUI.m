@@ -96,7 +96,7 @@ c.daqInitiated = false;
 
 % SPCM DEVice and CHaNnel
 c.devSPCM =     'Dev1';         
-c.chnSPCM =     'ctr1';
+c.chnSPCM =     'ctr2';
 
 % Galvo DEVice and CHaNnels
 c.devGalvo =    'cDAQ1Mod1';	
@@ -132,7 +132,7 @@ c.chnPleDigitOut = 'Port0/Line0';
 
 c.devPleIn =   'Dev1';    
 c.chnPerotIn = 'ai2';
-c.chnSPCMPle =  'ctr0';
+c.chnSPCMPle =  'ctr1';
 c.chnNormIn =  'ai1';
 
 c.devLEDDigitOut = 'Dev1';
@@ -141,6 +141,7 @@ c.ledBlink = 0;
 c.ledState = 0;
 
 % PLE
+c.pleScanning = 0;
 c.output = 0;   % Badly-named variable to hold the DAQ output matrix when going between functions.
 c.ple = [0 0];
 % c.sPle = 0; % Broken due to matlab limitations.
@@ -171,7 +172,7 @@ c.fullPerotLength = 2500; %1250;
 
 c.up = true;
 c.grateCurr = 0;
-c.dGrateCurr = 2^-5;
+c.dGrateCurr = 2^-4;
 
 c.intervalCounter = 0;
 
@@ -300,6 +301,10 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Mouse/Key');
     c.mouseEnabled =    uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
     c.keyEnabled =      uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable Arrow Keys?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
 
+% c.saveTab =         uitab(c.ioPanel, 'Title', 'Save');
+%     c.saveBlue =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
+%     c.saveUpper =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
+%     c.saveLower =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
     
 c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels');
 c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
@@ -571,9 +576,10 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
         c.pleScanTab =      uitab('Parent', c.plePanel, 'Title', 'PLE Scan');
             c.pleCont =       uicontrol('Parent', c.pleScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp       plhi-bp-3*bh    bw bh], 'Callback', @pleCall); 
             c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall, 'Enable', 'Off'); 
-            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-5*bh-bw    2*bw-5*bp bw]);
+            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-6*bh-bw    2*bw-6*bp bw]);
             set(c.axesSide, 'FontSize', 6);
-            c.pleDebug =   uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?', 'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
+            c.pleDebug =   uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?',  'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
+            c.pleSave =    uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Save',         'Position', [bp plhi-bp-5*bh 2*bw bh]); 
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 
