@@ -449,7 +449,7 @@ function varargout = diamondControl(varargin)
             end
             
             try
-                display('    Closing Track Counter...')
+                display('    Closing Vid Counter...')
                 stop(c.tktime);
                 delete(c.tktime);
             catch err
@@ -622,9 +622,11 @@ function varargout = diamondControl(varargin)
         end
         
         axes(c.track_Axes);
-        %frame = getsnapshot(c.vid);
+        frame = getsnapshot(c.vid);
+        
         %Testing image 
-        frame = flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png')),1);
+        %frame = flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png')),1);
+        
         c.track_img = imshow(frame);
 
     end
@@ -1218,9 +1220,11 @@ function varargout = diamondControl(varargin)
 
 %             down'
 %             linspace(y, y + up2(2) - up2(1), length(down))'
-
-            daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
-            c.s.startForeground();
+            
+            if y ~= up2(end)
+                daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
+                c.s.startForeground();
+            end
             
             final(i,:) = [diff(out(:,1)') mean(diff(out(:,1)'))];
             
@@ -1377,7 +1381,9 @@ function varargout = diamondControl(varargin)
         end
     end
     function piezoScan_Callback(~, ~)
+        prev = c.piezo;
         piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+        piezoOutSmooth(prev);
     end
 
     % GALVOSCAN ===========================================================
@@ -2583,9 +2589,10 @@ function varargout = diamondControl(varargin)
     function updateScanGraph()
         c.interval = c.perotLength + floor((c.pleRateOld - c.upScans*c.perotLength)/c.upScans);
         c.leftover = (c.pleRateOld - c.upScans*c.interval);
-
-        c.grateInUp =   linspace(0, c.grateMax - (c.leftover + 1)*(c.grateMax/c.pleRate), c.upScans*c.interval);
-        c.grateInDown = linspace(c.grateMax - (c.leftover + 1)*(c.grateMax/c.pleRate), 0, c.downScans*c.interval);
+        
+%  - (c.leftover + 1)*(c.grateMax/c.pleRate)
+        c.grateInUp =   linspace(0, c.grateMax, c.upScans*c.interval);
+        c.grateInDown = linspace(c.grateMax, 0, c.downScans*c.interval);
         c.grateIn =     [c.grateInUp c.grateInDown];
 
         c.perotInUp =   linspace(0, c.perotMax - c.perotMax/c.perotLength, c.perotLength);
@@ -2714,15 +2721,16 @@ function varargout = diamondControl(varargin)
             c.perotInDown = linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength);
             c.perotIn =     [c.perotInDown, c.perotInUp];
 
-            c.gratingCurr = 0;
+            c.grateCurr = 0;
             
             stop(c.sp);
             
             c.sp.IsContinuous = false;
+            c.sp.Rate = 5000;
             
 %             queueOutputData(c.sPle, [c.perotInUp.' c.gratingCurr*ones(length(c.perotInUp), 1)]);
             
-            daqOutQueueCleverPLE({c.perotInUp.', c.gratingCurr});
+            daqOutQueueCleverPLE({c.perotInUp.', c.grateCurr});
 
             c.sp.startForeground();
             
@@ -2745,7 +2753,7 @@ function varargout = diamondControl(varargin)
             c.pleLh = c.sp.addlistener('DataAvailable', @intevalCallPerot);
 
 %             for a = 1:2
-            output = daqOutQueueCleverPLE({c.perotIn.', c.gratingCurr});
+            output = daqOutQueueCleverPLE({c.perotIn.', c.grateCurr});
 %             end
             for a = 1:5
                 queueOutputData(c.sp, output);
@@ -2763,22 +2771,23 @@ function varargout = diamondControl(varargin)
             daqOutQueueCleverPLE({c.perotIn.', c.grateCurr});
 
             ramp = get(c.perotRampOn, 'Value');
+            speed = str2double(get(c.perotSpeed, 'String'));
 
             if c.up && ramp == 1
-                c.grateCurr = c.grateCurr + c.dGrateCurr;
+                c.grateCurr = c.grateCurr + c.dGrateCurr*speed;
             elseif ramp == 1 && ~c.up
-                c.grateCurr = c.grateCurr - c.dGrateCurr;
+                c.grateCurr = c.grateCurr - c.dGrateCurr*speed;
             elseif ramp == 0 && c.grateCurr ~= 0
-                c.grateCurr = c.grateCurr - c.dGrateCurr;
+                c.grateCurr = c.grateCurr - c.dGrateCurr*speed;
                 if c.grateCurr < 0
                     c.grateCurr = 0;
                 end
             end
 
-            if c.grateCurr + c.dGrateCurr > c.grateMax
+            if c.grateCurr + c.dGrateCurr*speed > c.grateMax
                 c.up = false;
             end
-            if c.grateCurr - c.dGrateCurr < 0
+            if c.grateCurr - c.dGrateCurr*speed < 0
                 c.up = true;
             end
 
@@ -2883,32 +2892,32 @@ function varargout = diamondControl(varargin)
 
             display('Interfacing with Wavemeter');
             wa1500 = initWaveDAQ();
-
-            display('Aquiring Base Frequency');
-            c.sp.Rate = c.pleRate;
-            
-            output1 = daqOutQueueCleverPLE({linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).', 0});
-            output2 = daqOutQueueCleverPLE({linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).', 0});
-            
-            for x = 1:9
-                queueOutputData(c.sp, output1);
-                queueOutputData(c.sp, output2);
-            end
-            
-%             for x = 1:10
-% %                 queueOutputData(c.sPle, [linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).' (0*ones(1, c.firstPerotLength)).']);
-% %                 queueOutputData(c.sPle, [linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).' (0*ones(1, c.fullPerotLength - c.firstPerotLength)).']);
-%             end
-
-            [perotInit, ~, ~] = c.sp.startForeground();    % This will take 1 second; enough time for the wavemeter to register. [update: this no longer pertains]
-            
-%             pause(1);
             c.freqBase = readWavelength(wa1500);
             closeWave(wa1500);
 
-            % Interpret perotInit!
-            [out, ~] = findPeaks(perotInit((c.fullPerotLength*9 + 1):(c.fullPerotLength*9 + 1 + c.firstPerotLength)));
-            fsrbase = diff(out(out~=0));
+%             display('Aquiring Base Frequency');
+%             c.sp.Rate = c.pleRateOld*16;
+%             
+%             output1 = daqOutQueueCleverPLE({linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).', 0});
+%             output2 = daqOutQueueCleverPLE({linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).', 0});
+%             
+%             for x = 1:9
+%                 queueOutputData(c.sp, output1);
+%                 queueOutputData(c.sp, output2);
+%             end
+%             
+% %             for x = 1:10
+% % %                 queueOutputData(c.sPle, [linspace(0, c.perotMax - c.perotMax/c.firstPerotLength, c.firstPerotLength).' (0*ones(1, c.firstPerotLength)).']);
+% % %                 queueOutputData(c.sPle, [linspace(c.perotMax - c.perotMax/c.firstPerotLength, 0, c.fullPerotLength - c.firstPerotLength).' (0*ones(1, c.fullPerotLength - c.firstPerotLength)).']);
+% %             end
+% 
+%             [perotInit, ~, ~] = c.sp.startForeground();    % This will take 1 second; enough time for the wavemeter to register. [update: this no longer pertains]
+%             
+% %             pause(1);
+% 
+%             % Interpret perotInit!
+%             [out, ~] = findPeaks(perotInit((c.fullPerotLength*9 + 1):(c.fullPerotLength*9 + 1 + c.firstPerotLength)));
+%             fsrbase = diff(out(out~=0));
 
 %             FSR = 4.118; % FIX!!!
 %             if std(fsrbase) < 30
@@ -2919,7 +2928,7 @@ function varargout = diamondControl(varargin)
 
             c.FSR = 432/2;
 
-            c.perotBase = out(1);
+            c.perotBase = 0; % out(1);
             c.prevFreq = c.perotBase;
             c.rfreq = [];
             c.rtime = [];
@@ -3017,7 +3026,7 @@ function varargout = diamondControl(varargin)
                 time =      event.TimeStamps;
 
                 first = 0;
-                if (c.intervalCounter-1) > 1
+                if (c.intervalCounter-1) > 0
                     first = c.finalGraphY((c.intervalCounter-1)*c.interval);
                 end
 
@@ -3161,8 +3170,8 @@ function varargout = diamondControl(varargin)
          end
     end
     function tkListener(~, ~)
-        % frame = flipdim(getsnapshot(c.vid),1);
-         frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
+         frame = flipdim(getsnapshot(c.vid),1);
+         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
          
         if c.vid_on 
             I3 = img_enhance(frame);          
@@ -3185,10 +3194,10 @@ function varargout = diamondControl(varargin)
     end
     function centroidListener(~,~)
        
-        % frame = flipdim(getsnapshot(c.vid),1);
+         frame = flipdim(getsnapshot(c.vid),1);
         
         tic
-        frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
+        %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
  
         IBW=im2bw(frame,0.7);
         %c.roi_image=imcrop(IBW,c.roi);
@@ -3433,7 +3442,3 @@ function varargout = diamondControl(varargin)
         delete(mask);
     end
 end
-
-
-
-

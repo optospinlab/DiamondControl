@@ -158,9 +158,9 @@ c.perotPrev = 0;
 c.perotMax = 10;  % Maximum Voltage to perot...
 c.grateMax = 10;  %  "       "   ...to grating.
 
-c.pleRate = 2^12;
-c.pleRateOld = 2^14;
-c.perotLength = 2^9;
+c.pleRate = 2^4;
+c.pleRateOld = 2^9;
+c.perotLength = 2^4;
 c.upScans = 30;
 c.downScans = 2;
 
@@ -579,7 +579,7 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
             c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-6*bh-bw    2*bw-6*bp bw]);
             set(c.axesSide, 'FontSize', 6);
             c.pleDebug =   uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?',  'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
-            c.pleSave =    uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Save',         'Position', [bp plhi-bp-5*bh 2*bw bh]); 
+            c.pleSave =    uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',     'String', 'Save',         'Position', [bp plhi-bp-5*bh 2*bw bh]); 
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 
@@ -587,7 +587,9 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
             c.perotHzOut =    uicontrol('Parent', c.perotScanTab, 'Style', 'text',         'String', ' --- ', 'HorizontalAlignment', 'left',  'Position', [bp plhi-bp-8*bh 2*bw 4*bh], 'FontSize', 24); 
             c.perotFsrOut =   uicontrol('Parent', c.perotScanTab, 'Style', 'text',         'String', 'FSR:  ---', 'HorizontalAlignment', 'left',        'Position', [bp plhi-bp-9*bh 2*bw bh]); 
             c.perotRampOn =   uicontrol('Parent', c.perotScanTab, 'Style', 'checkbox',     'String', 'Ramp?', 'HorizontalAlignment', 'left',            'Position', [bp plhi-bp-10*bh 2*bw bh]); 
-
+            c.perotSpeedT =   uicontrol('Parent', c.perotScanTab, 'Style', 'text', 'String', 'Ramp Speed: ', 'Position', [bp        plhi-bp-11*bh bw bh],         'HorizontalAlignment', 'right');
+            c.perotSpeed =    uicontrol('Parent', c.perotScanTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-11*bh bw/2 bh]);
+            
 % A list of all buttons to disable when a scan/etc is running.
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
