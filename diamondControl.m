@@ -116,7 +116,7 @@ function varargout = diamondControl(varargin)
     set(c.autoV3Get, 'Callback', @setCurrent_Callback);
     set(c.autoV4Get, 'Callback', @setCurrent_Callback);
     
-    set(c.autoPreview, 'Callback',  @autoPreview_Callback);               % Displays the devices that will be tested to an axes. Useful for error-correcting
+    set(c.autoPreview, 'Callback',  @autoPreview_Callback);         % Displays the devices that will be tested to an axes. Useful for error-correcting
     set(c.autoTest, 'Callback',  @autoTest_Callback);               % Displays the devices that will be tested to an axes. Useful for error-correcting
     set(c.autoButton, 'Callback',  @automate_Callback);             % Starts the automation!
     set(c.autoProceed, 'Callback',  @proceed_Callback);             % Button to proceed to the next device. The use has the option to use this to proceed or 
@@ -448,21 +448,23 @@ function varargout = diamondControl(varargin)
                 delete(c.lhC);
             end
             
-            try
-                display('    Closing Vid Counter...')
-                stop(c.tktime);
-                delete(c.tktime);
-            catch err
-                display(err.message);
-            end     
-            try
-                display('    Closing Track Counter...')
-                stop(c.centroidtime);
-                delete(c.centroidtime);
-            catch err
-                display(err.message);
-            end     
-
+            if c.vid_on
+                try
+                    display('    Closing Vid Counter...')
+                    stop(c.tktime);
+                    delete(c.tktime);
+                catch err
+                    display(err.message);
+                end     
+                try
+                    display('    Closing Track Counter...')
+                    stop(c.centroidtime);
+                    delete(c.centroidtime);
+                catch err
+                    display(err.message);
+                end     
+            end
+            
         catch err
             display(err.message);
         end
@@ -3231,33 +3233,32 @@ function varargout = diamondControl(varargin)
                     disp(err.message)
                 end
                 
-%                 k = 0.0144; %calibration constant between pixels and voltage
+                k = 0.0144; %calibration constant between pixels and voltage (may not be correct!!)
+                gain = str2double(get(c.trk_gain, 'String'));
+                minAdjustmentpx = str2double(get(c.trk_min, 'String'));
+                
+                mindelV = minAdjustmentpx*k;
+                %zfocuscounter = 0;
 
-            %         gain = str2num(get(handles.gain, 'String'));
-            %         minAdjustmentpx = str2num(get(handles.minAdjustment, 'String'));
-            %         mindelV = minAdjustmentpx*k;
-            %         rate=str2num(get(handles.feedbackRate, 'String'));
-            %         delay = 1.0/rate
-            %         zfocuscounter = 0;
+                delX = c.centroidX-c.centroidXi;
+                delY = c.centroidX-c.centroidXi;
 
-            %             delX = X-X0;
-            %             delY = Y-Y0;
-
-            %             delVx = delX*k*gain;
-            %             delVy = delY*k*gain;
-
-            %             %only move if greater than 1 pixel which is < 50 nm
-            %             if (abs(delVx)>mindelV) | (abs(delVy) > mindelV)
-                %             %only move if voltage stays positive
-                %             Vxnew = max([0, Vxold - delVx])
-                %             Vynew = max([0, Vyold - delVy])
-
-                %             s = daq.createSession('ni');
-                %             s.addAnalogOutputChannel(nidevice, [ao1 ao2], 'Voltage');
-                %             s.outputSingleScan([Vxnew Vynew]); 
-                %             set(handles.Vx, 'String', num2str(Vxnew));
-                %             set(handles.Vy, 'String', num2str(Vynew));
-                %         end
+                delVx = delX*k*gain;
+                delVy = delY*k*gain;
+                
+                %only move if voltage stays positive
+                %Vxnew = max([0, Vxold - delVx])
+                %Vynew = max([0, Vyold - delVy])
+                
+                if (abs(delVx)>mindelV)
+                    piezoOutSmooth(c.piezo + [delVx 0 0]);
+                    set(c.track_stat,'String','Status: Xpos corrected');
+                end
+                
+                if (abs(delVy) > mindelV)
+                    piezoOutSmooth(c.piezo + [0 delVy 0]); 
+                    set(c.track_stat,'String','Status: Ypos corrected');
+                end
             end
             toc
     end

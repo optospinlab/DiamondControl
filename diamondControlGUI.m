@@ -596,20 +596,26 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
 c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.ratevid = 2;     % vid update rate /sec
     c.ratetrack = 10;  % tracking corrections / sec
-    
     c.vid_on=0; c.seldisk=0;
     c.roi='';
     c.roi_pad=10;      %ROI padding of 10 pixels on each side of the disk
     
     c.start_vid =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Start',                   'Position',[2*bp plhi-bp-2*bh bw bh]);  
     c.stop_vid =       uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stop!',                    'Position',[2*bp+bw plhi-bp-2*bh bw bh]);
-    c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-18*bh bw bh]);
-    c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-18*bh bw bh]);
+    
+    c.trk_gain_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Gain:', 'Position',[bp/2 plhi-bp-18*bh bw/2 bh]);  
+    c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 1,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
+    c.trk_min_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-18*bh 2*bw/3 bh]);  
+    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 5,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
+    
+    c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-20*bh bw bh]);
+    c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-20*bh bw bh]);
     c.track_stat =     uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Status: Nothing selected', 'Position',[bp plhi-bp-16*bh 2*bw bh]);  
-
+   
+    
     c.track_Axes =     axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-14*bh bp+2*bw 2*bw]);
-    c.roi_Axes=        axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-32*bh bp+2*bw 2*bw]);
-  
+    c.roi_Axes=        axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-34*bh bp+2*bw 2*bw]);
+    
 display('  Finished...');
 end
 
