@@ -56,6 +56,9 @@ function varargout = diamondControl(varargin)
     set(c.go_mouse, 'Callback', @go_mouse_Callback); 
     set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
     
+    set(c.micro_rst_x, 'Callback', @rstx_Callback);
+    set(c.micro_rst_y, 'Callback', @rsty_Callback);
+    
     % Galvo Fields --------------------------------------------------------
     set(c.galvoButton, 'Callback', @galvoScan_Callback);            % Starts a Galvo scan. Below are parameters defining that scan.
     set(c.galvoR, 'Callback', @galvoVar_Callback);                  %  - R for Range in um/side (approx) where the side is the side of the scanning square
@@ -225,8 +228,8 @@ function varargout = diamondControl(varargin)
 
             % Add the joystick offset to the target vector. The microscope
             % attempts to go to the target vector.
-            c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep*(1+a(4))*5;
-            c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep*(1+a(4))*5;
+            c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep*(1+a(4))*10;
+            c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep*(1+a(4))*10;
             
             % Same for Z; the third axis is the twisting axis
             if max(abs([joystickAxesFunc(a(1), c.joyXYPadding) joystickAxesFunc(a(2), c.joyXYPadding)])) == 0
@@ -504,17 +507,14 @@ function varargout = diamondControl(varargin)
                 pause(.25);
 
                 %cmd(c.microXSerial, c.microXAddr, 'PW1'); 
-                cmd(c.microXSerial, c.microXAddr, 'HT1'); 
+               % cmd(c.microXSerial, c.microXAddr, 'HT1'); 
                 cmd(c.microXSerial, c.microXAddr, 'SL-5');     % negative software limit x=-5
-                cmd(c.microXSerial, c.microXAddr, 'BA0.003');      % disable backlash compensation
-                cmd(c.microXSerial, c.microXAddr, 'FF05');
-               
-                cmd(c.microXSerial, c.microXAddr, 'PW0');
-
+                cmd(c.microXSerial, c.microXAddr, 'BA0.003');  % change backlash compensation
+                cmd(c.microXSerial, c.microXAddr, 'FF05');     % set friction compensation
+                cmd(c.microXSerial, c.microXAddr, 'PW0');      % save to controller memory
                 pause(.25);
 
                 cmd(c.microXSerial, c.microXAddr, 'OR'); %Get to home state (should retain position)
-
                 pause(.25);
 
                 display('Done Initializing X Axis');
@@ -531,18 +531,15 @@ function varargout = diamondControl(varargin)
 
                 pause(.25);
 
-               % cmd(c.microYSerial, c.microYAddr, 'PW1'); 
-                cmd(c.microYSerial, c.microYAddr, 'HT1'); 
-                cmd(c.microYSerial, c.microYAddr, 'SL-5');   % negative software limit y=-5
-                cmd(c.microYSerial, c.microYAddr, 'BA0.003');    % disable backlash compensation
-                cmd(c.microYSerial, c.microYAddr, 'FF5');
-               
-                cmd(c.microYSerial, c.microYAddr, 'PW0');
-
+                %cmd(c.microYSerial, c.microYAddr, 'PW1'); 
+                %cmd(c.microYSerial, c.microYAddr, 'HT1'); 
+                cmd(c.microYSerial, c.microYAddr, 'SL-5');      % negative software limit y=-5
+                cmd(c.microYSerial, c.microYAddr, 'BA0.003');   % change backlash compensation
+                cmd(c.microYSerial, c.microYAddr, 'FF5');       % set friction compensation
+                cmd(c.microYSerial, c.microYAddr, 'PW0');       % save to controller memory
                 pause(.25);
-
-                cmd(c.microYSerial, c.microYAddr, 'OR'); % Go to home state
-
+                
+                cmd(c.microYSerial, c.microYAddr, 'OR'); % Go to home state(should retain position)
                 pause(.25);
 
                 display('Done Initializing Y Axis');
@@ -691,7 +688,7 @@ function varargout = diamondControl(varargin)
         out = fscanf(serial_obj);
     end
     function cmd(serial_obj, device_addr, c)
-        fprintf(serial_obj, [device_addr c]);       % Send a CoMmanD
+        fprintf(serial_obj, [device_addr c]);       % Send a Command
         % out = fscanf(serial_obj);
         % if ~isempty(out)
         %     disp(['ERR' out])
@@ -720,6 +717,42 @@ function varargout = diamondControl(varargin)
             cmd(c.microYSerial, c.microYAddr, ['SE' num2str(c.micro(2)/1000)]);
             fprintf(c.microXSerial, 'SE'); fprintf(c.microYSerial, 'SE');
         end
+    end
+    function rstx_Callback(~,~)
+
+        %SEND THE MICROMTR BACK TO MECH-ZERO
+        cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
+        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(1);
+        cmd(c.microXSerial, c.microXAddr,'HT4'); pause(1);
+        cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
+        cmd(c.microXSerial, c.microXAddr,'OR'); pause(60);
+        
+        %GET BACK TO chip
+        cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
+        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(1);
+        cmd(c.microXSerial, c.microXAddr,'HT1'); pause(1);
+        cmd(c.microXSerial, c.microXAddr,'PW0'); pause(1);
+        cmd(c.microXSerial, c.microXAddr,'OR'); pause(5);
+        cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(60);
+        
+    end
+    function rsty_Callback(~,~)
+ 
+        %SEND THE MICROMTR BACK TO MECH-ZERO
+        cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
+        cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
+        cmd(c.microYSerial, c.microYAddr,'HT4'); pause(0.5);
+        cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
+        cmd(c.microYSerial, c.microYAddr,'OR'); pause(60);
+        
+        %GET BACK TO chip
+        cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
+        cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
+        cmd(c.microYSerial, c.microYAddr,'HT1'); pause(0.5);
+        cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
+        cmd(c.microYSerial, c.microYAddr,'OR'); pause(0.5);
+        cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(10);
+        
     end
     % --- UI GETTING ------------------------------------------------------
     function getCurrent()
@@ -1156,13 +1189,13 @@ function varargout = diamondControl(varargin)
             y = (y1 + y2)/2;
         end
     end
-    function data = displayImage()
+    function data = displayImage() %Unused
 %         start(c.vid);
 %         data = getdata(c.vid)
 %         
 %         axes(c.imageAxes);
 %         image(flipdim(data,1));
-    end
+     end
 
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
@@ -2461,8 +2494,8 @@ function varargout = diamondControl(varargin)
             c.lhC.Period = 1/c.rateC;
             c.lhC.TimerFcn = @(~,~)counterListener;
             c.lhC.ExecutionMode = 'fixedSpacing';
-%             c.lhC.StartDelay = 0;
-%             c.lhC.StartFcn = [];
+%           c.lhC.StartDelay = 0;
+%           c.lhC.StartFcn = [];
 %         	c.lhC.StopFcn = [];
 %         	c.lhC.ErrorFcn = [];
 
@@ -3346,6 +3379,8 @@ function varargout = diamondControl(varargin)
          diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
          R = diameters/2;
     end
+
+    % Mouse Control =======================================================
     function go_mouse_Callback(~,~)
         pt=impoint(c.imageAxes);
         setColor(pt,'r');
@@ -3413,25 +3448,25 @@ function varargout = diamondControl(varargin)
             
             %calibration constant between pixels and voltage
             %Requires recalibration
-            k = 0.025; 
-            
+            ky = 0.02; 
+            kx = 0.02;
             %Always approach from same direction (from bottom left)
             offset = 2; % in um
 
-            deltaXm = deltaX*k;
-            deltaYm = deltaY*k;
-            deltaXmo= deltaXm + offset*k;
-            deltaYmo= deltaYm + offset*k;
+            deltaXm = deltaX*kx;
+            deltaYm = deltaY*ky;
+            deltaXmo= deltaXm + offset*kx;
+            deltaYmo= deltaYm + offset*ky;
 
             piezoOutSmooth(c.piezo + [deltaXmo deltaYmo 0]);
-            pause(0.5);
-            disp('m1')
+            pause(0.2);
+            %disp('m1')
             
             %Approach from bottom left
-            piezoOutSmooth(c.piezo + [-offset*k -offset*k 0]);
+            piezoOutSmooth(c.piezo + [-offset*kx -offset*ky 0]);
             pause(0.2);
             renderUpper();
-            disp('m2')
+            %disp('m2')
             
             setPosition(pt,[640/2 480/2]);
             setColor(pt,'g');
