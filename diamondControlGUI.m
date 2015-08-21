@@ -348,9 +348,11 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
   
     c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
      
-    c.go_mouse_control = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-22*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse =       uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-24*bh 2*bw bh]);
-    c.go_mouse_fine =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-26*bh 2*bw bh]);
+    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-22*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-23*bh 2*bw bh]);
+    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-24*bh 2*bw bh]);
+    c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-26*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-27*bh 2*bw bh]);
     
     %Micro abort and reset
     c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-32*bh 2*bw bh],         'HorizontalAlignment', 'center');

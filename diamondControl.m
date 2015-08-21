@@ -55,6 +55,7 @@ function varargout = diamondControl(varargin)
     
     set(c.go_mouse, 'Callback', @go_mouse_Callback); 
     set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
+    set(c.go_mouse_fbk, 'Callback', @go_mouse_fbk_Callback);
     
     set(c.micro_rst_x, 'Callback', @rstx_Callback);
     set(c.micro_rst_y, 'Callback', @rsty_Callback);
@@ -3430,7 +3431,7 @@ function varargout = diamondControl(varargin)
         pause(1);
         delete(pt);
     end
-    function go_mouse_fine_Callback(~,~)
+    function go_mouse_fine_Callback(~,~) %Maybe Redundant if FBK works
         %Allow only small change
         axes(c.imageAxes);
         mask=rectangle('Position',[640/2-50,480/2-50,100,100],'EdgeColor','r');
@@ -3472,9 +3473,111 @@ function varargout = diamondControl(varargin)
             setColor(pt,'g');
             pause(1);
         else
-            disp('clicked outside mask');
+            disp('click outside mask!!')
         end
         delete(pt);
         delete(mask);
+    end
+    function go_mouse_fbk_Callback(~,~) %Need to have a working computer vision toolbox!!
+        axes(c.imageAxes);
+        mask=rectangle('Position',[640/2-200,480/2-150,400,300],'EdgeColor','r');
+        
+        pt=impoint(c.imageAxes);
+        setColor(pt,'r');
+        
+        pos=getPosition(pt);
+        X=pos(1); Y=pos(2);
+        if (X>640/2-200 && X<640/2+200) && (Y>480/2-150 && Y<480/2+150)
+            
+            disp('inside mask')
+            
+
+           deltaX = X - 640/2;
+           deltaY = -(Y - 480/2);
+
+           % Feedback for backlash and hysteresis compensation
+           
+           % Parameters
+           min_delta=5;  % Threshold deviation (Pix)
+           max_tries=5;  % Maximum Iterations
+           %Always approach from same direction (from bottom left)
+           offset=5; % in um
+           min_offset=1;  % in um
+
+           count=1;
+           while (deltaX>min_delta || deltaY>min_delta) && count<max_tries+1
+
+               deltaXm = deltaX*78/640;
+               deltaYm = deltaY*62/480;
+               deltaXmo= deltaXm - offset;
+               deltaYmo= deltaYm - offset;
+
+               img_before=flipdim(getsnapshot(c.vid),1);
+               c.micro = c.micro + [deltaXmo deltaYmo];
+               setPos();
+
+               %Wait to complete the initial move
+                while sum(abs(c.microActual - c.micro)) > .1
+                    pause(.1);
+                    getPos();
+                    renderUpper();
+                end
+
+               %Approach from bottom left
+               c.micro = c.micro + [offset offset];
+               setPos(); 
+               renderUpper();
+
+               while sum(abs(c.microActual - c.micro)) > .1
+                    pause(.1);
+                    getPos();
+                    renderUpper();
+               end
+
+               img_after=flipdim(getsnapshot(c.vid),1);
+
+               %calculate actual distance moved
+               a_delta=actual_delta(img_before,img_after);
+
+               %get new delta
+               deltaX=deltaX-a_delta(1);
+               deltaY=deltaY-a_delta(2);
+
+               %reduce offset for next iteration
+               offset=offset-count;
+               offset=max(min_offset,offset); % has to be >=min_ofset
+
+               count=count+1;
+           end
+           setPosition(pt,[640/2 480/2]);
+           setColor(pt,'g');
+           pause(1);
+        else
+            disp('click outside mask!!')
+        end
+        delete(pt);
+        delete(mask);
+    end
+    function a_delta=actual_delta(img_before,img_after)
+        I1 = img_before;
+        I2 = img_after;
+        
+        %remove the image borders and detect 100 corner features
+        roi1 = I1(20:460,20:620);
+        C1 = corner(roi1,100);
+
+        %remove the image borders and detect 100 corner features
+        roi2 = I2(20:460,20:620);
+        C2 = corner(roi2,100);
+
+        [features1, valid_points1] = extractFeatures(roi1, C1);
+        [features2, valid_points2] = extractFeatures(roi2, C2);
+
+        indexPairs = matchFeatures(features1, features2);
+
+        matchedPoints1 = valid_points1(indexPairs(:, 1), :);
+        matchedPoints2 = valid_points2(indexPairs(:, 2), :);
+
+        a_delta=mean(matchedPoints2-matchedPoints1);
     end
 end
