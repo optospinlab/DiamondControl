@@ -652,15 +652,15 @@ function varargout = diamondControl(varargin)
     end
     % --- LED -------------------------------------------------------------
     function ledSet(state)
-        if c.ledState ~= state
+        if c.ledState ~= state  % If there was a change,
             switch state
-                case 0
+                case 0  % Off
                     c.ledBlink = 0;
                     c.sl.outputSingleScan(0);
-                case 1
+                case 1  % On
                     c.ledBlink = 0;
                     c.sl.outputSingleScan(1);
-                case 2
+                case 2  % Error/blink
                     c.ledBlink = 1;
                     blink();
             end
@@ -1240,8 +1240,6 @@ function varargout = diamondControl(varargin)
         set(c.piezoYY, 'String', '(scanning)');
 
         yCopy = 0;
-        
-        set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
 
         for y = up2
             yCopy = y;
@@ -1270,6 +1268,8 @@ function varargout = diamondControl(varargin)
 %                     surf(c.lowerAxes, up./mvConv, up(1:i)./mvConv, final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
                 view(c.lowerAxes,2);
                 set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+        
+                set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
                
 %                 strings = get(c.galvoC, 'string');
 %                 curval = get(c.galvoC, 'value');
@@ -1287,7 +1287,7 @@ function varargout = diamondControl(varargin)
             c.s.wait();
         end
         
-        set(c.lowerAxes, 'Xdir', 'normal', 'Ydir', 'normal');
+%         set(c.lowerAxes, 'Xdir', 'normal', 'Ydir', 'normal');
         
 %         notOptimized = 1;
         
@@ -1418,6 +1418,8 @@ function varargout = diamondControl(varargin)
     end
     function piezoScan_Callback(~, ~)
         prev = c.piezo;
+        ledSet(1);
+        
         piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
         piezoOutSmooth(prev);
     end
@@ -3478,7 +3480,7 @@ function varargout = diamondControl(varargin)
         delete(pt);
         delete(mask);
     end
-    function go_mouse_fbk_Callback(~,~) %Need to have a working computer vision toolbox!!
+    function go_mouse_fbk_Callback(~,~) 
         axes(c.imageAxes);
         mask=rectangle('Position',[640/2-200,480/2-150,400,300],'EdgeColor','r');
         
@@ -3491,7 +3493,8 @@ function varargout = diamondControl(varargin)
             
             disp('inside mask')
             
-
+           
+           
            deltaX = X - 640/2;
            deltaY = -(Y - 480/2);
 
@@ -3512,12 +3515,13 @@ function varargout = diamondControl(varargin)
                deltaXmo= deltaXm - offset;
                deltaYmo= deltaYm - offset;
 
-               img_before=flipdim(getsnapshot(c.vid),1);
+               %img_before=flipdim(getsnapshot(c.vid),1);
+               old = c.microActual;
                c.micro = c.micro + [deltaXmo deltaYmo];
                setPos();
 
                %Wait to complete the initial move
-                while sum(abs(c.microActual - c.micro)) > .1
+               while sum(abs(c.microActual - c.micro)) > .1
                     pause(.1);
                     getPos();
                     renderUpper();
@@ -3533,12 +3537,15 @@ function varargout = diamondControl(varargin)
                     getPos();
                     renderUpper();
                end
-
-               img_after=flipdim(getsnapshot(c.vid),1);
+               
+               new=c.microActual;
+               %img_after=flipdim(getsnapshot(c.vid),1);
 
                %calculate actual distance moved
-               a_delta=actual_delta(img_before,img_after);
-
+               
+               %a_delta=actual_delta(img_before,img_after);
+               a_delta=new-old;
+               
                %get new delta
                deltaX=deltaX-a_delta(1);
                deltaY=deltaY-a_delta(2);
@@ -3549,6 +3556,7 @@ function varargout = diamondControl(varargin)
 
                count=count+1;
            end
+           
            setPosition(pt,[640/2 480/2]);
            setColor(pt,'g');
            pause(1);
@@ -3558,7 +3566,7 @@ function varargout = diamondControl(varargin)
         delete(pt);
         delete(mask);
     end
-    function a_delta=actual_delta(img_before,img_after)
+    function a_delta=actual_delta(img_before,img_after)%Need to have a working computer vision toolbox!!
         I1 = img_before;
         I2 = img_after;
         
