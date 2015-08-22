@@ -27,6 +27,10 @@ function varargout = diamondControl(varargin)
 %     set(c.boxTR, 'Callback', @box_Callback);
 %     set(c.boxBL, 'Callback', @box_Callback);
 %     set(c.boxBR, 'Callback', @box_Callback);
+
+    % Calibration
+    set(c.microCalib, 'Callback', @microCalib_Callback);  
+    set(c.piezoCalib, 'Callback', @piezoCalib_Callback);  
     
     % Goto Fields ---------------------------------------------------------
     set(c.gotoMX, 'Callback', @limit_Callback);                     % Limits the values of these uicontrols to be
@@ -730,27 +734,37 @@ function varargout = diamondControl(varargin)
     end
     function rstx_Callback(~,~)
         %SEND THE MICROMTR BACK TO MECH-ZERO
+        disp('started X-Axis reset sequence...')
         cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
-        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(1);
-        cmd(c.microXSerial, c.microXAddr,'HT4'); pause(1);
+        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
+        cmd(c.microXSerial, c.microXAddr,'HT4'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
-        cmd(c.microXSerial, c.microXAddr,'OR'); pause(60);
+        cmd(c.microXSerial, c.microXAddr,'OR'); pause(30);
+        
+        disp('X-Axis Back to Mech Zero...')
         
         %GET BACK TO chip
         cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
-        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(1);
-        cmd(c.microXSerial, c.microXAddr,'HT1'); pause(1);
-        cmd(c.microXSerial, c.microXAddr,'PW0'); pause(1);
-        cmd(c.microXSerial, c.microXAddr,'OR'); pause(5);
-        cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(60);
+        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
+        cmd(c.microXSerial, c.microXAddr,'HT1'); pause(0.5);
+        cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
+        cmd(c.microXSerial, c.microXAddr,'OR'); pause(0.5);
+        cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(30);
+        
+        disp('Finished Reset Sequence')
+        disp('X-Axis at 22 mm \n')
+        
     end
     function rsty_Callback(~,~)
         %SEND THE MICROMTR BACK TO MECH-ZERO
+        disp('started Y-Axis reset sequence...')
         cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
         cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'HT4'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
-        cmd(c.microYSerial, c.microYAddr,'OR'); pause(60);
+        cmd(c.microYSerial, c.microYAddr,'OR'); pause(30);
+        
+        disp('Y-Axis Back to Mech Zero...')
         
         %GET BACK TO chip
         cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
@@ -758,7 +772,10 @@ function varargout = diamondControl(varargin)
         cmd(c.microYSerial, c.microYAddr,'HT1'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
         cmd(c.microYSerial, c.microYAddr,'OR'); pause(0.5);
-        cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(10);
+        cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(30);
+        
+        disp('Finished Reset Sequence')
+        disp('Y-Axis at 22 mm \n')
     end
     % --- UI GETTING ------------------------------------------------------
     function getCurrent()
@@ -3325,30 +3342,36 @@ function varargout = diamondControl(varargin)
                     disp(err.message)
                 end
                 
-                k = 0.0144; %calibration constant between pixels and voltage (may not be correct!!)
+                try
+                    S=load('piezo_calib.mat');
+                catch err
+                    disp(err.message)
+                end
+                
                 gain = str2double(get(c.trk_gain, 'String'));
                 minAdjustmentpx = str2double(get(c.trk_min, 'String'));
                 
-                mindelV = minAdjustmentpx*k;
+                mindelVx = minAdjustmentpx*S.pX;
+                mindelVy = minAdjustmentpx*S.pY;
                 %zfocuscounter = 0;
 
                 delX = c.centroidX-c.centroidXi;
                 delY = c.centroidX-c.centroidXi;
 
-                delVx = delX*k*gain;
-                delVy = delY*k*gain;
+                delVx = delX*S.pX*gain;
+                delVy = delY*S.pY*gain;
                 
                 %only move if voltage stays positive
                 %Vxnew = max([0, Vxold - delVx])
                 %Vynew = max([0, Vyold - delVy])
                 
-                if (abs(delVx)>mindelV)
-                    piezoOutSmooth(c.piezo + [delVx 0 0]);
+                if (abs(delVx)>mindelVx)
+                    piezoOutSmooth(c.piezo + [-delVx 0 0]);
                     set(c.track_stat,'String','Status: Xpos corrected');
                 end
                 
-                if (abs(delVy) > mindelV)
-                    piezoOutSmooth(c.piezo + [0 delVy 0]); 
+                if (abs(delVy) > mindelVy)
+                    piezoOutSmooth(c.piezo + [0 -delVy 0]); 
                     set(c.track_stat,'String','Status: Ypos corrected');
                 end
             end
@@ -3452,20 +3475,23 @@ function varargout = diamondControl(varargin)
 
        %Always approach from same direction (from bottom left)
        offset=5; % in um
-
-       deltaXm = deltaX*78/640;
-       deltaYm = deltaY*62/480;
+       try
+        S=load('micro_calib.mat');
+       catch err
+           disp(err.message)
+       end
+       
+      % disp([num2str(S.mX) num2str(S.mY)])
+       
+       deltaXm = deltaX*S.mX;
+       deltaYm = deltaY*S.mY;
        deltaXmo= deltaXm - offset;
        deltaYmo= deltaYm - offset;
 
-       %disp([num2str(X) ',' num2str(Y) '|' num2str(deltaX) ',' num2str(deltaY) '|' num2str(deltaXm) ',' num2str(deltaYm) '|'  num2str(deltaXmo) ',' num2str(deltaYmo)])
        c.micro = c.micro + [deltaXmo deltaYmo];
        setPos();
 
-       %wait to complete the move
-%            waitfor(c.microXX, 'String');
-
-        while sum(abs(c.microActual - c.micro)) > .1
+       while sum(abs(c.microActual - c.micro)) > .1
             pause(.1);
             getPos();
             renderUpper();
@@ -3476,20 +3502,18 @@ function varargout = diamondControl(varargin)
        setPos(); 
        renderUpper();
 
-        while sum(abs(c.microActual - c.micro)) > .1
+       while sum(abs(c.microActual - c.micro)) > .1
             pause(.1);
             getPos();
             renderUpper();
         end
-           
-        %Need to add feedbcak for backlash and hysteresis compensation
 
-        setPosition(pt,[640/2 480/2]);
-        setColor(pt,'g');
-        pause(1);
-        delete(pt);
+       setPosition(pt,[640/2 480/2]);
+       setColor(pt,'g');
+       pause(1);
+       delete(pt);
     end
-    function go_mouse_fine_Callback(~,~) %Maybe Redundant if FBK works
+    function go_mouse_fine_Callback(~,~)
         %Allow only small change
         axes(c.imageAxes);
         mask=rectangle('Position',[640/2-50,480/2-50,100,100],'EdgeColor','r');
@@ -3506,23 +3530,27 @@ function varargout = diamondControl(varargin)
             deltaY = (Y - 480/2);
             
             %calibration constant between pixels and voltage
-            %Requires recalibration
-            ky = 0.02; 
-            kx = 0.02;
+            try
+                S=load('piezo_calib.mat');
+            catch err
+                disp(err.message)
+            end
+            
+           % disp([num2str(S.pX) num2str(S.pY)])
             %Always approach from same direction (from bottom left)
-            offset = 2; % in um
+            offset = 0.2; % in V
 
-            deltaXm = deltaX*kx;
-            deltaYm = deltaY*ky;
-            deltaXmo= deltaXm + offset*kx;
-            deltaYmo= deltaYm + offset*ky;
+            deltaXm = deltaX*S.pX;
+            deltaYm = deltaY*S.pY;
+            deltaXmo= deltaXm + offset;
+            deltaYmo= deltaYm + offset;
 
             piezoOutSmooth(c.piezo + [deltaXmo deltaYmo 0]);
             pause(0.2);
             %disp('m1')
             
             %Approach from bottom left
-            piezoOutSmooth(c.piezo + [-offset*kx -offset*ky 0]);
+            piezoOutSmooth(c.piezo + [-offset -offset 0]);
             pause(0.2);
             renderUpper();
             %disp('m2')
@@ -3536,112 +3564,253 @@ function varargout = diamondControl(varargin)
         delete(pt);
         delete(mask);
     end
-    function go_mouse_fbk_Callback(~,~) 
-        axes(c.imageAxes);
-        mask=rectangle('Position',[640/2-200,480/2-150,400,300],'EdgeColor','r');
-        
-        pt=impoint(c.imageAxes);
-        setColor(pt,'r');
-        
-        pos=getPosition(pt);
-        X=pos(1); Y=pos(2);
-        if (X>640/2-200 && X<640/2+200) && (Y>480/2-150 && Y<480/2+150)
-            
-            disp('inside mask')
-            
-           
-           
-           deltaX = X - 640/2;
-           deltaY = -(Y - 480/2);
-
-           % Feedback for backlash and hysteresis compensation
-           
-           % Parameters
-           min_delta=5;  % Threshold deviation (Pix)
-           max_tries=5;  % Maximum Iterations
-           %Always approach from same direction (from bottom left)
-           offset=5; % in um
-           min_offset=1;  % in um
-
-           count=1;
-           while (deltaX>min_delta || deltaY>min_delta) && count<max_tries+1
-
-               deltaXm = deltaX*78/640;
-               deltaYm = deltaY*62/480;
-               deltaXmo= deltaXm - offset;
-               deltaYmo= deltaYm - offset;
-
-               %img_before=flipdim(getsnapshot(c.vid),1);
-               old = c.microActual;
-               c.micro = c.micro + [deltaXmo deltaYmo];
-               setPos();
-
-               %Wait to complete the initial move
-               while sum(abs(c.microActual - c.micro)) > .1
-                    pause(.1);
-                    getPos();
-                    renderUpper();
-                end
-
-               %Approach from bottom left
-               c.micro = c.micro + [offset offset];
-               setPos(); 
-               renderUpper();
-
-               while sum(abs(c.microActual - c.micro)) > .1
-                    pause(.1);
-                    getPos();
-                    renderUpper();
-               end
-               
-               new=c.microActual;
-               %img_after=flipdim(getsnapshot(c.vid),1);
-
-               %calculate actual distance moved
-               
-               %a_delta=actual_delta(img_before,img_after);
-               a_delta=new-old;
-               
-               %get new delta
-               deltaX=deltaX-a_delta(1);
-               deltaY=deltaY-a_delta(2);
-
-               %reduce offset for next iteration
-               offset=offset-count;
-               offset=max(min_offset,offset); % has to be >=min_ofset
-
-               count=count+1;
-           end
-           
-           setPosition(pt,[640/2 480/2]);
-           setColor(pt,'g');
-           pause(1);
-        else
-            disp('click outside mask!!')
-        end
-        delete(pt);
-        delete(mask);
+    function go_mouse_fbk_Callback(~,~)  %Unused For Now
+%         axes(c.imageAxes);
+%         mask=rectangle('Position',[640/2-200,480/2-150,400,300],'EdgeColor','r');
+%         
+%         pt=impoint(c.imageAxes);
+%         setColor(pt,'r');
+%         
+%         pos=getPosition(pt);
+%         X=pos(1); Y=pos(2);
+%         if (X>640/2-200 && X<640/2+200) && (Y>480/2-150 && Y<480/2+150)
+%             
+%             disp('inside mask')
+%             
+%            
+%            
+%            deltaX = X - 640/2;
+%            deltaY = -(Y - 480/2);
+% 
+%            % Feedback for backlash and hysteresis compensation
+%            
+%            % Parameters
+%            min_delta=5;  % Threshold deviation (Pix)
+%            max_tries=5;  % Maximum Iterations
+%            %Always approach from same direction (from bottom left)
+%            offset=5; % in um
+%            min_offset=1;  % in um
+% 
+%            count=1;
+%            while (deltaX>min_delta || deltaY>min_delta) && count<max_tries+1
+% 
+%                deltaXm = deltaX*78/640;
+%                deltaYm = deltaY*62/480;
+%                deltaXmo= deltaXm - offset;
+%                deltaYmo= deltaYm - offset;
+% 
+%                %img_before=flipdim(getsnapshot(c.vid),1);
+%                old = c.microActual;
+%                c.micro = c.micro + [deltaXmo deltaYmo];
+%                setPos();
+% 
+%                %Wait to complete the initial move
+%                while sum(abs(c.microActual - c.micro)) > .1
+%                     pause(.1);
+%                     getPos();
+%                     renderUpper();
+%                 end
+% 
+%                %Approach from bottom left
+%                c.micro = c.micro + [offset offset];
+%                setPos(); 
+%                renderUpper();
+% 
+%                while sum(abs(c.microActual - c.micro)) > .1
+%                     pause(.1);
+%                     getPos();
+%                     renderUpper();
+%                end
+%                
+%                new=c.microActual;
+%                %img_after=flipdim(getsnapshot(c.vid),1);
+% 
+%                %calculate actual distance moved
+%                
+%                %a_delta=actual_delta(img_before,img_after);
+%                a_delta=new-old;
+%                
+%                %get new delta
+%                deltaX=deltaX-a_delta(1);
+%                deltaY=deltaY-a_delta(2);
+% 
+%                %reduce offset for next iteration
+%                offset=offset-count;
+%                offset=max(min_offset,offset); % has to be >=min_ofset
+% 
+%                count=count+1;
+%            end
+%            
+%            setPosition(pt,[640/2 480/2]);
+%            setColor(pt,'g');
+%            pause(1);
+%         else
+%             disp('click outside mask!!')
+%         end
+%         delete(pt);
+%         delete(mask);
     end
     function a_delta=actual_delta(img_before,img_after)%Need to have a working computer vision toolbox!!
-        I1 = img_before;
-        I2 = img_after;
+%         I1 = img_before;
+%         I2 = img_after;
+%         
+%         %remove the image borders and detect 100 corner features
+%         roi1 = I1(20:460,20:620);
+%         C1 = corner(roi1,100);
+% 
+%         %remove the image borders and detect 100 corner features
+%         roi2 = I2(20:460,20:620);
+%         C2 = corner(roi2,100);
+% 
+%         [features1, valid_points1] = extractFeatures(roi1, C1);
+%         [features2, valid_points2] = extractFeatures(roi2, C2);
+% 
+%         indexPairs = matchFeatures(features1, features2);
+% 
+%         matchedPoints1 = valid_points1(indexPairs(:, 1), :);
+%         matchedPoints2 = valid_points2(indexPairs(:, 2), :);
+% 
+%         a_delta=mean(matchedPoints2-matchedPoints1);
+    end
+
+    % Calibration =========================================================
+    function microCalib_Callback(~,~)
+        set(c.calibStat,'String','Status: select a refrence pt');
+        offset=5; %in um
         
-        %remove the image borders and detect 100 corner features
-        roi1 = I1(20:460,20:620);
-        C1 = corner(roi1,100);
-
-        %remove the image borders and detect 100 corner features
-        roi2 = I2(20:460,20:620);
-        C2 = corner(roi2,100);
-
-        [features1, valid_points1] = extractFeatures(roi1, C1);
-        [features2, valid_points2] = extractFeatures(roi2, C2);
-
-        indexPairs = matchFeatures(features1, features2);
-
-        matchedPoints1 = valid_points1(indexPairs(:, 1), :);
-        matchedPoints2 = valid_points2(indexPairs(:, 2), :);
-
-        a_delta=mean(matchedPoints2-matchedPoints1);
+        %Performing X-Axis calibration
+        pt1=impoint(c.imageAxes);
+        setColor(pt1,'r');
+        pos1=getPosition(pt1); X1=pos1(1);
+        
+        set(c.calibStat,'String','Status: moving micrometers by 10um in X');
+        c.micro = c.micro + [10-offset -offset];
+        setPos(); 
+        renderUpper();
+        while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
+        end
+        
+        c.micro = c.micro + [offset offset];
+        setPos(); 
+        renderUpper();
+        while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
+        end
+        
+        set(c.calibStat,'String','Status: Please re-select the same reference pt');
+        pt2=impoint(c.imageAxes);
+        setColor(pt2,'b');
+        
+        pos2=getPosition(pt2); X2=pos2(1);
+        
+        mX = 10/(X1-X2)
+        set(c.calibStat,'String',['Status: XFactor: ' num2str(mX)]);
+        pause(1);
+        
+        delete(pt1); delete(pt2);
+        
+        %Performing Y-Axis calibration
+        set(c.calibStat,'String','Status: Now for Y Axis, select a refrence pt');
+        pt1=impoint(c.imageAxes);
+        setColor(pt1,'r');
+        pos1=getPosition(pt1); Y1=pos1(2);
+        
+        set(c.calibStat,'String','Status: moving micrometers by 10um in Y');
+        c.micro = c.micro + [-offset 10-offset];
+        setPos(); 
+        renderUpper();
+        while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
+        end
+        
+        c.micro = c.micro + [offset offset];
+        setPos(); 
+        renderUpper();
+        while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
+        end
+        
+        set(c.calibStat,'String','Status: Please re-select the same reference pt');
+        pt2=impoint(c.imageAxes);
+        setColor(pt2,'b');
+        
+        pos2=getPosition(pt2); Y2=pos2(2);
+        
+        mY = 10/(Y2-Y1)
+        set(c.calibStat,'String',['Status: YFactor:\t' num2str(mY)]);
+        pause(1);
+        
+        delete(pt1); delete(pt2);
+        
+        set(c.calibStat,'String','Done','ForegroundColor', 'green');
+        
+        save('micro_calib.mat','mX','mY');
+    end
+    function piezoCalib_Callback(~,~)
+        set(c.calibStat,'String','Status: select a refrence pt');
+        offset=0.2; % in V
+        
+        %Performing X-Axis calibration
+        pt1=impoint(c.imageAxes);
+        setColor(pt1,'r');
+        pos1=getPosition(pt1); X1=pos1(1);
+        
+        set(c.calibStat,'String','Status: moving piezo by 1V in X');
+        piezoOutSmooth(c.piezo + [1+offset +offset 0]);
+        pause(0.2);renderUpper();
+        
+        piezoOutSmooth(c.piezo + [-offset -offset 0]);
+        pause(0.2);
+        renderUpper();
+  
+        set(c.calibStat,'String','Status: Please re-select the same reference pt');
+        pt2=impoint(c.imageAxes);
+        setColor(pt2,'b');
+        
+        pos2=getPosition(pt2); X2=pos2(1);
+        
+        pX = 1/(X2-X1)
+        set(c.calibStat,'String',['Status: XFactor: ' num2str(pX)]);
+        pause(1);
+        
+        delete(pt1); delete(pt2);
+        
+        %Performing Y-Axis calibration
+        set(c.calibStat,'String','Status: Now for Y Axis, select a refrence pt');
+        pt1=impoint(c.imageAxes);
+        setColor(pt1,'r');
+        pos1=getPosition(pt1); Y1=pos1(2);
+        
+        set(c.calibStat,'String','Status: moving piezo by -1V in Y');
+         piezoOutSmooth(c.piezo + [+offset -1+offset 0]);
+        pause(0.2);renderUpper();
+        
+        piezoOutSmooth(c.piezo + [-offset -offset 0]);
+        pause(0.2);renderUpper();
+        
+        set(c.calibStat,'String','Status: Please re-select the same reference pt');
+        pt2=impoint(c.imageAxes);
+        setColor(pt2,'b');
+        
+        pos2=getPosition(pt2); Y2=pos2(2);
+        
+        pY = 1/(Y2-Y1)
+        set(c.calibStat,'String',['Status: YFactor:\t' num2str(pY)]);
+        pause(1);
+        
+        delete(pt1); delete(pt2);
+        
+        set(c.calibStat,'String','Done','ForegroundColor', 'green');
+        
+        save('piezo_calib.mat','pX','pY');
     end
 end

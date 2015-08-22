@@ -301,7 +301,7 @@ c.joyTab =          uitab(c.ioPanel, 'Title', 'Joystick!');
     c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh bw bh]); 
     c.joyAxes =     axes('Parent', c.joyTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [bp+bw bp bw bw-bp]);
     
-c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Mouse/Key');
+c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
     c.mouseEnabled =    uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
     c.keyEnabled =      uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable Arrow Keys?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
 
@@ -309,6 +309,17 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Mouse/Key');
 %     c.saveBlue =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
 %     c.saveUpper =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
 %     c.saveLower =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
+
+%c.mX = 0.0959868; %default calibration performed on Aug 22 2015
+%c.mY = 0.0959868; %default calibration performed on Aug 22 2015
+
+%c.pX = 0.018868;  %default calibration performed on Aug 22 2015
+%c.pY = 0.018868;  %default calibration performed on Aug 22 2015
+
+    c.calibText =   uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Perform Calibration:', 'Position',[bp puh-bp-6*bh 2*bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
+    c.microCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Micro','Position', [bp puh-bp-7*bh 2*bw bh]);
+    c.piezoCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Piezo','Position', [bp puh-bp-8*bh 2*bw bh]);
+    c.calibStat = uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
     
 c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels');
 c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
@@ -637,6 +648,7 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     
     c.track_Axes =     axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-14*bh bp+2*bw 2*bw]);
     c.roi_Axes=        axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-34*bh bp+2*bw 2*bw]);
+
     
 display('  Finished...');
 end
