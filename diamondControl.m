@@ -149,11 +149,16 @@ function varargout = diamondControl(varargin)
     
     % UI Fields -----------------------------------------------------------
     % set(c.parent, 'ButtonDownFcn', @click_Callback);
-    set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-    set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+%     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+%     set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
     set(gcf,'WindowButtonDownFcn', @click_trackCallback);
     
-    set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
+    
+    set(c.upperAxes, 'ButtonDownFcn', @requestShow);
+    set(c.lowerAxes, 'ButtonDownFcn', @requestShow);
+    set(c.counterAxes, 'ButtonDownFcn', @requestShow);
+    
+%     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
 %     set(c.microInit, 'Callback', @microInit_Callback);
     
@@ -478,7 +483,11 @@ function varargout = diamondControl(varargin)
         delete(c.imageAxes);
         delete(c.upperAxes);
         delete(c.lowerAxes);
-%         delete(c.counterAxes);
+        delete(c.counterAxes);
+        
+        delete(c.upperAxes2);
+        delete(c.lowerAxes2);
+        delete(c.counterAxes2);
         
         delete(c.parent);
     end
@@ -720,7 +729,6 @@ function varargout = diamondControl(varargin)
         end
     end
     function rstx_Callback(~,~)
-
         %SEND THE MICROMTR BACK TO MECH-ZERO
         cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
         cmd(c.microXSerial, c.microXAddr,'PW1'); pause(1);
@@ -735,10 +743,8 @@ function varargout = diamondControl(varargin)
         cmd(c.microXSerial, c.microXAddr,'PW0'); pause(1);
         cmd(c.microXSerial, c.microXAddr,'OR'); pause(5);
         cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(60);
-        
     end
     function rsty_Callback(~,~)
- 
         %SEND THE MICROMTR BACK TO MECH-ZERO
         cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
         cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
@@ -753,7 +759,6 @@ function varargout = diamondControl(varargin)
         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
         cmd(c.microYSerial, c.microYAddr,'OR'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(10);
-        
     end
     % --- UI GETTING ------------------------------------------------------
     function getCurrent()
@@ -1247,7 +1252,7 @@ function varargout = diamondControl(varargin)
 %             queueOutputData(c.s, [up'     y*ones(length(up2),1) otherRows]);
 
             daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
-            [out, ~] = c.s.startForeground();
+            [out, times] = c.s.startForeground();
             out = out(:,1);
             
 %             queueOutputData(c.s, [down'   linspace(y, y + up2(2) - up2(1), length(down))' otherRowsFast]);
@@ -1260,24 +1265,27 @@ function varargout = diamondControl(varargin)
                 c.s.startForeground();
             end
             
-            final(i,:) = [diff(out(:,1)') mean(diff(out(:,1)'))];
+            final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
             
 %             tic
             if i > 1
-                surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none');   % Display the graph on the backscan
-%                     surf(c.lowerAxes, up./mvConv, up(1:i)./mvConv, final(1:i,:), 'EdgeColor', 'none');   % Display the graph on the backscan
-                view(c.lowerAxes,2);
-                set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-        
+                strings = get(c.piezoC, 'string');
+                curval = get(c.piezoC, 'value');
+%                 set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+                
+                surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none', 'HitTest', 'off');   % Display the graph on the backscan
+                view(c.lowerAxes, 2);
+                colormap(c.lowerAxes, strings{curval});
                 set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
-               
-%                 strings = get(c.galvoC, 'string');
-%                 curval = get(c.galvoC, 'value');
-% %                     strings{curval}
-%                 colormap(c.lowerAxes, strings{curval});
-
                 xlim(c.lowerAxes, [up(1)       up(end)]);
                 ylim(c.lowerAxes, [up2(1)      up2(end)]);
+                
+                surf(c.lowerAxes2, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none', 'HitTest', 'off');   % Display the graph on the backscan
+                view(c.lowerAxes2, 2);
+                colormap(c.lowerAxes2, strings{curval});
+                set(c.lowerAxes2, 'Xdir', 'reverse', 'Ydir', 'reverse');
+                xlim(c.lowerAxes2, [up(1)       up(end)]);
+                ylim(c.lowerAxes2, [up2(1)      up2(end)]);
 %                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
             end
 %             toc
@@ -1408,7 +1416,6 @@ function varargout = diamondControl(varargin)
         switch hObject
             case c.piezoR
                 c.piezoRange = str2double(get(hObject, 'String'));
-%                 setGalvoAxesLimits();
             case c.piezoS
                 c.piezoSpeed = str2double(get(hObject, 'String'));
             case c.piezoP
@@ -1420,7 +1427,46 @@ function varargout = diamondControl(varargin)
         prev = c.piezo;
         ledSet(1);
         
-        piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+        start = str2double(get(c.piezoZStart,   'String'))/5;
+        stop =  str2double(get(c.piezoZStop,    'String'))/5;
+        step =  str2double(get(c.piezoZStep,    'String'));
+        
+        if start < 0
+            start = 0;
+        end
+        if start > 10
+            start = 10;
+        end
+        if stop < 0
+            stop = 0;
+        end
+        if stop > 10
+            stop = 10;
+        end
+        if step < 0
+            step = 1;
+        end
+        
+        
+        if step == 1
+            % final(:,:,1) = 
+            piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+        else
+            final = zeros(c.piezoPixels, c.piezoPixels, step);
+            
+            i = 1;
+            Z = linspace(start, stop, step);
+            for z = Z;
+                piezoOutSmooth([prev(1) prev(2) z]);
+                [final(:,:,i), X, Y] = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                i = i + 1;
+            end
+            
+            % 3D GRAPH FINAL HERE!
+            % PLOT(final, X, Y, Z) (X Y Z are in volts)
+        end
+        
+        ledSet(0);
         piezoOutSmooth(prev);
     end
 
@@ -1501,7 +1547,7 @@ function varargout = diamondControl(varargin)
 %                 queueOutputData(c.s, [piezoRows	up'     y*ones(length(up2),1)]);
             
                 daqOutQueueClever({NaN, NaN, NaN, up', y*ones(length(up2),1), NaN, NaN});
-                [out, ~] = c.s.startForeground();
+                [out, time] = c.s.startForeground();
 
                 %display('down');
 %                 queueOutputData(c.s, [piezoRowsFast	down'   linspace(y, y + up2(2) - up2(1), length(down))']);
@@ -1509,7 +1555,7 @@ function varargout = diamondControl(varargin)
                 daqOutQueueClever({NaN, NaN, NaN, down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN});
                 c.s.startForeground();
 
-                final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)') ]*rate;
+                final(i,:) = [mean(diff(out(:,1)')) diff(out(:,1)') ]./[mean(diff(time')) diff(time') ];  % *rate;
 
                 if i > 1
 %                     up
@@ -2551,23 +2597,33 @@ function varargout = diamondControl(varargin)
     end
 
     % Popup Plots =========================================================
-    function mouseEnabled_Callback(~, ~)
-        if get(c.mouseEnabled, 'Value')
-           set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-           set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-        else
-           set(c.lowerAxes, 'ButtonDownFcn', '');
-           set(c.counterAxes, 'ButtonDownFcn', '');
+%     function mouseEnabled_Callback(~, ~)
+%         if get(c.mouseEnabled, 'Value')
+%            set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+%            set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+%         else
+%            set(c.lowerAxes, 'ButtonDownFcn', '');
+%            set(c.counterAxes, 'ButtonDownFcn', '');
+%         end
+%     end
+%     function click_Callback(hObject, ~)
+%         try
+%             delete(c.pop);
+%         end
+%         c.pop=figure;
+%         hc = copyobj(hObject, gcf);
+%         set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
+%         uiwait(c.pop);
+%     end
+    function requestShow(hObject, ~)
+        switch hObject
+            case c.upperAxes
+                set(c.upperFigure, 'Visible', 'on');
+            case c.lowerAxes
+                set(c.lowerFigure, 'Visible', 'on');
+            case c.counterAxes
+                set(c.counterFigure, 'Visible', 'on');
         end
-    end
-    function click_Callback(hObject, ~)
-        try
-            delete(c.pop);
-        end
-        c.pop=figure;
-        hc = copyobj(hObject, gcf);
-        set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
-        uiwait(c.pop);
     end
 
     % PLE! ================================================================

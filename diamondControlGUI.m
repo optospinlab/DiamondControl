@@ -242,24 +242,28 @@ c.videoEnabled = 0;
 c.hImage = 0;
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower
-c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
+c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
+c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
+c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
 
 c.pleAxesAll =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
 c.pleAxesOne =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
 
 % Add popout figures here.
-% c.upperFigure =     figure('Visible', 'Off');
-% c.lowerFigure =     figure('Visible', 'Off');
+c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestHide, 'tag', 'Upper Figure Popout', 'Name', 'Upper Figure Popout', 'Toolbar', 'figure', 'Menubar', 'none');
+c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestHide, 'tag', 'Lower Figure Popout', 'Name', 'Lower Figure Popout', 'Toolbar', 'figure', 'Menubar', 'none');
+c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestHide, 'tag', 'Counter Figure Popout', 'Name', 'Counter Figure Popout', 'Toolbar', 'figure', 'Menubar', 'none');
 % c.imageFigure =     figure('Visible', 'Off');
-% c.counterFigure =   figure('Visible', 'Off');
-% 
-% c.upperAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
-% c.lowerAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
+
+function closeRequestHide(src, data)
+    set(src, 'Visible', 'Off');
+end
+
+c.upperAxes2 =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.lowerAxes2 =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
+c.counterAxes2 = axes('Parent', c.counterFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
 % c.imageAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
-% c.counterAxes2 = axes('XLimMode', 'manual', 'YLimMode', 'manual');
 
 % PANELS ==================================================================
 display('  Making Panels');
@@ -370,12 +374,21 @@ c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
             c.piezoSLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plhi-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
             c.piezoS =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoSpeed,     'Position', [bp+bw   plhi-bp-4*bh bw/2 bh]);
             c.piezoPLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plhi-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoP =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoPixels,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);    
-            c.piezoCLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoC =      uicontrol('Parent', c.piezoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
-            c.piezoButton = uicontrol('Parent', c.piezoTab, 'Style', 'togglebutton', 'String', 'Scan!','Position', [bp        plhi-bp-8*bh bp+2*bw bh]);
+            c.piezoP =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoPixels,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);
+            
+            c.piezoZStartLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z begin (um): ', 'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZStart =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 10,     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
+            c.piezoZStopLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z end (um): ', 'Position', [bp        plhi-bp-8*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZStop =       uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 20,     'Position', [bp+bw   plhi-bp-8*bh bw/2 bh]);
+            c.piezoZStepLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z steps (num): ', 'Position', [bp        plhi-bp-9*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZStep =       uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-9*bh bw/2 bh]);
+            
+            c.piezoCLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plhi-bp-11*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoC =      uicontrol('Parent', c.piezoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plhi-bp-11*bh bw/2 bh]);
+            
+            c.piezoButton = uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plhi-bp-13*bh bp+2*bw bh]);
 
-            c.piezoOptimize =uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-9*bh bp+2*bw bh]);
+            c.piezoOptimize =uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-14*bh bp+2*bw bh]);
 
             c.piezoScanning = false;
             
@@ -388,7 +401,7 @@ c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
             c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoPixels,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);    
             c.galvoCLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
             c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
-            c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Scan!','Position', [bp        plhi-bp-8*bh bp+2*bw bh]);
+            c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plhi-bp-8*bh bp+2*bw bh]);
 
             c.galvoOptimize =uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-9*bh bp+2*bw bh]);
 
@@ -399,7 +412,7 @@ c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
             c.galvoScanning = false;
 
         c.counterTab =  uitab('Parent', c.scanningPanel, 'Title', 'Counter');
-            c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plhi-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left');
+            c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plhi-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left', 'Enable', 'off');
             c.sC = 0;       % Empty variable for the counter channel;
             c.lhC = 0;      % Empty variable for counter listener;
             c.dataC = [];   % Empty variable for counter data;
