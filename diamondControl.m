@@ -27,6 +27,9 @@ function varargout = diamondControl(varargin)
 %     set(c.boxTR, 'Callback', @box_Callback);
 %     set(c.boxBL, 'Callback', @box_Callback);
 %     set(c.boxBR, 'Callback', @box_Callback);
+    
+    % round2 devices auto set calculation
+    set(c.set_mark, 'Callback', @set_mark_Callback);  
 
     % Calibration
     set(c.microCalib, 'Callback', @microCalib_Callback);  
@@ -63,6 +66,8 @@ function varargout = diamondControl(varargin)
     
     set(c.micro_rst_x, 'Callback', @rstx_Callback);
     set(c.micro_rst_y, 'Callback', @rsty_Callback);
+    
+    set(c.gotoSButton, 'Callback', @gotoSButton_Callback);
     
     % Galvo Fields --------------------------------------------------------
     set(c.galvoButton, 'Callback', @galvoScan_Callback);            % Starts a Galvo scan. Below are parameters defining that scan.
@@ -721,6 +726,19 @@ function varargout = diamondControl(varargin)
 
             set(c.microXX, 'String', c.microActual(1));
             set(c.microYY, 'String', c.microActual(2));
+            
+            %Assuming initially positioned on [0,0] 01 disk loop
+            if ~isempty(c.m_zero)
+                c.Sx=floor(abs(c.microActual(1)-c.m_zero(1))/380);
+                c.Sy=floor(abs(c.microActual(2)-c.m_zero(2))/260);
+                
+                if (c.Sx>=0 && c.Sx<4) && (c.Sy>=0 && c.Sy<5)
+                    set(c.set_no,'String',['[' num2str(c.Sx) ' ' num2str(c.Sy) ']']);
+                else
+                    set(c.set_no,'String','N/A');
+                end
+            end
+            
         end
     end
     function setPos()
@@ -1466,8 +1484,7 @@ function varargout = diamondControl(varargin)
         
         
         if step == 1
-            % final(:,:,1) = 
-            piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+             final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
         else
             final = zeros(c.piezoPixels, c.piezoPixels, step);
             
@@ -1481,6 +1498,20 @@ function varargout = diamondControl(varargin)
             
             % 3D GRAPH FINAL HERE!
             % PLOT(final, X, Y, Z) (X Y Z are in volts)
+            
+            figure;
+                [x y z]=meshgrid(X,Y,Z);
+                xslice=[]; yslice=[];
+                zslice=Z;
+             
+                h=slice(x,y,z,final,xslice,yslice,zslice);
+                set(h,'FaceColor','interp');
+                %set(h,'FaceAlpha','0.5');
+                set(h,'EdgeColor','none');
+
+                colormap('copper');
+                colorbar('vert');
+                view([-68 12]);
         end
         
         ledSet(0);
@@ -3377,7 +3408,7 @@ function varargout = diamondControl(varargin)
             toc
     end
     function click_trackCallback(~,~)
-        disp('click')
+        %disp('click')
         c.trackpt = get (gca, 'CurrentPoint');
         w=strcat('%0','3.1f');
         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
@@ -3812,5 +3843,35 @@ function varargout = diamondControl(varargin)
         set(c.calibStat,'String','Done','ForegroundColor', 'green');
         
         save('piezo_calib.mat','pX','pY');
+    end
+
+    % Set counting
+    function set_mark_Callback(~,~)
+        set(c.set_no,'String','[0 0]');
+        c.m_zero=c.microActual;
+    end
+    function gotoSButton_Callback(~,~)
+        if ~isempty(c.m_zero)
+            
+            X=str2double(get(c.gotoSX, 'String'));
+            Y=str2double(get(c.gotoSY, 'String'));
+            
+            dX= X-c.Sx;
+            dY= -(Y-c.Sy);
+            
+            c.micro=c.micro + [dX*410 dY*270];
+            setPos(); 
+            renderUpper();
+
+       while sum(abs(c.microActual - c.micro)) > .1
+            pause(.1);
+            getPos();
+            renderUpper();
+       end
+        
+        else
+            disp('Set zero not marked!!!')
+        end
+            
     end
 end

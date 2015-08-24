@@ -288,7 +288,12 @@ c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
     c.galvoXX =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [bp+bw/2  puh-bp-8*bh bw/2 bh],  'Enable', 'inactive');
     c.galvoYLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Y (mV): ',   'Position', [bp       puh-bp-9*bh bw/2 bh],  'HorizontalAlignment', 'right');
     c.galvoYY =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [bp+bw/2  puh-bp-9*bh bw/2 bh],  'Enable', 'inactive');
-
+    
+    c.m_zero='';
+    c.setText =     uicontrol('Parent', c.outputTab, 'Style', 'text','String', 'Set: ',   'Position',  [2*bp+2*bw/2 puh-bp-8*bh bw/2 bh],  'HorizontalAlignment', 'right');
+    c.set_no =      uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-8*bh bw/2 bh],  'Enable', 'inactive');
+    c.set_mark =    uicontrol('Parent', c.outputTab, 'Style', 'pushbutton', 'String', 'Mark [0,0]','Position', [2*bp+3*bw/2 puh-bp-9*bh bw/2 bh],'ForegroundColor', 'magenta');
+ 
     %     c.microReset =  uicontrol('Parent', c.microTab, 'Style', 'pushbutton', 'String', 'Reset', 'Position', [2*bp+bw puh-bp-5*bh bw bh]);
 
 % c.initiateTab =     uitab(c.ioPanel, 'Title', 'Initiate');
@@ -363,18 +368,25 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
   
     c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
      
-    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-22*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-23*bh 2*bw bh]);
-    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-24*bh 2*bw bh]);
-    c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-26*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-27*bh 2*bw bh]);
+    c.gotoSet_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Move to Set: (micro)',   'Position', [bp         plh-bp-18*bh bw bh], 'HorizontalAlignment', 'left');
+    c.gotoSXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X: ',   'Position', [bp         plh-bp-19*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoSX =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-19*bh bw/2 bh]);
+    c.gotoSYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y: ',   'Position', [bp         plh-bp-20*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoSY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-20*bh bw/2 bh]);
+    c.gotoSButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-21*bh bw bh]);
+
+    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-23*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-24*bh 2*bw bh]);
+    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-25*bh 2*bw bh]);
+    c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-27*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-28*bh 2*bw bh]);
     
     %Micro abort and reset
-    c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-32*bh 2*bw bh],         'HorizontalAlignment', 'center');
-    c.micro_rst_txt2 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', '(Status LED is blinking ORANGE!!)',   'Position', [2*bp plh-bp-33*bh 2*bw bh],         'HorizontalAlignment', 'center');
-    c.micro_rst_x =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'RST X','Position', [2*bp plh-bp-34*bh bw bh]);
-    c.micro_rst_y =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'RST Y','Position', [2*bp+bw plh-bp-34*bh bw bh]);
-    c.micro_rst_txt3 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Will RST to [22,22] mm',   'Position', [2*bp plh-bp-35*bh 2*bw bh],         'HorizontalAlignment', 'center');
+    c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-33*bh 2*bw bh],         'HorizontalAlignment', 'center');
+    c.micro_rst_txt2 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', '(Status LED is blinking ORANGE!!)',   'Position', [2*bp plh-bp-34*bh 2*bw bh],         'HorizontalAlignment', 'center');
+    c.micro_rst_x =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'RST X','Position', [2*bp plh-bp-35*bh bw bh]);
+    c.micro_rst_y =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'RST Y','Position', [2*bp+bw plh-bp-35*bh bw bh]);
+    c.micro_rst_txt3 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Will RST to [22,22] mm',   'Position', [2*bp plh-bp-36*bh 2*bw bh],         'HorizontalAlignment', 'center');
      
 c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
     c.scanningPanel = uitabgroup('Parent', c.scanningTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
