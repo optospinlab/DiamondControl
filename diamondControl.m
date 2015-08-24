@@ -155,7 +155,7 @@ function varargout = diamondControl(varargin)
     % set(c.parent, 'ButtonDownFcn', @click_Callback);
 %     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
 %     set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-    set(gcf,'WindowButtonDownFcn', @click_trackCallback);
+    set(c.parent,'WindowButtonDownFcn', @click_trackCallback);
     
     
     set(c.upperAxes, 'ButtonDownFcn', @requestShow);
@@ -3255,8 +3255,8 @@ function varargout = diamondControl(varargin)
             I1 = imfilter(in_img, filter);
 
             %Adjust contrast
-            I2 = imtophat(I1,strel('disk',35));
-            out_img = imadjust(I2);       
+            I2 = imtophat(I1,strel('disk',10));
+            out_img = imadjust(I1);       
     end
     function startvid_Callback(hObject,~)
          if hObject ~= 0 && ~c.vid_on
@@ -3282,7 +3282,7 @@ function varargout = diamondControl(varargin)
     end
     function tkListener(~, ~)
          frame = flipdim(getsnapshot(c.vid),1);
-         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
+         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
          
         if c.vid_on 
             I3 = img_enhance(frame);          
@@ -3290,7 +3290,7 @@ function varargout = diamondControl(varargin)
             
             
             IBW=im2bw(I3,0.7); %Convert to BW and Threshold
-            [c.circles, c.radii] = imfindcircles(IBW,[12 20]); %Track Full image
+            [c.circles, c.radii] = imfindcircles(IBW,[14 28]) %Track Full image
             
              try
                  delete(c.hg1);
@@ -3305,11 +3305,10 @@ function varargout = diamondControl(varargin)
     end
     function centroidListener(~,~)
        
-         frame = flipdim(getsnapshot(c.vid),1);
-        
+         frame = img_enhance(flipdim(getsnapshot(c.vid),1));
+        %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
+
         tic
-        %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\DC2\test_image.png'));
- 
         IBW=im2bw(frame,0.7);
         %c.roi_image=imcrop(IBW,c.roi);
         roi = round(c.roi);
@@ -3378,8 +3377,9 @@ function varargout = diamondControl(varargin)
             toc
     end
     function click_trackCallback(~,~)
+        disp('click')
         c.trackpt = get (gca, 'CurrentPoint');
-        w=strcat('%0','3.1f');   
+        w=strcat('%0','3.1f');
         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
              set(c.track_stat,'String',['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]);
              axes(c.track_Axes);
@@ -3389,7 +3389,7 @@ function varargout = diamondControl(varargin)
                     c.selcircle(1)=c.circles(i,1); 
                     c.selcircle(2)=c.circles(i,2);
                     c.selradii=c.radii(i);
-                    viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
+                    c.hg2=viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
                     c.seldisk=1;
                     stop(c.tktime);
                 end
@@ -3449,7 +3449,7 @@ function varargout = diamondControl(varargin)
        set(c.track_stat,'String','Status: New ROI Selected');
        
        %Get Initial Centroid Position  
-       c.centroid_init=1;        
+       c.centroid_init=1;   
        start(c.centroidtime);
       end
     end
