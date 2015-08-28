@@ -51,8 +51,9 @@ function varargout = diamondControl(varargin)
     
     set(c.gotoPButton, 'Callback', @gotoPiezo_Callback);            % PIEZO GOTO controls - Goto button sends the piezos (smoothly) to the current fields
     set(c.gotoPFocus,  'Callback', @focus_Callback);                % This uses a contrast-optimization routine to focus using the blue image
-    set(c.gotoPOptXY,  'Callback', @piezoOpt_Callback);                % XY and Z opt use filthy count-optimization techniques
+    set(c.gotoPOptXY,  'Callback', @optXY_Callback);                % XY and Z opt use count-optimization techniques
     set(c.gotoPOptZ,  'Callback',  @optZ_Callback);
+    set(c.gotoPOptAll,  'Callback',@optAll_Callback);
     set(c.gotoPReset, 'Callback',  @resetPiezoXY_Callback);         % Resets the XY to [5 5], approaching from [0 0]
     set(c.gotoPTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
@@ -1063,17 +1064,26 @@ function varargout = diamondControl(varargin)
         piezoOutSmooth([x       y       c.piezo(3)]);
     end
     function optZ_Callback(~, ~)
-        piezoOptimizeZ();
+        piezoOptimizeAxis(3);
     end
-    function piezoOptimizeZ()
+    function optXY_Callback(~, ~)
+        piezoOptimizeAxis(1);
+        piezoOptimizeAxis(2);
+    end
+    function optAll_Callback(~, ~)
+        piezoOptimizeAxis(1);
+        piezoOptimizeAxis(2);
+        piezoOptimizeAxis(3);
+    end
+    function piezoOptimizeAxis(axis)
         
         % Method 1
         range = 10;
-        pixels = 1000;
+        pixels = 500;
         
-        prev = c.piezo(3);
+        prev = c.piezo(axis);
         
-        c.s.Rate = 250; 
+        c.s.Rate = 500; 
         
         u = pixels+1;
         d = round(pixels/8);
@@ -1082,18 +1092,23 @@ function varargout = diamondControl(varargin)
 %         down =  [c.piezo(1)*ones(d,1) c.piezo(2)*ones(d,1) linspace(range, 0, d)' c.galvo(1)*ones(d,1) c.galvo(2)*ones(d,1)];
         up =    linspace(0, range, u);
         down =  linspace(range, 0, d);
-
-        piezoOutSmooth([c.piezo(1) c.piezo(2) 0]);
         
-%         queueOutputData(c.s, up);
-%         queueOutputData(c.s, down);
+        switch axis
+            case 1
+                piezoOutSmooth([0 c.piezo(2) c.piezo(3)]);
+                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+            case 2
+                piezoOutSmooth([c.piezo(1) 0 c.piezo(3)]);
+                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+            case 3
+                piezoOutSmooth([c.piezo(1) c.piezo(2) 0]);
+                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+        end
 
-        daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
-
-        [out, ~] = c.s.startForeground();
+        [out, times] = c.s.startForeground();
         out = out(:,1);
 
-        data = diff(out);
+        data = diff(out)/diff(times);
         data = data(1:pixels);
         
         plot(c.lowerAxes, up(1:pixels), data);
@@ -1102,7 +1117,7 @@ function varargout = diamondControl(varargin)
 
         if m ~= M
             data = (data - m)/(M - m);
-            data = data.*((((up(1:pixels) > (prev - .5)) + ((up(1:pixels) < (prev + .5)))) == 2)');
+            data = data.*((((up(1:pixels) > (prev - 1)) + ((up(1:pixels) < (prev + 1)))) == 2)');
             
             m = min(min(data)); M = max(max(data));
             
@@ -1118,9 +1133,19 @@ function varargout = diamondControl(varargin)
                 fz = prev;
             end
             
-            piezoOutSmooth([c.piezo(1) c.piezo(2) fz]);
-        else
-            piezoOutSmooth([c.piezo(1) c.piezo(2) prev]);
+            prev = fz;
+        end
+            
+        switch axis
+            case 1
+                piezoOutSmooth([prev c.piezo(2) c.piezo(3)]);
+                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+            case 2
+                piezoOutSmooth([c.piezo(1) prev c.piezo(3)]);
+                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+            case 3
+                piezoOutSmooth([c.piezo(1) c.piezo(2) prev]);
+                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
         end
     end
     function galvoOpt_Callback(~, ~)
