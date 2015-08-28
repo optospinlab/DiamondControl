@@ -158,8 +158,8 @@ function varargout = diamondControl(varargin)
     
     % UI Fields -----------------------------------------------------------
     % set(c.parent, 'ButtonDownFcn', @click_Callback);
-%     set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-%     set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+    % set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
+    % set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
     set(c.parent,'WindowButtonDownFcn', @click_trackCallback);
     
     
@@ -411,23 +411,36 @@ function varargout = diamondControl(varargin)
     end
     function closeRequest(~,~)
         display('Starting Deinitialization Sequence');
-        c.running = false;
-        c.outputEnabled = false;
+
+        if get(c.rsttoset0,'Value')
+            
+            disp('Going back to Set [0 0]...')
+            c.micro=[0 0];
+                setPos();
+                while sum(abs(c.microActual - c.micro)) > .1
+                    pause(.1);
+                    getPos();
+                    renderUpper();
+                end
+        end
         
-        saveState();
-        display('  Saved State');
-        
-        display('  Goodbye micrometers...');
         try     % Release the Micrometers
-            cmd(c.microXSerial, c.microXAddr, 'RS');
+            cmd(c.microXSerial,c.microXAddr,'RS');
             fclose(c.microXSerial); delete(c.microXSerial); clear c.microXSerial;
 
-            cmd(c.microYSerial, c.microYAddr, 'RS');
+            cmd(c.microYSerial,c.microYAddr,'RS');
             fclose(c.microYSerial); delete(c.microYSerial); clear c.microYSerial;
             display('    Released Micrometers...');
         catch err
             display(err.message);
         end
+
+        display('  Goodbye micrometers...');
+        c.running = false;
+        c.outputEnabled = false;
+        
+        saveState();
+        display('  Saved State');
         
         display('  Goodbye DAQ I/O...');
         try     % Reset and release the DAQ devices
@@ -507,7 +520,7 @@ function varargout = diamondControl(varargin)
         while c.microInitiated == 0
             display('Starting Initialization Sequence');
             
-            instr=instrfind;
+            instr = instrfind;
             if ~isempty(instr)
                 %disp('fix')
                 fclose(instr);
@@ -526,7 +539,7 @@ function varargout = diamondControl(varargin)
                 pause(.25);
 
                 %cmd(c.microXSerial, c.microXAddr, 'PW1'); 
-               % cmd(c.microXSerial, c.microXAddr, 'HT1'); 
+                cmd(c.microXSerial, c.microXAddr, 'HT1'); 
                 cmd(c.microXSerial, c.microXAddr, 'SL-5');     % negative software limit x=-5
                 cmd(c.microXSerial, c.microXAddr, 'BA0.003');  % change backlash compensation
                 cmd(c.microXSerial, c.microXAddr, 'FF05');     % set friction compensation
@@ -534,7 +547,7 @@ function varargout = diamondControl(varargin)
                 pause(.25);
 
                 cmd(c.microXSerial, c.microXAddr, 'OR'); %Get to home state (should retain position)
-                pause(.25);
+                 pause(.25);
 
                 display('Done Initializing X Axis');
 
@@ -551,15 +564,15 @@ function varargout = diamondControl(varargin)
                 pause(.25);
 
                 %cmd(c.microYSerial, c.microYAddr, 'PW1'); 
-                %cmd(c.microYSerial, c.microYAddr, 'HT1'); 
+                cmd(c.microYSerial, c.microYAddr, 'HT1'); 
                 cmd(c.microYSerial, c.microYAddr, 'SL-5');      % negative software limit y=-5
                 cmd(c.microYSerial, c.microYAddr, 'BA0.003');   % change backlash compensation
-                cmd(c.microYSerial, c.microYAddr, 'FF5');       % set friction compensation
+                cmd(c.microYSerial, c.microYAddr, 'FF05');       % set friction compensation
                 cmd(c.microYSerial, c.microYAddr, 'PW0');       % save to controller memory
                 pause(.25);
                 
                 cmd(c.microYSerial, c.microYAddr, 'OR'); % Go to home state(should retain position)
-                pause(.25);
+                 pause(.25);
 
                 display('Done Initializing Y Axis');
 
@@ -570,6 +583,7 @@ function varargout = diamondControl(varargin)
                 display(err.message);
             end   
         end
+        set_mark_Callback();
     end
     function daqInit_Callback(~, ~)
         if c.daqInitiated == 0
@@ -753,7 +767,7 @@ function varargout = diamondControl(varargin)
     function rstx_Callback(~,~)
         %SEND THE MICROMTR BACK TO MECH-ZERO
         disp('started X-Axis reset sequence...')
-        cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
+        cmd(c.microXSerial,c.microXAddr,'RS'); pause(5);
         cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'HT4'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
@@ -762,7 +776,7 @@ function varargout = diamondControl(varargin)
         disp('X-Axis Back to Mech Zero...')
         
         %GET BACK TO chip
-        cmd(c.microXSerial, c.microXAddr,'RS'); pause(5);
+        cmd(c.microXSerial,c.microXAddr,'RS'); pause(5);
         cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'HT1'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
@@ -770,13 +784,18 @@ function varargout = diamondControl(varargin)
         cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(30);
         
         disp('Finished Reset Sequence')
-        disp('X-Axis at 22 mm \n')
+        disp('X-Axis should be at 22 mm \n')
+        disp(['X-Axis at:' num2str(c.microActual(1))])
+        
+        if(c.microActual(1)~=22000)
+            disp('There was an ERROR!!!')
+        end
         
     end
     function rsty_Callback(~,~)
         %SEND THE MICROMTR BACK TO MECH-ZERO
         disp('started Y-Axis reset sequence...')
-        cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
+        cmd(c.microYSerial,c.microYAddr,'RS'); pause(5);
         cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'HT4'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
@@ -785,7 +804,7 @@ function varargout = diamondControl(varargin)
         disp('Y-Axis Back to Mech Zero...')
         
         %GET BACK TO chip
-        cmd(c.microYSerial, c.microYAddr,'RS'); pause(5);
+        cmd(c.microYSerial, c.microXAddr,'RS'); pause(5);
         cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'HT1'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
@@ -793,7 +812,12 @@ function varargout = diamondControl(varargin)
         cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(30);
         
         disp('Finished Reset Sequence')
-        disp('Y-Axis at 22 mm \n')
+        disp('Y-Axis should be at 22 mm \n')
+        disp(['Y-Axis at:' num2str(c.microActual(2))])
+        
+        if(c.microActual(2)~=22000)
+            disp('There was an ERROR!!!')
+        end
     end
     % --- UI GETTING ------------------------------------------------------
     function getCurrent()
@@ -1049,7 +1073,7 @@ function varargout = diamondControl(varargin)
         
         prev = c.piezo(3);
         
-        c.s.Rate = 1000;
+        c.s.Rate = 250; 
         
         u = pixels+1;
         d = round(pixels/8);
@@ -1308,14 +1332,14 @@ function varargout = diamondControl(varargin)
                 curval = get(c.piezoC, 'value');
 %                 set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
                 
-                surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none', 'HitTest', 'off');   % Display the graph on the backscan
+                surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
                 view(c.lowerAxes, 2);
                 colormap(c.lowerAxes, strings{curval});
                 set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
                 xlim(c.lowerAxes, [up(1)       up(end)]);
                 ylim(c.lowerAxes, [up2(1)      up2(end)]);
                 
-                surf(c.lowerAxes2, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none', 'HitTest', 'off');   % Display the graph on the backscan
+                surf(c.lowerAxes2, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
                 view(c.lowerAxes2, 2);
                 colormap(c.lowerAxes2, strings{curval});
                 set(c.lowerAxes2, 'Xdir', 'reverse', 'Ydir', 'reverse');
@@ -1459,11 +1483,12 @@ function varargout = diamondControl(varargin)
         end
     end
     function piezoScan_Callback(~, ~)
+        display('Beginning 3D Confocal');
         prev = c.piezo;
         ledSet(1);
         
-        start = str2double(get(c.piezoZStart,   'String'))/5;
-        stop =  str2double(get(c.piezoZStop,    'String'))/5;
+        start = (str2double(get(c.piezoZStart,   'String')) + 25)/5;
+        stop =  (str2double(get(c.piezoZStop,    'String')) + 25)/5;
         step =  str2double(get(c.piezoZStep,    'String'));
         
         if start < 0
@@ -1484,13 +1509,14 @@ function varargout = diamondControl(varargin)
         
         
         if step == 1
-             final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+            final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
         else
             final = zeros(c.piezoPixels, c.piezoPixels, step);
             
             i = 1;
             Z = linspace(start, stop, step);
             for z = Z;
+                display(['  Z = ' num2str(z)]);
                 piezoOutSmooth([prev(1) prev(2) z]);
                 [final(:,:,i), X, Y] = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
                 i = i + 1;
@@ -1830,18 +1856,26 @@ function varargout = diamondControl(varargin)
                 set(c.autoV1X, 'String', c.microActual(1));
                 set(c.autoV1Y, 'String', c.microActual(2));
                 set(c.autoV1Z, 'String', c.piezo(3));
+                set(c.autoV1NX, 'String', c.Sx);
+                set(c.autoV1NY, 'String', c.Sy);
             case c.autoV2Get
                 set(c.autoV2X, 'String', c.microActual(1));
                 set(c.autoV2Y, 'String', c.microActual(2));
                 set(c.autoV2Z, 'String', c.piezo(3));
+                set(c.autoV2NX, 'String', c.Sx);
+                set(c.autoV2NY, 'String', c.Sy);
             case c.autoV3Get
                 set(c.autoV3X, 'String', c.microActual(1));
                 set(c.autoV3Y, 'String', c.microActual(2));
                 set(c.autoV3Z, 'String', c.piezo(3));
+                set(c.autoV3NX, 'String', c.Sx);
+                set(c.autoV3NY, 'String', c.Sy);
             case c.autoV4Get
                 set(c.autoV4X, 'String', c.microActual(1));
                 set(c.autoV4Y, 'String', c.microActual(2));
                 set(c.autoV4Z, 'String', c.piezo(3));
+                set(c.autoV4NX, 'String', c.Sx);
+                set(c.autoV4NY, 'String', c.Sy);
         end
     end
     function V = getStoredV(d)
@@ -2761,7 +2795,7 @@ function varargout = diamondControl(varargin)
     function updateGraph()
 %         [x] = find(c.finalColorY, 1, 'last');
         
-        c.finalGraphX = linspace(0, 10, c.interval*c.upScans);
+        c.finalGraphX = linspace(0, 10, c.interval*(c.upScans+c.downScans));
     %     finalColorC((x+1):(x+sizeA(finalGraphX))) = finalGraphY;
         c.finalColorY(:,c.q) = c.finalGraphY;
         c.finalColorP(:,c.q) = c.finalGraphP;
@@ -3098,13 +3132,13 @@ function varargout = diamondControl(varargin)
             
 %             c.pleIn = [c.perotIn.'   c.grateIn.'];  % Generated in updateScanGraph
         
-            c.finalGraphX = zeros(1, c.interval*c.upScans);
-            c.finalGraphY = zeros(1, c.interval*c.upScans);
-            c.finalGraphP = zeros(1, c.interval*c.upScans);
+            c.finalGraphX = zeros(1, c.interval*(c.upScans + c.downScans));
+            c.finalGraphY = zeros(1, c.interval*(c.upScans + c.downScans));
+            c.finalGraphP = zeros(1, c.interval*(c.upScans + c.downScans));
 
-            c.finalColorX = zeros(c.interval*c.upScans, c.qmaxPle);
-            c.finalColorY = zeros(c.interval*c.upScans, c.qmaxPle);
-            c.finalColorP = zeros(c.interval*c.upScans, c.qmaxPle);
+            c.finalColorX = zeros(c.interval*(c.upScans + c.downScans), c.qmaxPle);
+            c.finalColorY = zeros(c.interval*(c.upScans + c.downScans), c.qmaxPle);
+            c.finalColorP = zeros(c.interval*(c.upScans + c.downScans), c.qmaxPle);
 
             c.output = daqOutQueueCleverPLE({c.perotIn.', c.grateIn.'});
 
@@ -3125,6 +3159,50 @@ function varargout = diamondControl(varargin)
     function invervalCall(src, event)
         if c.outputEnabled && c.pleScanning
             c.intervalCounter = c.intervalCounter + 1;
+            
+            detectOut = event.Data(:,1);
+            perotOut =  event.Data(:,2);
+            normOut =   event.Data(:,3);
+            time =      event.TimeStamps;
+
+            first = 0;
+            if (c.intervalCounter-1) > 0
+                first = c.finalGraphY((c.intervalCounter-1)*c.interval);
+            end
+
+            c.finalGraphY((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = [first diff(detectOut).'].'; %./normOut; % + (detectOut == 0)
+            c.finalGraphP((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = perotOut.*transpose(1:c.interval <= c.perotLength);
+            c.finalGraphX((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = time;
+
+            [peaks, ~] = findPeaks(transpose(perotOut(1:c.perotLength)));
+
+            c.rfreq = [c.rfreq	peaks(peaks~=0)];
+            c.rtime = [c.rtime	time(floor(peaks(peaks~=0))).'];
+
+            j = 1;
+            while peaks(j) ~= 0
+                fsrFromPrev = (peaks(j) - c.perotPrev)/c.FSR;
+
+                if ~isnan(fsrFromPrev)
+                    fsrFromPrev = fsrFromPrev - round(fsrFromPrev);
+
+                    if (fsrFromPrev < 0)
+    %                     display('Warning: Interpreted As Going Backwards!');
+                    elseif (fsrFromPrev > 4*1.8/c.upScans)
+    %                     display('Warning: Possible Modehop!');
+        %             else
+                    end
+
+                    c.freqs = [c.freqs	(c.freqPrev + 10*(fsrFromPrev))];    % In GHz
+                    c.times = [c.times  time(floor(peaks(j)))];
+
+                    c.perotPrev = peaks(j);
+                    c.freqPrev = (c.freqPrev + 10*(fsrFromPrev));
+
+                end
+
+                j = j + 1;
+            end
 
             if c.intervalCounter == c.upScans
                 c.sd.outputSingleScan(0);
@@ -3161,51 +3239,9 @@ function varargout = diamondControl(varargin)
                 c.times = zeros(1, 3*c.upScans);
                 c.rfreq = zeros(1, 3*c.upScans);
                 c.rtime = zeros(1, 3*c.upScans);
-            elseif c.intervalCounter <= c.upScans    % Even if intervalCounter is 15...
-                detectOut = event.Data(:,1);
-                perotOut =  event.Data(:,2);
-                normOut =   event.Data(:,3);
-                time =      event.TimeStamps;
-
-                first = 0;
-                if (c.intervalCounter-1) > 0
-                    first = c.finalGraphY((c.intervalCounter-1)*c.interval);
-                end
-
-                c.finalGraphY((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = [first diff(detectOut).'].'; %./normOut; % + (detectOut == 0)
-                c.finalGraphP((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = perotOut.*transpose(1:c.interval <= c.perotLength);
-                c.finalGraphX((1 + (c.intervalCounter-1)*c.interval):(c.intervalCounter*c.interval)) = time;
-
-                [peaks, ~] = findPeaks(transpose(perotOut(1:c.perotLength)));
-
-                c.rfreq = [c.rfreq	peaks(peaks~=0)];
-                c.rtime = [c.rtime	time(floor(peaks(peaks~=0))).'];
-
-                j = 1;
-                while peaks(j) ~= 0
-                    fsrFromPrev = (peaks(j) - c.perotPrev)/c.FSR;
-
-                    if ~isnan(fsrFromPrev)
-                        fsrFromPrev = fsrFromPrev - round(fsrFromPrev);
-
-                        if (fsrFromPrev < 0)
-        %                     display('Warning: Interpreted As Going Backwards!');
-                        elseif (fsrFromPrev > 4*1.8/c.upScans)
-        %                     display('Warning: Possible Modehop!');
-            %             else
-                        end
-
-                        c.freqs = [c.freqs	(c.freqPrev + 10*(fsrFromPrev))];    % In GHz
-                        c.times = [c.times  time(floor(peaks(j)))];
-
-                        c.perotPrev = peaks(j);
-                        c.freqPrev = (c.freqPrev + 10*(fsrFromPrev));
-
-                    end
-
-                    j = j + 1;
-                end
             end
+            % elseif c.intervalCounter <= c.upScans    % Even if intervalCounter is 15...
+            %end
         end
     end
     function s = sizeA(array)
@@ -3286,7 +3322,7 @@ function varargout = diamondControl(varargin)
             I1 = imfilter(in_img, filter);
 
             %Adjust contrast
-            I2 = imtophat(I1,strel('disk',10));
+           % I2 = imtophat(I1,strel('disk',32));
             out_img = imadjust(I1);       
     end
     function startvid_Callback(hObject,~)
@@ -3321,7 +3357,7 @@ function varargout = diamondControl(varargin)
             
             
             IBW=im2bw(I3,0.7); %Convert to BW and Threshold
-            [c.circles, c.radii] = imfindcircles(IBW,[14 28]) %Track Full image
+            [c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Track Full image
             
              try
                  delete(c.hg1);
@@ -3336,11 +3372,11 @@ function varargout = diamondControl(varargin)
     end
     function centroidListener(~,~)
        
-         frame = img_enhance(flipdim(getsnapshot(c.vid),1));
+         frame = flipdim(getsnapshot(c.vid),1);
         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
 
-        tic
-        IBW=im2bw(frame,0.7);
+        
+        IBW=im2bw(frame,0.6);
         %c.roi_image=imcrop(IBW,c.roi);
         roi = round(c.roi);
         c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
@@ -3353,11 +3389,24 @@ function varargout = diamondControl(varargin)
                 [c.centroidXi,c.centroidYi]=centroid_fun();
                 set(c.track_stat,'String',['Got Initial Centroid']);
                 c.centroid_init=0;
-
+                
+                try
+                    c.S=load('piezo_calib.mat');
+                catch err
+                    disp(err.message)
+                end
+                
+                c.gain = str2double(get(c.trk_gain, 'String'));
+                minAdjustmentpx = str2double(get(c.trk_min, 'String'));
+                
+                c.mindelVx = minAdjustmentpx*c.S.pX;
+                c.mindelVy = minAdjustmentpx*c.S.pY;
+                %zfocuscounter = 0;
+                
             else 
-            
+
                  [c.centroidX,c.centroidY, R]=centroid_fun();
-                 set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
+                 %set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
                  set(c.hroi,'CData',c.roi_image);
                  try
                     delete(c.hg2);
@@ -3371,41 +3420,33 @@ function varargout = diamondControl(varargin)
                 catch err
                     disp(err.message)
                 end
-                
-                try
-                    S=load('piezo_calib.mat');
-                catch err
-                    disp(err.message)
-                end
-                
-                gain = str2double(get(c.trk_gain, 'String'));
-                minAdjustmentpx = str2double(get(c.trk_min, 'String'));
-                
-                mindelVx = minAdjustmentpx*S.pX;
-                mindelVy = minAdjustmentpx*S.pY;
-                %zfocuscounter = 0;
 
                 delX = c.centroidX-c.centroidXi;
-                delY = c.centroidX-c.centroidXi;
+                delY = c.centroidY-c.centroidYi;
 
-                delVx = delX*S.pX*gain;
-                delVy = delY*S.pY*gain;
+                delVx = delX*c.S.pX*c.gain;
+                delVy = delY*c.S.pY*c.gain;
                 
                 %only move if voltage stays positive
                 %Vxnew = max([0, Vxold - delVx])
                 %Vynew = max([0, Vyold - delVy])
+
                 
-                if (abs(delVx)>mindelVx)
-                    piezoOutSmooth(c.piezo + [-delVx 0 0]);
-                    set(c.track_stat,'String','Status: Xpos corrected');
+                if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
+                    %disp('corrected')
+                     c.s.outputSingleScan([(c.piezo + [-delVx delVy 0]) c.galvo]);
+                elseif (abs(delVx)>c.mindelVx)
+                   % disp('corrected')
+                     c.s.outputSingleScan([(c.piezo + [-delVx 0 0]) c.galvo]);
+                elseif (abs(delVy) > c.mindelVy)
+                   % disp('corrected')
+                     c.s.outputSingleScan([(c.piezo + [0 delVy 0]) c.galvo]);
                 end
                 
-                if (abs(delVy) > mindelVy)
-                    piezoOutSmooth(c.piezo + [0 -delVy 0]); 
-                    set(c.track_stat,'String','Status: Ypos corrected');
-                end
+                %getPiezo();
+                
             end
-            toc
+           
     end
     function click_trackCallback(~,~)
         %disp('click')
@@ -3856,19 +3897,23 @@ function varargout = diamondControl(varargin)
             X=str2double(get(c.gotoSX, 'String'));
             Y=str2double(get(c.gotoSY, 'String'));
             
+            if X>3 || Y>4
+                disp('Given value out of range')
+            else
+            
             dX= X-c.Sx;
             dY= -(Y-c.Sy);
             
-            c.micro=c.micro + [dX*410 dY*270];
+            c.micro=c.micro + [dX*400.05 dY*262.507];
             setPos(); 
             renderUpper();
 
-       while sum(abs(c.microActual - c.micro)) > .1
-            pause(.1);
-            getPos();
-            renderUpper();
-       end
-        
+               while sum(abs(c.microActual - c.micro)) > .1
+                    pause(.1);
+                    getPos();
+                    renderUpper();
+               end
+            end
         else
             disp('Set zero not marked!!!')
         end

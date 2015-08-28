@@ -158,9 +158,9 @@ c.perotPrev = 0;
 c.perotMax = 10;  % Maximum Voltage to perot...
 c.grateMax = 10;  %  "       "   ...to grating.
 
-c.pleRate = 2^4;
-c.pleRateOld = 2^9;
-c.perotLength = 2^4;
+c.pleRate = 2^11;
+c.pleRateOld = 2^11;
+c.perotLength = 2^6;
 c.upScans = 30;
 c.downScans = 2;
 
@@ -242,10 +242,10 @@ c.videoEnabled = 0;
 c.hImage = 0;
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower
-c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
-c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
-c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
-c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'PickableParts', 'all');
+c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
+c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
+c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
+c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
 
 c.pleAxesAll =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
 c.pleAxesOne =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
@@ -375,11 +375,13 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoSY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-20*bh bw/2 bh]);
     c.gotoSButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-21*bh bw bh]);
 
-    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-23*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-24*bh 2*bw bh]);
-    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-25*bh 2*bw bh]);
-    c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-27*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-28*bh 2*bw bh]);
+    c.rsttoset0 = uicontrol('Parent', c.gotoTab, 'Style', 'checkbox', 'String', 'Go to Set [0 0] on Exit','Position', [bp         plh-bp-22*bh 2*bw bh],'Value', 0);
+           
+    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-24*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-25*bh 2*bw bh]);
+    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-26*bh 2*bw bh]);
+    c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-28*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-29*bh 2*bw bh]);
     
     %Micro abort and reset
     c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-33*bh 2*bw bh],         'HorizontalAlignment', 'center');
@@ -640,7 +642,7 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
 
 c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.ratevid = 2;     % vid update rate /sec
-    c.ratetrack = 10;  % tracking corrections / sec
+    c.ratetrack = 50;  % tracking corrections / sec
     c.vid_on=0; c.seldisk=0;
     c.roi='';
     c.roi_pad=10;      %ROI padding of 10 pixels on each side of the disk
@@ -649,9 +651,9 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.stop_vid =       uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stop!',                    'Position',[2*bp+bw plhi-bp-2*bh bw bh]);
     
     c.trk_gain_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Gain:', 'Position',[bp/2 plhi-bp-18*bh bw/2 bh]);  
-    c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 1,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
+    c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.8,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
     c.trk_min_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-18*bh 2*bw/3 bh]);  
-    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 5,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
+    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 1,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
     
     c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-20*bh bw bh]);
     c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-20*bh bw bh]);
