@@ -445,8 +445,9 @@ function varargout = diamondControl(varargin)
         
         display('  Goodbye DAQ I/O...');
         try     % Reset and release the DAQ devices
-            daqOutSmooth([0 0 0 0 0]);
+            % daqOutSmooth([0 0 0 0 0]);
             ledSet(0);
+            pause(.25);
             
 %             stop(c.pleLh);
 %             delete(c.pleLh);
@@ -1075,6 +1076,90 @@ function varargout = diamondControl(varargin)
         piezoOptimizeAxis(2);
         piezoOptimizeAxis(3);
     end
+    function optimizeAxis(axis, range, pixels, rate)     % 1,2,3,4,5 = piezo x,y,z, galvo x,y
+        center = -1;
+        
+        prevRate = c.s.Rate;
+        c.s.Rate = rate; 
+        
+        if axis >= 1 && axis <= 3
+            center = c.piezo(axis);
+        elseif axis >= 4 && axis <= 5
+            center = c.galvo(axis-3);
+        else
+            display('    Axis for optimization not understood');
+        end
+        
+        if center ~= -1
+            up = linspace(center-range/2, center+range/2, pixels+1);
+            
+            if up(end) > 10
+                up = linspace(center-range/2, 10, pixels+1);
+            end
+            
+            if up(1) < 0
+                up = linspace(0, center+range/2, pixels+1);
+                
+                if up(end) > 10
+                    up = linspace(0, 10, pixels+1);
+                end
+            end
+            
+            prev = [c.piezo c.galvo];
+            
+            prev2 = prev;
+            
+            prev2(axis) = 0;
+            daqOutSmooth(prev2);
+            
+            prev2(axis) = up(1);
+            daqOutSmooth(prev2);
+            
+            switch axis
+                case 1
+                    daqOutQueueClever({up, NaN, NaN, NaN, NaN, NaN, NaN});
+                case 2
+                    daqOutQueueClever({NaN, up, NaN, NaN, NaN, NaN, NaN});
+                case 3
+                    daqOutQueueClever({NaN, NaN, up, NaN, NaN, NaN, NaN});
+                case 4
+                    daqOutQueueClever({NaN, NaN, NaN, up, NaN, NaN, NaN});
+                case 5
+                    daqOutQueueClever({NaN, NaN, NaN, NaN, up, NaN, NaN});
+            end
+            
+            [out, times] = c.s.startForeground();
+            out = out(:,1);
+            
+            data = diff(double(out))/diff(double(times));
+            
+            display('plot');
+            plot(c.lowerAxes, up(1:pixels), data);
+
+            m = min(min(data)); M = max(max(data));
+
+            if m ~= M
+                data = (data - m)/(M - m);
+                data = data.*(data > .5);
+
+                total = sum(sum(data));
+                fz = sum((data).*(up(1:pixels)'))/total;
+
+                if fz > 10 || fz < 0 || isnan(fz)
+                    fz = center;
+                    display(['    ' num2str(axis) '-axis optimization failed');
+                end
+            end
+            
+            prev2(axis) = 0;
+            daqOutSmooth(prev2);
+            
+            prev2(axis) = fz;
+            daqOutSmooth(prev2);
+            
+            c.s.Rate = prevRate;
+        end
+    end
     function piezoOptimizeAxis(axis)
         
         % Method 1
@@ -1096,21 +1181,23 @@ function varargout = diamondControl(varargin)
         switch axis
             case 1
                 piezoOutSmooth([0 c.piezo(2) c.piezo(3)]);
-                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+                daqOutQueueClever({[up down], NaN, NaN, NaN, NaN, NaN, NaN});
             case 2
                 piezoOutSmooth([c.piezo(1) 0 c.piezo(3)]);
-                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+                daqOutQueueClever({NaN, [up down], NaN, NaN, NaN, NaN, NaN});
             case 3
                 piezoOutSmooth([c.piezo(1) c.piezo(2) 0]);
                 daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
+                display('z axis');
         end
 
         [out, times] = c.s.startForeground();
         out = out(:,1);
 
-        data = diff(out)/diff(times);
+        data = diff(double(out))/diff(double(times));
         data = data(1:pixels);
         
+        display('plot');
         plot(c.lowerAxes, up(1:pixels), data);
 
         m = min(min(data)); M = max(max(data));
@@ -1139,13 +1226,10 @@ function varargout = diamondControl(varargin)
         switch axis
             case 1
                 piezoOutSmooth([prev c.piezo(2) c.piezo(3)]);
-                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
             case 2
                 piezoOutSmooth([c.piezo(1) prev c.piezo(3)]);
-                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
             case 3
                 piezoOutSmooth([c.piezo(1) c.piezo(2) prev]);
-                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
         end
     end
     function galvoOpt_Callback(~, ~)

@@ -354,7 +354,7 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoPFocus =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Focus','Position',         [2*bp+bw    plh-bp-11*bh bw bh]);
     c.gotoPOptXY =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize XY','Position',   [2*bp+bw    plh-bp-12*bh bw bh]);
     c.gotoPOptZ =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize Z','Position',    [2*bp+bw    plh-bp-13*bh bw bh]);
-    c.gotoPOptAll = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize All','Position',    [2*bp+bw    plh-bp-13*bh bw bh]);
+    c.gotoPOptAll = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize All','Position',    [2*bp+bw    plh-bp-14*bh bw bh]);
   
     c.gotoP = [c.gotoPX c.gotoPY c.gotoPZ c.gotoPFocus c.gotoPReset c.gotoPMaximize c.gotoPTarget c.gotoPButton];
     
