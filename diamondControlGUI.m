@@ -364,6 +364,7 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoGYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (mV): ',   'Position', [bp         plh-bp-13*bh bw/2 bh],         'HorizontalAlignment', 'right');
     c.gotoGY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-13*bh bw/2 bh]);
     c.gotoGReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset','Position', [bp	plh-bp-16*bh bw bh]);
+    c.gotoGOpt =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp	plh-bp-17*bh bw bh]);
     c.gotoGTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position', [bp	plh-bp-14*bh bw bh]);
     c.gotoGButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-15*bh bw bh]);
   
@@ -457,7 +458,7 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoPreview =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton','String', 'Preview Path', 'Position', [bp	plhi-bp-3*bh 2*bw+bp bh]);
             c.autoTest =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Test Path', 'Position', [bp	plhi-bp-4*bh 2*bw+bp bh]);
             c.autoButton =  uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plhi-bp-5*bh 2*bw+bp bh]);
-            c.autoAutoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plhi-bp-6*bh bw bh], 'HorizontalAlignment', 'left');
+            c.autoAutoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plhi-bp-6*bh bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
             c.autoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plhi-bp-6*bh bw bh]);
             c.proceed = false;  % Variable for whether to proceed or not.
             c.autoStop =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Stop', 'Position', [bp	plhi-bp-7*bh 2*bw+bp bh]);

@@ -60,6 +60,7 @@ function varargout = diamondControl(varargin)
     set(c.gotoGButton, 'Callback', @gotoGalvo_Callback);            % GALVO GOTO controls - Goto button sends the galvos to the current fields
     set(c.gotoGReset, 'Callback',  @resetGalvo_Callback);           % Resets the XY to [0 0] (should I approach from a direction?)
     set(c.gotoGTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
+    set(c.gotoGOpt, 'Callback', @optGalvo_Callback);
     
     set(c.go_mouse, 'Callback', @go_mouse_Callback); 
     set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
@@ -696,7 +697,7 @@ function varargout = diamondControl(varargin)
                     c.sl.outputSingleScan(1);
                 case 2  % Error/blink
                     c.ledBlink = 1;
-                    blink();
+%                     blink();
             end
             
             c.ledState = state;
@@ -1065,18 +1066,28 @@ function varargout = diamondControl(varargin)
         piezoOutSmooth([x       y       c.piezo(3)]);
     end
     function optZ_Callback(~, ~)
-        piezoOptimizeAxis(3);
+%         piezoOptimizeAxis(3);
+        optimizeAxis(3, 2, 500, 500);
     end
     function optXY_Callback(~, ~)
-        piezoOptimizeAxis(1);
-        piezoOptimizeAxis(2);
+%         piezoOptimizeAxis(1);
+%         piezoOptimizeAxis(2);
+        optimizeAxis(1, 2, 500, 500);
+        optimizeAxis(2, 2, 500, 500);
     end
     function optAll_Callback(~, ~)
-        piezoOptimizeAxis(1);
-        piezoOptimizeAxis(2);
-        piezoOptimizeAxis(3);
+%         piezoOptimizeAxis(1);
+%         piezoOptimizeAxis(2);
+%         piezoOptimizeAxis(3);
+        optimizeAxis(1, 2, 500, 500);
+        optimizeAxis(2, 2, 500, 500);
+        optimizeAxis(3, 2, 500, 500);
     end
-    function optimizeAxis(axis, range, pixels, rate)     % 1,2,3,4,5 = piezo x,y,z, galvo x,y
+    function optGalvo_Callback(~, ~)
+        optimizeAxis(4, .05, 500, 500);
+        optimizeAxis(5, .05, 500, 500);
+    end
+    function final = optimizeAxis(axis, range, pixels, rate)     % 1,2,3,4,5 = piezo x,y,z, galvo x,y
         center = -1;
         
         prevRate = c.s.Rate;
@@ -1093,15 +1104,17 @@ function varargout = diamondControl(varargin)
         if center ~= -1
             up = linspace(center-range/2, center+range/2, pixels+1);
             
-            if up(end) > 10
-                up = linspace(center-range/2, 10, pixels+1);
-            end
-            
-            if up(1) < 0
-                up = linspace(0, center+range/2, pixels+1);
-                
+            if axis >= 1 && axis <= 3
                 if up(end) > 10
-                    up = linspace(0, 10, pixels+1);
+                    up = linspace(center-range/2, 10, pixels+1);
+                end
+
+                if up(1) < 0
+                    up = linspace(0, center+range/2, pixels+1);
+
+                    if up(end) > 10
+                        up = linspace(0, 10, pixels+1);
+                    end
                 end
             end
             
@@ -1109,7 +1122,11 @@ function varargout = diamondControl(varargin)
             
             prev2 = prev;
             
-            prev2(axis) = 0;
+            if axis >= 1 && axis <= 3
+                prev2(axis) = 0;
+            elseif axis >= 4 && axis <= 5
+                prev2(axis) = -.2;
+            end
             daqOutSmooth(prev2);
             
             prev2(axis) = up(1);
@@ -1131,9 +1148,10 @@ function varargout = diamondControl(varargin)
             [out, times] = c.s.startForeground();
             out = out(:,1);
             
-            data = diff(double(out))/diff(double(times));
+            data = diff(double(out))./diff(double(times));
+            final = data;
             
-            display('plot');
+            display('      plot');
             plot(c.lowerAxes, up(1:pixels), data);
 
             m = min(min(data)); M = max(max(data));
@@ -1145,13 +1163,24 @@ function varargout = diamondControl(varargin)
                 total = sum(sum(data));
                 fz = sum((data).*(up(1:pixels)'))/total;
 
-                if fz > 10 || fz < 0 || isnan(fz)
-                    fz = center;
-                    display(['    ' num2str(axis) '-axis optimization failed');
+                if axis >= 1 && axis <= 3
+                    if (fz > 10 || fz < 0 || isnan(fz))
+                        fz = center;
+                        display(['    ' num2str(axis) '-axis optimization failed']);
+                    end
+                elseif axis >= 4 && axis <= 5
+                    if isnan(fz)
+                        fz = center;
+                        display(['    ' num2str(axis) '-axis optimization failed']);
+                    end
                 end
             end
             
-            prev2(axis) = 0;
+            if axis >= 1 && axis <= 3
+                prev2(axis) = 0;
+            elseif axis >= 4 && axis <= 5
+                prev2(axis) = -.2;
+            end
             daqOutSmooth(prev2);
             
             prev2(axis) = fz;
@@ -1160,7 +1189,7 @@ function varargout = diamondControl(varargin)
             c.s.Rate = prevRate;
         end
     end
-    function piezoOptimizeAxis(axis)
+    function piezoOptimizeAxis(axis)    % decrepatated.
         
         % Method 1
         range = 10;
@@ -1879,7 +1908,7 @@ function varargout = diamondControl(varargin)
         
         while c.running && i < 120 && sum(spectrum == -1) == 1
             try
-%                 disp(['    waiting ' num2str(i)])
+                disp(['    waiting ' num2str(i)])
                 d = dir('Z:\WinSpec_Scan\spec.SPE');
                 
 %                 display(['      datenum: ' num2str(d.datenum, 100) ',']);
@@ -2239,7 +2268,7 @@ function varargout = diamondControl(varargin)
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
                 for d = ndrange(1):ndrange(2)
-                    if c.autoScanning
+                    if c.autoScanning && c.running
                         try
                             c.micro = p(1:2,i)' - [10 10];
                             setPos();
@@ -2311,18 +2340,21 @@ function varargout = diamondControl(varargin)
                                 while j <= round(str2double(get(c.autoTaskNumRepeat, 'String')))
                                     old = [c.piezo c.galvo];
 
-                                    display('    Z...');    piezoOptimizeZ();
-                                    display('    XY...');   piezoOptimizeXY(c.piezoRange/3, c.piezoSpeed, round(c.piezoPixels/3));
+%                                     display('    Z...');    piezoOptimizeZ();
+%                                     display('    XY...');   piezoOptimizeXY(c.piezoRange/3, c.piezoSpeed, round(c.piezoPixels/3));
                                     
+                                    display('    XYZ...');   optAll_Callback(0,0);
+
                                     if get(c.autoTaskGalvo, 'Value') == 1
                                         if j == round(str2double(get(c.autoTaskNumRepeat, 'String')));
                                             display('  Scanning...');
                                             scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
                                         else
                                             display('    Galvo...');
-                                            scan = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
+%                                             scan = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
+                                            optimizeAxis(4, .05, 500, 500);
+                                            scan = optimizeAxis(5, .05, 500, 500);
                                         end
-
                                     end
                                         
                                     if results
@@ -2343,7 +2375,7 @@ function varargout = diamondControl(varargin)
                                 old = [c.piezo c.galvo];
                                 
 %                                 display('    Z...');
-                                piezoOptimizeZ();
+%                                 piezoOptimizeZ();
                                 
                                 if results
                                         fprintf(fhv, ['    Z was optimized a final time to ' num2str(c.piezo(3)) ' V\r\n']);
@@ -2353,18 +2385,25 @@ function varargout = diamondControl(varargin)
                                 if get(c.autoTaskSpectrum, 'Value') == 1
                                     display('  Taking Spectrum...');
 
-                                    spectrum = 0;
-
-                                    try
-%                                         sendSpectrumTrigger();
-%                                         spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
-                                        spectrum = waitForSpectrum([prefix name{i} '_spectrum'], sendSpectrumTrigger());
-                                    catch err
-                                        display(err.message);
+                                    spectrum = -1;
+                                    
+                                    k = 0;
+                                    
+                                    while sum(size(spectrum)) == 2 && k < 3
+                                        try
+    %                                         sendSpectrumTrigger();
+    %                                         spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
+                                            spectrum = waitForSpectrum([prefix name{i} '_spectrum'], sendSpectrumTrigger());
+                                        catch err
+                                            display(err.message);
+                                        end
+                                        k = k + 1;
                                     end
                                 
-                                    if spectrum ~= -1
+                                    if sum(size(spectrum)) ~= 2
                                         savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
+                                    else
+                                        fprintf(fhv, '    Unfortunately, spectrum acquisition failed for this device.\r\n');
                                     end
 
 %                                     if spectrumNorm ~= 0 && spectrum ~= 0
@@ -2482,13 +2521,15 @@ function varargout = diamondControl(varargin)
             fclose(fhv);
         end
         
-        display('Totally Finished!');
-            
-        c.micro = original;
-        setPos();
-        
-        c.autoScanning = false;
-        ledSet(0);
+        if c.running
+            display('Totally Finished!');
+
+            c.micro = original;
+            setPos();
+
+            c.autoScanning = false;
+            ledSet(0);
+        end
     end
     function proceed_Callback(~, ~)
         c.proceed = true;
@@ -3648,11 +3689,15 @@ function varargout = diamondControl(varargin)
         pt=impoint(c.imageAxes);
         setColor(pt,'r');
         
+        %Laser spot is not the center of the image
+        laser_offset_x=19;
+        laser_offset_y=-79;
+        
         pos=getPosition(pt);
         X=pos(1); Y=pos(2);
         
-       deltaX = X - 640/2;
-       deltaY = -(Y - 480/2);
+       deltaX = X - (640/2 + laser_offset_x);
+       deltaY = -(Y - (480/2+ laser_offset_y));
 
        %Always approach from same direction (from bottom left)
        offset=5; % in um
@@ -3689,26 +3734,36 @@ function varargout = diamondControl(varargin)
             renderUpper();
         end
 
-       setPosition(pt,[640/2 480/2]);
+       setPosition(pt,[(640/2+laser_offset_x) (480/2+ laser_offset_y)]);
        setColor(pt,'g');
        pause(1);
        delete(pt);
     end
     function go_mouse_fine_Callback(~,~)
         %Allow only small change
+        
+        %Laser spot is not the center of the image
+        laser_offset_x=19;
+        laser_offset_y=-79;
+            
         axes(c.imageAxes);
-        mask=rectangle('Position',[640/2-50,480/2-50,100,100],'EdgeColor','r');
+        mask=rectangle('Position',[(640/2+laser_offset_x)-50,(480/2+ laser_offset_y)-50,100,100],'EdgeColor','r');
 
         pt=impoint(c.imageAxes);
         setColor(pt,'m');
         
         pos=getPosition(pt);
         X=pos(1); Y=pos(2);
-        if (X>640/2-50 && X<640/2+50) && (Y>480/2-50 && Y<480/2+50)
-           
+        
+         
+            
+            
+        if (X>(640/2+laser_offset_x)-50 && X<(640/2+laser_offset_x)+50) && (Y>(480/2+ laser_offset_y)-50 && Y<(480/2+ laser_offset_y)+50)
+          
+            
             disp('inside mask')
-            deltaX = -(X - 640/2);
-            deltaY = (Y - 480/2);
+            deltaX = -(X - (640/2+laser_offset_x));
+            deltaY = (Y - (480/2+ laser_offset_y));
             
             %calibration constant between pixels and voltage
             try
@@ -3736,7 +3791,7 @@ function varargout = diamondControl(varargin)
             renderUpper();
             %disp('m2')
             
-            setPosition(pt,[640/2 480/2]);
+            setPosition(pt,[(640/2+laser_offset_x) (480/2+ laser_offset_y)]);
             setColor(pt,'g');
             pause(1);
         else
@@ -4013,7 +4068,8 @@ function varargout = diamondControl(varargin)
             dX= X-c.Sx;
             dY= -(Y-c.Sy);
             
-            c.micro=c.micro + [dX*400.05 dY*262.507];
+            
+            c.micro=c.micro + [dX*400 dY*262.507];
             setPos(); 
             renderUpper();
 
