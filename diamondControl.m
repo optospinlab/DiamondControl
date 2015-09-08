@@ -9,12 +9,14 @@
 %  - poorly-implemented optimization routines, and
 %  - (soon [edit: now]) basic automation protocols for performing simple testing.
 function varargout = diamondControl(varargin)
-    if isempty(varargin)    % If no variables have been given, make the figure
-        f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none','Position',get(0,'Screensize'));
-        c = diamondControlGUI('Parent', f);
-    else                    % Otherwise pass the variables on.
-        c = diamondControlGUI(varargin);
-    end
+%     if isempty(varargin)    % If no variables have been given, make the figure
+%         f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none','Position',get(0,'Screensize'));
+%         c = diamondControlGUI('Parent', f);
+%     else                    % Otherwise pass the variables on.
+%         c = diamondControlGUI(varargin);
+%     end
+
+    c = diamondControlGUI();
     
     % Helper Global variables for UI construction
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
@@ -146,7 +148,7 @@ function varargout = diamondControl(varargin)
     
     % PLE Fields
     set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
-    set(c.pleOnce, 'Callback',  @pleCall);
+    % set(c.pleOnce, 'Callback',  @pleCall);
     set(c.pleCont, 'Callback',  @pleCall);
     set(c.perotCont, 'Callback',  @perotCall);
     set(c.pleSave, 'Callback',  @pleSave_Callback);
@@ -156,25 +158,25 @@ function varargout = diamondControl(varargin)
     set(c.stop_vid, 'Callback',  @stopvid_Callback);
     set(c.track_clear, 'Callback',  @cleartrack_Callback);
     set(c.track_set, 'Callback',  @settrack_Callback);
+    set(c.parent,'WindowButtonDownFcn', @click_trackCallback);
     
     
     % UI Fields -----------------------------------------------------------
     % set(c.parent, 'ButtonDownFcn', @click_Callback);
     % set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
     % set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-    set(c.parent,'WindowButtonDownFcn', @click_trackCallback);
     
     
-    set(c.upperAxes, 'ButtonDownFcn', @requestShow);
-    set(c.lowerAxes, 'ButtonDownFcn', @requestShow);
-    set(c.counterAxes, 'ButtonDownFcn', @requestShow);
-    
+%     set(c.upperAxes, 'ButtonDownFcn', @requestShow);
+%     set(c.lowerAxes, 'ButtonDownFcn', @requestShow);
+%     set(c.counterAxes, 'ButtonDownFcn', @requestShow);
+%     
 %     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
     
 %     set(c.microInit, 'Callback', @microInit_Callback);
     
     % We do resizing programatically
-    set(c.parent, 'ResizeFcn', @resizeUI_Callback);
+%     set(c.parent, 'SizeChangedFcn', @resizeUI_Callback);
     
     % Create the joystick object =====
     try
@@ -186,12 +188,12 @@ function varargout = diamondControl(varargin)
     end
     
     % Initial rendering
-    resizeUI_Callback(0, 0);
+%     resizeUI_Callback(0, 0);
     renderUpper();
 %     displayImage();
     setGalvoAxesLimits();
     
-    set(c.parent, 'Visible', 'On');
+    % set(c.parent, 'Visible', 'On');
     
     % Initiate Everything...
     initAll();
@@ -508,12 +510,15 @@ function varargout = diamondControl(varargin)
         delete(c.imageAxes);
         delete(c.upperAxes);
         delete(c.lowerAxes);
-        delete(c.counterAxes);
+        %delete(c.counterAxes);
+        %delete(c.upperAxes2);
+        %delete(c.lowerAxes2);
+        %delete(c.counterAxes2);
         
-        delete(c.upperAxes2);
-        delete(c.lowerAxes2);
-        delete(c.counterAxes2);
-        
+        delete(c.upperFigure);
+        delete(c.lowerFigure);
+        delete(c.imageFigure);
+        delete(c.pleFigure);
         delete(c.parent);
     end
 
@@ -2237,7 +2242,7 @@ function varargout = diamondControl(varargin)
             superDirectory = c.directory;              % Setup the folders
             dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];           % Today's folder is formatted in YYYY_MM_DD Form
             scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))]; % This scan's folder is fomatted in @ HH-MM-SS.sss
-            directory =     [superDirectory '\' dateFolder];
+            directory =     [superDirectory '\' c.autoFolder '\' dateFolder];
             subDirectory =  [directory '\' scanFolder];
 
             [status, message, messageid] = mkdir(superDirectory, dateFolder);                   % Make sure today's folder has been created.
@@ -2890,16 +2895,16 @@ function varargout = diamondControl(varargin)
 %         set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
 %         uiwait(c.pop);
 %     end
-    function requestShow(hObject, ~)
-        switch hObject
-            case c.upperAxes
-                set(c.upperFigure, 'Visible', 'on');
-            case c.lowerAxes
-                set(c.lowerFigure, 'Visible', 'on');
-            case c.counterAxes
-                set(c.counterFigure, 'Visible', 'on');
-        end
-    end
+%     function requestShow(hObject, ~)
+%         switch hObject
+%             case c.upperAxes
+%                 set(c.upperFigure, 'Visible', 'on');
+%             case c.lowerAxes
+%                 set(c.lowerFigure, 'Visible', 'on');
+%             case c.counterAxes
+%                 set(c.counterFigure, 'Visible', 'on');
+%         end
+%     end
 
     % PLE! ================================================================
     function initPle()  % Unused
@@ -2956,6 +2961,10 @@ function varargout = diamondControl(varargin)
         end
     end
     function updateScanGraph()
+        c.pleRate = floor((2^11)*str2num(get(c.pleSpeed, 'String'))) * (str2num(get(c.pleScans, 'String'))/(2^6));
+        c.pleRateOld = (2^11) * (str2num(get(c.pleScans, 'String'))/(2^6));
+        c.perotLength = floor(str2num(get(c.pleScans, 'String'))/(upScans + c.DownScans));
+        
         c.interval = c.perotLength + floor((c.pleRateOld - c.upScans*c.perotLength)/c.upScans);
         c.leftover = (c.pleRateOld - c.upScans*c.interval);
         

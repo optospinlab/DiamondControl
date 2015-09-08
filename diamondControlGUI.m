@@ -2,6 +2,20 @@ function c = diamondControlGUI(varargin)
 
 display('  Making GUI');
 
+
+% Helper variables for GUI setup ==========================================
+global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
+pw = 250;           % Panel Width, the width of the side panel
+puh = 180;          % Upper Panel Height
+plh = 700;          % Lower Panel Height
+
+bp = 5;             % Button Padding
+bw = (pw-4*bp)/2;   % Button Width, the width of a button/object
+bh = 18;            % Button Height, the height of a button/object
+plhi = plh - 2*bh;  % Inner Lower Panel Height
+
+gp = 25;            % Graph  Padding
+
 if ~isempty(varargin)
     if length(varargin) == 1
         varargin = varargin{1};
@@ -26,7 +40,8 @@ if ~isempty(varargin)
         end
     end
 else
-    c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none');
+    screensize = get( groot, 'Screensize' );
+    c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none', 'Resize', 'off', 'Position', [screensize(1)-pw, screensize(2), pw, puh+plh]);
 end
 
 set(c.parent, 'defaulttextinterpreter', 'latex');
@@ -40,19 +55,6 @@ c.pv = [];
 c.pc = [];
 c.plottingFigure =  figure('Visible', 'off', 'tag', 'Diamond Control Plotting');
 c.plottingAxes =    axes('Parent', c.plottingFigure);
-
-% Helper variables for GUI setup ==========================================
-global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
-pw = 250;           % Panel Width, the width of the side panel
-puh = 180;          % Upper Panel Height
-plh = 700;          % Lower Panel Height
-
-bp = 5;             % Button Padding
-bw = (pw-4*bp)/2;   % Button Width, the width of a button/object
-bh = 18;            % Button Height, the height of a button/object
-plhi = plh - 2*bh;  % Inner Lower Panel Height
-
-gp = 25;            % Graph  Padding
 
 % IO ======================================================================
 c.vid = 0;              % Empty variable for video input
@@ -119,7 +121,7 @@ c.piezo =       [0 0 0];
 c.piezoBase =   [0 0 0];
 c.piezoMin =    [0 0 0];
 c.piezoMax =    [10 10 10];
-c.piezoStep = .025;
+c.piezoStep =   .025;
 
 % PLE DEVice and CHaNnels
 c.pleInitiated = false;
@@ -132,7 +134,7 @@ c.chnPleDigitOut = 'Port0/Line0';
 
 c.devPleIn =   'Dev1';    
 c.chnPerotIn = 'ai2';
-c.chnSPCMPle =  'ctr1';
+c.chnSPCMPle = 'ctr1';
 c.chnNormIn =  'ai1';
 
 c.devLEDDigitOut = 'Dev1';
@@ -214,23 +216,24 @@ c.grateInDown = 0;
 c.pleIn = 0;
 
 % Galvos
-c.galvoRange =  8;      % 8 um
-c.galvoRangeMax =  50;  % 50 um    
-c.galvoSpeed =  25;     % 25 um/sec
-c.galvoSpeedMax =  50;  % 50 um/sec    
-c.galvoPixels =  40;    % 40 pixels/side
+c.galvoRange =  10;      % um
+c.galvoRangeMax =  50;  % um    
+c.galvoSpeed =  10;     % um/sec
+c.galvoSpeedMax =  50;  % um/sec    
+c.galvoPixels =  50;    % pixels/side
 
 % Piezos
-c.piezoRange =  8;      % 8 um
-c.piezoRangeMax = 50;  % 50 um    
-c.piezoSpeed =  8;     % 25 um/sec
-c.piezoSpeedMax =  50;  % 50 um/sec    
-c.piezoPixels =  40;    % 40 pixels/side
+c.piezoRange =  10;     % um
+c.piezoRangeMax = 50;   % um    
+c.piezoSpeed =  10;     % um/sec
+c.piezoSpeedMax =  50;  % um/sec    
+c.piezoPixels =  50;    % pixels/side
 
 % File Saving
-c.directory = 'C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\';
+c.directory = 'C:\Users\Tomasz\Dropbox\Diamond Room\diamondControl\';
 display('Files will be saved in:');
 display(['    ' c.directory]);
+c.autoFolder = 'Automation!';
 c.device = 'd_';
 c.set = 's_';
 
@@ -241,33 +244,72 @@ set(gcf,'Renderer','Zbuffer');
 c.videoEnabled = 0;
 c.hImage = 0;
 
-c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower
-c.upperAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
-c.lowerAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
-c.imageAxes =   axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
-c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
-
-c.pleAxesAll =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
-c.pleAxesOne =  axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'Off');
-
 % Add popout figures here.
-c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestHide, 'tag', 'Upper Figure Popout', 'Name', 'Upper Figure Popout', 'Toolbar', 'figure', 'Menubar', 'none');
-c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestHide, 'tag', 'Lower Figure Popout', 'Name', 'Lower Figure Popout', 'Toolbar', 'figure', 'Menubar', 'none');
-c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestHide, 'tag', 'Counter Figure Popout', 'Name', 'Counter Figure Popout', 'Toolbar', 'figure', 'Menubar', 'none');
-% c.imageFigure =     figure('Visible', 'Off');
+c.upperFigure =     0;
+c.lowerFigure =     0;
+c.imageFigure =     0;
+c.pleFigure =       0;
+
+c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Upper Figure', 'Name', 'Upper Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Lower Figure', 'Name', 'Lower Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Image Figure', 'Name', 'Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+
+minfig(c.pleFigure, 1); % ple figure starts minimized
+
+c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
+c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
+c.lowerAxes =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [.05 .05 .9 .9]); %, 'PickableParts', 'all');
+c.imageAxes =   axes('Parent', c.imageFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
+% c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
+
+c.pleAxesOne =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 0 1 .15]);
+c.pleAxesAll =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .15 1 .85]);
 
 function closeRequestHide(src, data)
     set(src, 'Visible', 'Off');
 end
 
-c.upperAxes2 =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.lowerAxes2 =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
-c.counterAxes2 = axes('Parent', c.counterFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
+function closeRequestMinimize(src, data)
+    minfig(src, 1);
+end
+
+function resizeUISmall_Callback(hObject, ~)
+    p = get(hObject, 'Position');
+    w = p(3); h = p(4);
+
+    ratio = [50 50];
+
+    switch hObject
+        case c.upperFigure
+            ratio = [50 50];
+        case c.lowerFigure
+            ratio = [50 50];
+        case c.imageFigure
+            ratio = [64 48];
+    end
+    
+    % pleFigure does not care at the moment;
+    
+    if hObject ~= c.pleFigure
+        if w < h*ratio(1)/ratio(2)  % Make the figure larger to fit the ratio
+            w = h*ratio(1)/ratio(2);
+            set(hObject, 'Position', [p(1) p(2) w h]);
+        else
+            h = w*ratio(2)/ratio(1);
+            set(hObject, 'Position', [p(1) p(2) w h]);
+        end
+    end
+end
+
+%c.upperAxes2 =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
+%c.lowerAxes2 =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
+%c.counterAxes2 = axes('Parent', c.counterFigure, 'XLimMode', 'manual', 'YLimMode', 'manual');
 % c.imageAxes2 =   axes('XLimMode', 'manual', 'YLimMode', 'manual');
 
 % PANELS ==================================================================
 display('  Making Panels');
-c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels');
+c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh+puh pw puh]);
 c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
     c.microText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Micrometers:', 'Position',[bp      puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
     c.microXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp       puh-bp-4*bh bw/2 bh],	'HorizontalAlignment', 'right');
@@ -326,7 +368,7 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
     c.piezoCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Piezo','Position', [bp puh-bp-8*bh 2*bw bh]);
     c.calibStat = uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
     
-c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels');
+c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh pw plh]);
 c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoMLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Micrometers: ',   'Position', [bp plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
     c.gotoMXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp      plh-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -624,11 +666,15 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
     c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
         c.pleScanTab =      uitab('Parent', c.plePanel, 'Title', 'PLE Scan');
             c.pleCont =       uicontrol('Parent', c.pleScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp       plhi-bp-3*bh    bw bh], 'Callback', @pleCall); 
-            c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall, 'Enable', 'Off'); 
-            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-6*bh-bw    2*bw-6*bp bw]);
+            % c.pleOnce =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',   'String', 'Scan Once',       'Position', [2*bp+bw  plhi-bp-3*bh    bw bh], 'Callback', @pleOnceCall, 'Enable', 'Off'); 
+            c.axesSide =      axes(     'Parent', c.pleScanTab, 'Units', 'pixels', 'Position', [5*bp       plhi-bp-9*bh-bw    2*bw-6*bp bw]);
             set(c.axesSide, 'FontSize', 6);
-            c.pleDebug =   uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?',  'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
-            c.pleSave =    uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',     'String', 'Save',         'Position', [bp plhi-bp-5*bh 2*bw bh]); 
+            c.pleDebug =      uicontrol('Parent', c.pleScanTab, 'Style', 'checkbox',     'String', 'Debug Mode?',  'HorizontalAlignment', 'left', 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
+            c.pleSave =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',     'String', 'Save',         'Position', [bp plhi-bp-5*bh 2*bw bh]);
+            c.pleSpeedT =     uicontrol('Parent', c.pleScanTab, 'Style', 'text', 'String', 'Length (sec): ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+            c.pleSpeed =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
+            c.pleScansT =     uicontrol('Parent', c.pleScanTab, 'Style', 'text', 'String', 'Scans (num): ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+            c.pleScans =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', c.perotLength*(c.upScans + c.downScans),     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 
@@ -666,6 +712,11 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.roi_Axes=        axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-34*bh bp+2*bw 2*bw]);
 
     
+    set(c.upperFigure, 'Visible', 'On');
+    set(c.lowerFigure, 'Visible', 'On');
+    set(c.imageFigure, 'Visible', 'On');
+    set(c.pleFigure, 'Visible', 'On');
+    set(c.parent, 'Visible', 'On');
 display('  Finished...');
 end
 
