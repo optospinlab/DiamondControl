@@ -1067,21 +1067,21 @@ function varargout = diamondControl(varargin)
     end
     function optZ_Callback(~, ~)
 %         piezoOptimizeAxis(3);
-        optimizeAxis(3, 2, 500, 500);
+        optimizeAxis(3, 1, 500, 500);
     end
     function optXY_Callback(~, ~)
 %         piezoOptimizeAxis(1);
 %         piezoOptimizeAxis(2);
-        optimizeAxis(1, 2, 500, 500);
-        optimizeAxis(2, 2, 500, 500);
+        optimizeAxis(1, .5, 500, 500);
+        optimizeAxis(2, .5, 500, 500);
     end
     function optAll_Callback(~, ~)
 %         piezoOptimizeAxis(1);
 %         piezoOptimizeAxis(2);
 %         piezoOptimizeAxis(3);
-        optimizeAxis(1, 2, 500, 500);
-        optimizeAxis(2, 2, 500, 500);
-        optimizeAxis(3, 2, 500, 500);
+        optimizeAxis(1, .5, 500, 500);
+        optimizeAxis(2, .5, 500, 500);
+        optimizeAxis(3, 1, 500, 500);
     end
     function optGalvo_Callback(~, ~)
         optimizeAxis(4, .05, 500, 500);
@@ -1102,9 +1102,10 @@ function varargout = diamondControl(varargin)
         end
         
         if center ~= -1
-            up = linspace(center-range/2, center+range/2, pixels+1);
+            up = -1;
             
             if axis >= 1 && axis <= 3
+                up = linspace(center-range/2, center+range/2, pixels+1);
                 if up(end) > 10
                     up = linspace(center-range/2, 10, pixels+1);
                 end
@@ -1116,6 +1117,10 @@ function varargout = diamondControl(varargin)
                         up = linspace(0, 10, pixels+1);
                     end
                 end
+            elseif axis == 4
+                up = linspace(center+range/2, center-range/2, pixels+1);
+            elseif axis == 5
+                up = linspace(center-range/2, center+range/2, pixels+1);
             end
             
             prev = [c.piezo c.galvo];
@@ -1124,7 +1129,9 @@ function varargout = diamondControl(varargin)
             
             if axis >= 1 && axis <= 3
                 prev2(axis) = 0;
-            elseif axis >= 4 && axis <= 5
+            elseif axis == 4
+                prev2(axis) = .2;
+            elseif axis == 5
                 prev2(axis) = -.2;
             end
             daqOutSmooth(prev2);
@@ -1153,34 +1160,39 @@ function varargout = diamondControl(varargin)
             
             display('      plot');
             plot(c.lowerAxes, up(1:pixels), data);
+            
+            [fz, ~] = myMeanAdvanced(data, up(1:pixels), [0]);
 
-            m = min(min(data)); M = max(max(data));
-
-            if m ~= M
-                data = (data - m)/(M - m);
-                data = data.*(data > .5);
-
-                total = sum(sum(data));
-                fz = sum((data).*(up(1:pixels)'))/total;
-
-                if axis >= 1 && axis <= 3
-                    if (fz > 10 || fz < 0 || isnan(fz))
-                        fz = center;
-                        display(['    ' num2str(axis) '-axis optimization failed']);
-                    end
-                elseif axis >= 4 && axis <= 5
-                    if isnan(fz)
-                        fz = center;
-                        display(['    ' num2str(axis) '-axis optimization failed']);
-                    end
-                end
-            end
+%             m = min(min(data)); M = max(max(data));
+% 
+%             if m ~= M
+%                 data = (data - m)/(M - m);
+%                 data = data.*(data > .5);
+% 
+%                 total = sum(sum(data));
+%                 fz = sum((data).*(up(1:pixels)'))/total;
+% 
+%                 if axis >= 1 && axis <= 3
+%                     if (fz > 10 || fz < 0 || isnan(fz))
+%                         fz = center;
+%                         display(['    ' num2str(axis) '-axis optimization failed']);
+%                     end
+%                 elseif axis >= 4 && axis <= 5
+%                     if isnan(fz)
+%                         fz = center;
+%                         display(['    ' num2str(axis) '-axis optimization failed']);
+%                     end
+%                 end
+%             end
             
             if axis >= 1 && axis <= 3
                 prev2(axis) = 0;
-            elseif axis >= 4 && axis <= 5
+            elseif axis == 4
+                prev2(axis) = .2;
+            elseif axis == 5
                 prev2(axis) = -.2;
             end
+            
             daqOutSmooth(prev2);
             
             prev2(axis) = fz;
@@ -1280,7 +1292,7 @@ function varargout = diamondControl(varargin)
         galvoOutSmooth([x y]);
     end
     function [x, y] = myMean(data, X, Y)
-        % Note that this will yeild an error if data is all zero. This is purposeful.
+        % Note that this will yield an error if data is all zero. This is purposeful.
         % New Method
         dim = size(data);
         
@@ -1294,9 +1306,14 @@ function varargout = diamondControl(varargin)
         [~, indexes] = sort(areas, 'descend');
 
         centroid = measurements(indexes(1)).Centroid;
-
-        x = linInterp(1, X(1), dim(2), X(dim(2)), centroid(1));
-        y = linInterp(1, Y(1), dim(1), Y(dim(1)), centroid(2));
+        
+        if dim(2) == 1
+            x = linInterp(1, X(1), dim(1), X(dim(1)), max(centroid));
+            y = 0;
+        else
+            x = linInterp(1, X(1), dim(2), X(dim(2)), centroid(1));
+            y = linInterp(1, Y(1), dim(1), Y(dim(1)), centroid(2));
+        end
     
         % Old Method
         % Calculates the centroid.
@@ -1310,29 +1327,29 @@ function varargout = diamondControl(varargin)
         if m ~= M
             data = (final - m)/(M - m);
 
-            try
-                [mx, my] = myMean(data.*(data == 1), X, Y);
-
-    %             data = data*
-
-                dim = size(data);
-    %             factor = zeros(dim(1));
-
-                for x1 = 1:dim(1)
-                    for y1 = 1:dim(1)
-                        data(y1, x1) = data(y1, x1)/(1 + (X(x1) - mx)^2 + (Y(y1) - my)^2);
-                    end
-                end
-                
-                m = min(min(data)); M = max(max(data));
-
-                if m ~= M
-                    data = (data - m)/(M - m);
-                end
-            
-            catch err
-                display(['Attenuation failed: ' err.message]);
-            end
+%             try
+%                 [mx, my] = myMean(data.*(data == 1), X, Y);
+% 
+%     %             data = data*
+% 
+%                 dim = size(data);
+%     %             factor = zeros(dim(1));
+% 
+%                 for x1 = 1:dim(1)
+%                     for y1 = 1:dim(1)
+%                         data(y1, x1) = data(y1, x1)/(1 + (X(x1) - mx)^2 + (Y(y1) - my)^2);
+%                     end
+%                 end
+%                 
+%                 m = min(min(data)); M = max(max(data));
+% 
+%                 if m ~= M
+%                     data = (data - m)/(M - m);
+%                 end
+%             
+%             catch err
+%                 display(['Attenuation failed: ' err.message]);
+%             end
 
             list = .4:.1:.9;
 
@@ -1364,15 +1381,28 @@ function varargout = diamondControl(varargin)
                     y = mean(Y);
                 end
             else
-                while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
-                    D = (X0.^2) + (Y0.^2);
+                dim = size(data);
+                if dim(2) == 1
+                    while std(X0) > abs(X(1) - X(2))
+                        D = ((X0 - mean(X0)).^2);
 
-                    [~, idx] = max(D);
+                        [~, idx] = max(D);
 
-                    X0(idx) = [];
-                    Y0(idx) = [];
+                        X0(idx) = [];
 
-                    display('      outlier removed');
+                        display('      outlier removed');
+                    end
+                else
+                    while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
+                        D = ((X0 - mean(X0)).^2) + ((Y0 - mean(Y0)).^2);
+
+                        [~, idx] = max(D);
+
+                        X0(idx) = [];
+                        Y0(idx) = [];
+
+                        display('      outlier removed');
+                    end
                 end
 
                 x = mean(X0);
@@ -1684,7 +1714,9 @@ function varargout = diamondControl(varargin)
 
     % GALVOSCAN ===========================================================
     function galvoScan_Callback(~, ~)
-        galvoScan(true);
+        final = galvoScan(true);
+        
+        save('scan.mat', 'final');
     end
     function [final] = galvoScan(useUI)    
         [final, ~, ~] = galvoScanFull(useUI, c.galvoRange, c.galvoSpeed, c.galvoPixels);
@@ -2272,21 +2304,28 @@ function varargout = diamondControl(varargin)
                         try
                             c.micro = p(1:2,i)' - [10 10];
                             setPos();
-
-                            while sum(abs(c.microActual - c.micro)) > .1
+                            
+                            j = 0;
+                            
+                            while sum(abs(c.microActual - c.micro)) > .2 && j < 600
                                 pause(.1);
                                 getPos();
                                 renderUpper();
+                                j = j + 1;
                             end
 
                             c.micro = p(1:2,i)';
                             setPos();
 
-                            while sum(abs(c.microActual - c.micro)) > .1
+                            j = 0;
+                            
+                            while sum(abs(c.microActual - c.micro)) > .2 && j < 600
                                 pause(.1);
                                 getPos();
                                 renderUpper();
+                                j = j + 1;
                             end
+                            pause(.5);
 
                             piezoOutSmooth([5 5 p(3,i)]);
 
@@ -2401,7 +2440,11 @@ function varargout = diamondControl(varargin)
                                     end
                                 
                                     if sum(size(spectrum)) ~= 2
-                                        savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
+                                        try
+                                            savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
+                                        catch err
+                                            display(err.message);
+                                        end
                                     else
                                         fprintf(fhv, '    Unfortunately, spectrum acquisition failed for this device.\r\n');
                                     end
@@ -2438,7 +2481,7 @@ function varargout = diamondControl(varargin)
                                     save([prefix name{i} '_galvo' '.mat'], 'scan');
 
                                     imwrite(rot90(scan0,2)/max(max(scan0)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
-                                    imwrite(rot90(scan,2)/max(max(scan)),           [prefix name{i} '_galvo'        '.png']);
+                                    imwrite(rot90(scan,2)/max(max(scan)),     [prefix name{i} '_galvo'        '.png']);
                                 end
                                 
                                 imwrite(piezo0/max(max(piezo0)),   [prefix name{i} '_piezo_debug'  '.png']);
