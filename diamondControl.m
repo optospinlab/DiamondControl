@@ -147,11 +147,14 @@ function varargout = diamondControl(varargin)
     set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);          
     
     % PLE Fields
-    set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
+    % set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
     % set(c.pleOnce, 'Callback',  @pleCall);
     set(c.pleCont, 'Callback',  @pleCall);
     set(c.perotCont, 'Callback',  @perotCall);
     set(c.pleSave, 'Callback',  @pleSave_Callback);
+    set(c.pleSpeed, 'Callback',  @updateScanGraph_Callback);
+    set(c.pleScans, 'Callback',  @updateScanGraph_Callback);
+    
     
     % Tracking Fields
     set(c.start_vid, 'Callback',  @startvid_Callback);
@@ -400,16 +403,27 @@ function varargout = diamondControl(varargin)
     end
     function saveState()
         piezoZ = c.piezo(3);
-        save('state.mat', 'piezoZ');
+        parentP = get(c.parent, 'Position');
+        upperP = get(c.upperFigure, 'Position');
+        lowerP = get(c.lowerFigure, 'Position');
+        imageP = get(c.imageFigure, 'Position');
+        pleP = get(c.pleFigure, 'Position');
+        save('state.mat', 'piezoZ', 'parentP', 'upperP', 'lowerP', 'imageP', 'pleP');
     end
     function getState()
         try
             data = load('state.mat');
             piezoZ = data.piezoZ;
+            set(c.parent, 'Position', data.parentP);
+            set(c.upperFigure, 'Position', data.upperP);
+            set(c.lowerFigure, 'Position', data.lowerP);
+            set(c.imageFigure, 'Position', data.imageP);
+            set(c.pleFigure, 'Position', data.pleP);
         catch err
             dipslay(err.message);
             piezoZ = 0;
         end
+            % set(c.parent, 'Position', [100 100 pw puh+plh]);
         
         piezoOutSmooth([c.piezo(1), c.piezo(2), piezoZ]);
     end
@@ -451,6 +465,8 @@ function varargout = diamondControl(varargin)
             % daqOutSmooth([0 0 0 0 0]);
             ledSet(0);
             pause(.25);
+            
+            c.sd.outputSingleScan(1);
             
 %             stop(c.pleLh);
 %             delete(c.pleLh);
@@ -626,6 +642,7 @@ function varargout = diamondControl(varargin)
             % PLE digital
             c.sd = daq.createSession(   'ni');
             c.sd.addDigitalChannel(     c.devPleDigitOut, c.chnPleDigitOut,  'OutputOnly');  % Modulator (for repumping)
+            c.sd.outputSingleScan(1);
     
 
             % LED digital
@@ -673,12 +690,18 @@ function varargout = diamondControl(varargin)
     function initAll()
         % Self-explainatory
 %         try
-            initPle();
+            % initPle();
             daqInit_Callback(0,0);
-            videoInit();
-            microInit_Callback(0,0);
             
             getState();
+            set(c.upperFigure, 'Visible', 'On');
+            set(c.lowerFigure, 'Visible', 'On');
+            set(c.imageFigure, 'Visible', 'On');
+            set(c.pleFigure, 'Visible', 'On');
+            set(c.parent, 'Visible', 'On');
+            
+            videoInit();
+            microInit_Callback(0,0);
 
 %             focus_Callback(0,0);
             
@@ -1512,12 +1535,12 @@ function varargout = diamondControl(varargin)
                 xlim(c.lowerAxes, [up(1)       up(end)]);
                 ylim(c.lowerAxes, [up2(1)      up2(end)]);
                 
-                surf(c.lowerAxes2, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
-                view(c.lowerAxes2, 2);
-                colormap(c.lowerAxes2, strings{curval});
-                set(c.lowerAxes2, 'Xdir', 'reverse', 'Ydir', 'reverse');
-                xlim(c.lowerAxes2, [up(1)       up(end)]);
-                ylim(c.lowerAxes2, [up2(1)      up2(end)]);
+%                 surf(c.lowerAxes2, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
+%                 view(c.lowerAxes2, 2);
+%                 colormap(c.lowerAxes2, strings{curval});
+%                 set(c.lowerAxes2, 'Xdir', 'reverse', 'Ydir', 'reverse');
+%                 xlim(c.lowerAxes2, [up(1)       up(end)]);
+%                 ylim(c.lowerAxes2, [up2(1)      up2(end)]);
 %                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
             end
 %             toc
@@ -2960,10 +2983,13 @@ function varargout = diamondControl(varargin)
             
         end
     end
+    function updateScanGraph_Callback(~,~)
+        updateScanGraph();
+    end
     function updateScanGraph()
-        c.pleRate = floor((2^11)*str2num(get(c.pleSpeed, 'String'))) * (str2num(get(c.pleScans, 'String'))/(2^6));
-        c.pleRateOld = (2^11) * (str2num(get(c.pleScans, 'String'))/(2^6));
-        c.perotLength = floor(str2num(get(c.pleScans, 'String'))/(upScans + c.DownScans));
+        c.pleRate =     floor(((2^11) / str2num(get(c.pleSpeed, 'String'))) * (str2num(get(c.pleScans, 'String'))/(2^6)) );
+        c.pleRateOld =  floor( (2^11) * (str2num(get(c.pleScans, 'String'))/(2^6)) );
+        c.perotLength = floor(str2num(get(c.pleScans, 'String'))/(c.upScans + c.downScans));
         
         c.interval = c.perotLength + floor((c.pleRateOld - c.upScans*c.perotLength)/c.upScans);
         c.leftover = (c.pleRateOld - c.upScans*c.interval);
@@ -3242,12 +3268,12 @@ function varargout = diamondControl(varargin)
     function pleCall(src,~)
         once = false;
 
-        if src == c.pleOnce
-            once = true;
-%             turnEverythingElseOff(0);
-        elseif get(c.pleCont, 'Value') == 1
-%             turnEverythingElseOff(pleCont);
-        end
+%         if src == c.pleOnce
+%             once = true;
+% %             turnEverythingElseOff(0);
+%         elseif get(c.pleCont, 'Value') == 1
+% %             turnEverythingElseOff(pleCont);
+%         end
 
         if (get(c.pleCont, 'Value') == 1 || once)
             ledSet(1);
@@ -3351,7 +3377,7 @@ function varargout = diamondControl(varargin)
 %             queueOutputData(c.sPle, c.pleIn);
 %             queueOutputData(c.sPle, c.pleIn);
             
-            c.sd.outputSingleScan(1);
+            c.sd.outputSingleScan(0);
 
             c.sp.startBackground();
 
@@ -3407,7 +3433,7 @@ function varargout = diamondControl(varargin)
             end
 
             if c.intervalCounter == c.upScans
-                c.sd.outputSingleScan(0);
+                c.sd.outputSingleScan(1);
 
                 display('Scanning Down');
             end
@@ -3415,7 +3441,7 @@ function varargout = diamondControl(varargin)
                 queueOutputData(c.sp, c.output);
             end
             if c.intervalCounter == c.upScans + c.downScans
-                c.sd.outputSingleScan(1);
+                c.sd.outputSingleScan(0);
 
                 updateGraph();
 

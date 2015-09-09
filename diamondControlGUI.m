@@ -41,7 +41,7 @@ if ~isempty(varargin)
     end
 else
     screensize = get( groot, 'Screensize' );
-    c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none', 'Resize', 'off', 'Position', [screensize(1)-pw, screensize(2), pw, puh+plh]);
+    c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none', 'Resize', 'off', 'Position', [screensize(1)-pw, 0, pw, puh+plh]);
 end
 
 set(c.parent, 'defaulttextinterpreter', 'latex');
@@ -309,7 +309,7 @@ end
 
 % PANELS ==================================================================
 display('  Making Panels');
-c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh+puh pw puh]);
+c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh pw puh]);
 c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
     c.microText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Micrometers:', 'Position',[bp      puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
     c.microXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp       puh-bp-4*bh bw/2 bh],	'HorizontalAlignment', 'right');
@@ -368,7 +368,7 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
     c.piezoCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Piezo','Position', [bp puh-bp-8*bh 2*bw bh]);
     c.calibStat = uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
     
-c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh pw plh]);
+c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 0 pw plh]);
 c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoMLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Micrometers: ',   'Position', [bp plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
     c.gotoMXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp      plh-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -392,11 +392,11 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoPTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position',    [2*bp+bw    plh-bp-7*bh bw bh]);
     c.gotoPButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position',         [2*bp+bw    plh-bp-8*bh bw bh]);
     c.gotoPMaximize = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Maximize','Position',    [2*bp+bw    plh-bp-9*bh bw bh]);
-    c.gotoPReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset XY','Position',      [2*bp+bw    plh-bp-10*bh bw bh]);
-    c.gotoPFocus =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Focus','Position',         [2*bp+bw    plh-bp-11*bh bw bh]);
-    c.gotoPOptXY =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize XY','Position',   [2*bp+bw    plh-bp-12*bh bw bh]);
-    c.gotoPOptZ =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize Z','Position',    [2*bp+bw    plh-bp-13*bh bw bh]);
-    c.gotoPOptAll = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize All','Position',    [2*bp+bw    plh-bp-14*bh bw bh]);
+    c.gotoPReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset XY','Position',      [2*bp+bw    plh-bp-9*bh bw bh]);
+    c.gotoPFocus =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Focus','Position',         [2*bp+bw    plh-bp-10*bh bw bh]);
+    c.gotoPOptXY =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize XY','Position',   [2*bp+bw    plh-bp-11*bh bw bh]);
+    c.gotoPOptZ =   uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize Z','Position',    [2*bp+bw    plh-bp-12*bh bw bh]);
+    c.gotoPOptAll = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize All','Position',    [2*bp+bw    plh-bp-13*bh bw bh]);
   
     c.gotoP = [c.gotoPX c.gotoPY c.gotoPZ c.gotoPFocus c.gotoPReset c.gotoPMaximize c.gotoPTarget c.gotoPButton];
     
@@ -673,8 +673,8 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
             c.pleSave =       uicontrol('Parent', c.pleScanTab, 'Style', 'pushbutton',     'String', 'Save',         'Position', [bp plhi-bp-5*bh 2*bw bh]);
             c.pleSpeedT =     uicontrol('Parent', c.pleScanTab, 'Style', 'text', 'String', 'Length (sec): ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
             c.pleSpeed =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
-            c.pleScansT =     uicontrol('Parent', c.pleScanTab, 'Style', 'text', 'String', 'Scans (num): ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
-            c.pleScans =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', c.perotLength*(c.upScans + c.downScans),     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
+            c.pleScansT =     uicontrol('Parent', c.pleScanTab, 'Style', 'text', 'String', 'Scans (num): ', 'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
+            c.pleScans =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', c.perotLength*(c.upScans + c.downScans),     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 
@@ -712,11 +712,6 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.roi_Axes=        axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-34*bh bp+2*bw 2*bw]);
 
     
-    set(c.upperFigure, 'Visible', 'On');
-    set(c.lowerFigure, 'Visible', 'On');
-    set(c.imageFigure, 'Visible', 'On');
-    set(c.pleFigure, 'Visible', 'On');
-    set(c.parent, 'Visible', 'On');
 display('  Finished...');
 end
 
