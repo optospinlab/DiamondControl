@@ -180,7 +180,7 @@ c.intervalCounter = 0;
 
 c.q = 1;
 c.qmax = 200;
-c.qmaxPle = 50;
+c.qmaxPle = 200;
 
 c.freqs = [];
 c.times = [];
@@ -263,8 +263,9 @@ c.lowerAxes =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 
 c.imageAxes =   axes('Parent', c.imageFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 % c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
 
-c.pleAxesOne =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 0 1 .15]);
-c.pleAxesAll =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .15 1 .85]);
+c.pleAxesSum =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 0 1 .2]);
+c.pleAxesOne =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .2 1 .2]);
+c.pleAxesAll =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .4 1 .6]);
 
 function closeRequestHide(src, data)
     set(src, 'Visible', 'Off');
@@ -675,6 +676,16 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
             c.pleSpeed =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
             c.pleScansT =     uicontrol('Parent', c.pleScanTab, 'Style', 'text', 'String', 'Scans (num): ', 'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
             c.pleScans =      uicontrol('Parent', c.pleScanTab, 'Style', 'edit', 'String', c.perotLength*(c.upScans + c.downScans),     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
+            
+        c.pleSimpleTab =      uitab('Parent', c.plePanel, 'Title', 'PLE Scan Simple');
+            c.pleContSimple =       uicontrol('Parent', c.pleSimpleTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp       plhi-bp-3*bh   2*bw bh], 'Callback', @pleCall); 
+            c.pleSaveSimple =       uicontrol('Parent', c.pleSimpleTab, 'Style', 'pushbutton',     'String', 'Save',            'Position', [bp plhi-bp-4*bh 2*bw bh]);
+            c.pleSpeedSimpleT =     uicontrol('Parent', c.pleSimpleTab, 'Style', 'text', 'String', 'Length (sec): ',            'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+            c.pleSpeedSimple =      uicontrol('Parent', c.pleSimpleTab, 'Style', 'edit', 'String', 1,                           'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
+            c.pleBinsSimpleT =      uicontrol('Parent', c.pleSimpleTab, 'Style', 'text', 'String', 'Bins per Length (num): ',   'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
+            c.pleBinsSimple =       uicontrol('Parent', c.pleSimpleTab, 'Style', 'edit', 'String', 1000,                        'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
+            c.pleScansSimpleT =     uicontrol('Parent', c.pleSimpleTab, 'Style', 'text', 'String', 'Scans per Bin (num): ',     'Position', [bp        plhi-bp-8*bh bw bh],         'HorizontalAlignment', 'right');
+            c.pleScansSimple =      uicontrol('Parent', c.pleSimpleTab, 'Style', 'edit', 'String', 8,                           'Position', [bp+bw   plhi-bp-8*bh bw/2 bh]);
             
         c.perotScanTab =    uitab('Parent', c.plePanel, 'Title', 'Perot Scan');
             c.perotCont =     uicontrol('Parent', c.perotScanTab, 'Style', 'togglebutton', 'String', 'Scan Continuous', 'Position', [bp plhi-bp-3*bh bw bh], 'Callback', @perotCall); 

@@ -8,6 +8,7 @@
 %  - control of the peizo stage for precise Z and XY positioning,
 %  - poorly-implemented optimization routines, and
 %  - (soon [edit: now]) basic automation protocols for performing simple testing.
+
 function varargout = diamondControl(varargin)
 %     if isempty(varargin)    % If no variables have been given, make the figure
 %         f = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none','Position',get(0,'Screensize'));
@@ -150,6 +151,7 @@ function varargout = diamondControl(varargin)
     % set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
     % set(c.pleOnce, 'Callback',  @pleCall);
     set(c.pleCont, 'Callback',  @pleCall);
+    set(c.pleContSimple, 'Callback',  @pleSimpleCall);
     set(c.perotCont, 'Callback',  @perotCall);
     set(c.pleSave, 'Callback',  @pleSave_Callback);
     set(c.pleSpeed, 'Callback',  @updateScanGraph_Callback);
@@ -408,11 +410,11 @@ function varargout = diamondControl(varargin)
         lowerP = get(c.lowerFigure, 'Position');
         imageP = get(c.imageFigure, 'Position');
         pleP = get(c.pleFigure, 'Position');
-        save('state.mat', 'piezoZ', 'parentP', 'upperP', 'lowerP', 'imageP', 'pleP');
+        save('C:\Users\Tomasz\Desktop\DiamondControl\state.mat', 'piezoZ', 'parentP', 'upperP', 'lowerP', 'imageP', 'pleP');
     end
     function getState()
         try
-            data = load('state.mat');
+            data = load('C:\Users\Tomasz\Desktop\DiamondControl\state.mat');
             piezoZ = data.piezoZ;
             set(c.parent, 'Position', data.parentP);
             set(c.upperFigure, 'Position', data.upperP);
@@ -420,7 +422,7 @@ function varargout = diamondControl(varargin)
             set(c.imageFigure, 'Position', data.imageP);
             set(c.pleFigure, 'Position', data.pleP);
         catch err
-            dipslay(err.message);
+            display(err.message);
             piezoZ = 0;
         end
             % set(c.parent, 'Position', [100 100 pw puh+plh]);
@@ -1095,7 +1097,7 @@ function varargout = diamondControl(varargin)
     end
     function optZ_Callback(~, ~)
 %         piezoOptimizeAxis(3);
-        optimizeAxis(3, 1, 500, 500);
+        optimizeAxis(3, 2, 500, 500);
     end
     function optXY_Callback(~, ~)
 %         piezoOptimizeAxis(1);
@@ -1735,6 +1737,8 @@ function varargout = diamondControl(varargin)
                 colorbar('vert');
                 view([-68 12]);
         end
+        
+        save('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\piezoScan.mat', 'final');
         
         ledSet(0);
         piezoOutSmooth(prev);
@@ -3023,10 +3027,11 @@ function varargout = diamondControl(varargin)
     function updateGraph()
 %         [x] = find(c.finalColorY, 1, 'last');
         
-        c.finalGraphX = linspace(0, 10, c.interval*(c.upScans+c.downScans));
+%         c.finalGraphX = linspace(0, 10*(9/8), );
     %     finalColorC((x+1):(x+sizeA(finalGraphX))) = finalGraphY;
         c.finalColorY(:,c.q) = c.finalGraphY;
         c.finalColorP(:,c.q) = c.finalGraphP;
+        c.finalGraphS = c.finalGraphS + c.finalGraphY;
 
         if (c.q == c.qmaxPle)
             c.finalColorY = circshift(c.finalColorY, [0,-1]);
@@ -3037,6 +3042,7 @@ function varargout = diamondControl(varargin)
             plot(c.pleAxesOne, c.finalGraphX, c.finalGraphP);
         else
             plot(c.pleAxesOne, c.finalGraphX, c.finalGraphY);
+            plot(c.pleAxesSum, c.finalGraphX, c.finalGraphS);
         end
 
 %         xmin = min(min(c.finalColorX));
@@ -3045,8 +3051,9 @@ function varargout = diamondControl(varargin)
 %         set(c.pleAxesOne, 'Xlim', [xmin xmax]);
 %         xlabel(c.pleAxesOne, 'Frequency (GHz)');
 
-        set(c.pleAxesOne, 'Xlim', [0 10]);
-        xlabel(c.pleAxesOne, 'Grating Angle Potential (V)');
+        set(c.pleAxesOne, 'Xlim', [0 12.5]);
+        set(c.pleAxesSum, 'Xlim', [0 12.5]);
+%         xlabel(c.pleAxesOne, 'Grating Angle Potential (V)');
         
         if get(c.pleDebug, 'Value') == 1
             surf(c.pleAxesAll, c.finalGraphX, c.qmaxPle:-1:1, transpose(c.finalColorP),'EdgeColor','None');
@@ -3056,8 +3063,8 @@ function varargout = diamondControl(varargin)
 
 %         mesh(c.pleAxesAll,[c.finalColorX(c.finalColorY~=0); c.finalColorX(c.finalColorY~=0)], [c.finalColorY(c.finalColorY~=0); c.finalColorY(c.finalColorY~=0)], [c.finalColorC(c.finalColorY~=0); c.finalColorC(c.finalColorY~=0)],'mesh','column','marker','.','markersize',1)
         % surf(axesAll, linspace(xmin, xmax, sizeA(finalColorY)), 100:-1:1, transpose(finalColorY),'EdgeColor','None');
-        set(c.pleAxesAll, 'Xlim', [0 10]);
-        set(c.pleAxesAll, 'Ylim', [c.qmaxPle-c.q 2*c.qmaxPle-c.q]);
+        set(c.pleAxesAll, 'Xlim', [0 12.5]);
+        set(c.pleAxesAll, 'Ylim', [c.qmaxPle-c.q  2*c.qmaxPle-c.q]);
         set(c.pleAxesAll, 'Xtick', []);
         set(c.pleAxesAll, 'Xticklabel', []);
         view(c.pleAxesAll,2); 
@@ -3180,7 +3187,7 @@ function varargout = diamondControl(varargin)
             if c.up && ramp == 1
                 c.grateCurr = c.grateCurr + c.dGrateCurr*speed;
             elseif ramp == 1 && ~c.up
-                c.grateCurr = c.grateCurr - c.dGrateCurr*speed;
+                c.grateCurr = c.grateCurr - c.dGrateCurr*speed*8;
             elseif ramp == 0 && c.grateCurr ~= 0
                 c.grateCurr = c.grateCurr - c.dGrateCurr*speed;
                 if c.grateCurr < 0
@@ -3263,6 +3270,249 @@ function varargout = diamondControl(varargin)
             %         set(c.perotFsrOut, 'String', 'FSR:  ---');
     %             setStatus('Ready');
             end
+        end
+    end
+    function pleSimpleCall(src,~)
+        if get(c.pleContSimple, 'Value') == 1
+            c.pleScanning = 1;
+            
+            ledSet(1);
+            c.q = 1;
+            c.sd.outputSingleScan(0);
+            % Setup
+            length = str2double(get(c.pleSpeedSimple, 'String'))
+            bins =  floor(str2double(get(c.pleBinsSimple, 'String')))
+            c.scans = floor(str2double(get(c.pleScansSimple, 'String')))
+            
+            uplens = bins;
+            downlens = floor(bins/4);  % Down scan is 1/4th of the length of the upscan.
+            
+            c.uplen = uplens*c.scans; % + 1;
+            c.downlen = downlens*c.scans + 1;  % Down scan is 1/8th of the length of the upscan.
+            
+            fulllens = uplens + downlens;
+            
+            rate = c.uplen/length;
+            c.sp.Rate = rate;
+        
+%             c.finalGraphX = zeros(1, fulllens);
+            c.finalGraphX = linspace(0, (1 + downlens/uplens)*10, fulllens).';
+            c.finalGraphY = zeros(1, fulllens);
+            c.finalGraphS = zeros(1, fulllens).';
+            c.finalGraphP = zeros(1, fulllens);
+
+            c.finalColorX = zeros(fulllens, c.qmaxPle);
+            c.finalColorY = zeros(fulllens, c.qmaxPle);
+            c.finalColorP = zeros(fulllens, c.qmaxPle);
+            
+            up =    linspace(0, 10, c.uplen);
+            down =  linspace(10, 0, c.downlen);
+            
+            c.sp.IsContinuous = true;
+
+            c.sp.IsNotifyWhenDataAvailableExceedsAuto = false;
+            c.sp.NotifyWhenDataAvailableExceeds = c.uplen + c.downlen;
+            
+            c.sp.IsNotifyWhenScansQueuedBelowAuto = false;
+            c.sp.NotifyWhenScansQueuedBelow = c.downlen;
+
+            c.pleLh = c.sp.addlistener('DataAvailable', @intervalCallSimpleA);
+            c.pleLh2 = c.sp.addlistener('DataRequired', @intervalCallSimpleR);
+            c.dataNeeded = true;
+
+            c.out = daqOutQueueCleverPLE({NaN, [up down].'});
+            c.sp.startBackground();
+%             c.upOut = daqOutQueueCleverPLE({NaN, up.'});
+%             [cts, times] = c.sp.startForeground();
+% %             size(cts)
+% %             size(cts(:,1))
+%             out1 = [diff(cts(:,1))./diff(times)].';
+%             
+% %             finX = times(2:end);
+% %             if scans > 1
+% %                 finY = out(:,1:scans:end)
+% %                 for x = 2:scans
+% %                     finY = finY + out(:,x:scans:end);
+% %                 end
+% %             else
+% %                 finY = out;
+% %             end
+%             
+%             c.sd.outputSingleScan(1);
+            
+%             c.downOut = daqOutQueueCleverPLE({NaN, down.'});
+%             [cts, times] = c.sp.startForeground();
+            
+%             queueOutputData(c.sp, c.upOut);
+%             c.sp.startBackground();
+%             out2 = [diff(cts(:,1))./diff(times)].';
+%             
+% %             finX2 = times(2:end);
+%             out = [out1 out2];
+%             if scans > 1
+%                 finY = out(:,1:scans:end);
+%                 for x = 2:scans
+%                     finY = finY + out(:,x:scans:end);
+%                 end
+%             else
+%                 finY = out;
+%             end
+%         
+% %             display('finGraph');
+%             %c.finalGraphX = [linspace(0, 10, uplens) linspace(10, 0, downlens)].';
+% %             size(c.finalGraphX)
+%             c.finalGraphY = finY.';
+% %             size(c.finalGraphY)
+%             
+% %             display('fin');
+% %             size(finY)
+% %             size(finY2)
+%             
+%             c.sd.outputSingleScan(0);
+%             
+%             updateGraph();
+%             
+            % While
+%             while get(c.pleContSimple, 'Value') == 1
+%                 display('here');
+%                 queueOutputData(c.sp, upOut);
+%                 tic
+%                 [cts, times] = c.sp.startForeground();
+%                 toc
+%                 out1 = [diff(cts(:,1))./diff(times)].';
+% 
+% %                 finX = times(2:end);
+% %                 if scans > 1
+% %                     finY = out(:,1:scans:end);
+% %                     for x = 2:scans
+% %                         finY = finY + out(:,x:scans:end);
+% %                     end
+% %                 else
+% %                     finY = out;
+% %                 end
+% 
+%                 c.sd.outputSingleScan(1);
+%                 
+%                 queueOutputData(c.sp, downOut);
+%                 tic
+%                 [cts, times] = c.sp.startForeground();
+%                 toc
+%                 out2 = [diff(cts(:,1))./diff(times)].';
+% 
+%                 c.sd.outputSingleScan(0);
+%                 
+%                 tic
+%                 
+%                 out = [out1 out2];
+%                 if scans > 1
+%                     finY = out(:,1:scans:end);
+%                     for x = 2:scans
+%                         finY = finY + out(:,x:scans:end);
+%                     end
+%                 else
+%                     finY = out;
+%                 end
+%                 
+% %                 c.finalGraphX = [finX finX2];
+%                 c.finalGraphY = finY.';
+%                 toc
+%                 
+%                 tic
+%                 updateGraph();
+%                 toc
+%             end
+%             
+%             c.sd.outputSingleScan(1);
+        end
+    end
+    function intervalCallSimpleR(src, event)
+        if c.dataNeeded
+            c.sd.outputSingleScan(1);
+%             display('on')
+            queueOutputData(c.sp, c.out);
+            c.dataNeeded = false;
+        end
+    end
+    function intervalCallSimpleA(src, event)
+        if get(c.pleContSimple, 'Value') == 1
+            c.dataNeeded = true;
+%             display('off')
+            c.sd.outputSingleScan(0);
+            out = [diff(event.Data(:,1))./diff(event.TimeStamps)].';
+
+            if c.scans > 1
+                finY = out(:,1:c.scans:end);
+                for x = 2:c.scans
+                    finY = finY + out(:,x:c.scans:end);
+                end
+            else
+                finY = out;
+            end
+            
+            c.finalGraphY = finY.';
+
+            updateGraph();
+        else
+            c.sd.outputSingleScan(1);
+            ledSet(0);
+
+            c.pleScanning = 0;
+
+            delete(c.pleLh);
+            delete(c.pleLh2);
+            
+            stop(c.sp);  % Not sure if this will flush all of the data; may cause troubles.
+
+            c.sp.IsNotifyWhenDataAvailableExceedsAuto = true;
+            c.sp.NotifyWhenDataAvailableExceeds = 50;
+            
+            c.sp.IsNotifyWhenScansQueuedBelowAuto = true;
+            c.sp.NotifyWhenScansQueuedBelow = 50;
+            
+            c.sp.IsContinuous = false;
+            
+            c.sp.startForeground();
+        end
+    end
+    function intervalCallSimple(src, event)
+        if get(c.pleContSimple, 'Value') == 1
+            switch sum(size(event.Data(:,1)))-1
+                case c.uplen
+                    c.sp.NotifyWhenDataAvailableExceeds = c.downlen;
+                    c.sd.outputSingleScan(1);
+                    queueOutputData(c.sp, c.upOut);
+                    c.prev = [diff(event.Data(:,1))./diff(event.TimeStamps)].';
+                case c.downlen
+                    c.sp.NotifyWhenDataAvailableExceeds = c.uplen;
+                    c.sd.outputSingleScan(0);
+                    queueOutputData(c.sp, c.downOut);
+                    out = [c.prev [diff(event.Data(:,1))./diff(event.TimeStamps)].'];
+                    
+                    if c.scans > 1
+                        finY = out(:,1:c.scans:end);
+                        for x = 2:scans
+                            finY = finY + out(:,x:c.scans:end);
+                        end
+                    else
+                        finY = out;
+                    end
+
+    %                 c.finalGraphX = [finX finX2];
+                    c.finalGraphY = finY.';
+                
+                    updateGraph();
+                otherwise
+                    display('Something is wrong');
+            end
+        else
+            c.sd.outputSingleScan(1);
+            ledSet(0);
+
+            c.pleScanning = 0;
+            stop(c.sp);  % Not sure if this will flush all of the data; may cause troubles.
+            c.sp.IsContinuous = false;
+
+            delete(c.pleLh);
         end
     end
     function pleCall(src,~)
@@ -3348,8 +3598,8 @@ function varargout = diamondControl(varargin)
             % "Setting up data"
             % finalGraph = 
 
-            c.sp.IsContinuous = true;
             c.sp.Rate = c.pleRate;
+            c.sp.IsContinuous = true;
 
             c.sp.IsNotifyWhenDataAvailableExceedsAuto = false;
             c.sp.NotifyWhenDataAvailableExceeds = c.interval;
@@ -3534,13 +3784,13 @@ function varargout = diamondControl(varargin)
         end
     end
     function pleSave_Callback(~,~)
-        freqBase = c.freqBase;
-        perotBase = c.perotBase;
-        xData = c.finalColorX;
+%         freqBase = c.freqBase;
+%         perotBase = c.perotBase;
+%         xData = c.finalColorX;
         yData = c.finalColorY;
-        pData = c.finalColorP;
+%         pData = c.finalColorP;
         
-        save('pleData.mat', 'freqBase', 'perotBase', 'xData', 'yData', 'pData');
+        save('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\pleData.mat', 'yData'); %'freqBase', 'perotBase', 'xData', 'yData', 'pData');
     end
 
     % TRACKING ============================================================
