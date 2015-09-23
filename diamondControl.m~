@@ -554,24 +554,22 @@ function varargout = diamondControl(varargin)
         switch c.saveMode
             case {'piezo', 'galvo'}
                 type = c.saveMode;
-                xrange = c.saveX;
-                yrange = c.saveY;
-                data = c.saveD;
+                range = 0;
+                data = 0;
                 
-                save(   [c.directory timestamp '_' c.saveMode '.mat'], 'xrange', 'yrange', 'data');
+                save(   [c.directory timestamp '_' c.saveMode '.mat'], 'range', 'data');
                 imwrite([c.directory timestamp '_' c.saveMode '.png'], data);
-            case {'spectrum', 'optscan'}
+            case {'spectrum', ''}
                 type = c.saveMode;
-                xdata = c.saveX;
-                ydata = c.saveY;
+                range = 0;
+                data = 0;
                 
-                save([c.directory timestamp '_' c.saveMode '.mat'], 'xdata', 'ydata');
-                savePlotPng(xdata, ydata, [c.directory timestamp '_' c.saveMode '.png']);
+                save(       [c.directory timestamp '_' c.saveMode '.mat'], 'range', 'data');
+                savePlotPng([c.directory timestamp '_' c.saveMode '.png'], data);
+                save
             otherwise
                 display('Nothing to save...');
         end
-        
-        
     end
 
     % OUTPUTS =============================================================
@@ -1563,11 +1561,6 @@ function varargout = diamondControl(varargin)
                 set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
                 xlim(c.lowerAxes, [up(1)       up(end)]);
                 ylim(c.lowerAxes, [up2(1)      up2(end)]);
-                
-                c.saveD = final;
-                c.saveX = up;
-                c.saveY = up2;
-                c.saveMode = 'piezo';
             end
 
             i = i + 1;
@@ -1762,11 +1755,6 @@ function varargout = diamondControl(varargin)
                     xlim(c.lowerAxes, [up(end)/mvConv       up(1)/mvConv]);
                     ylim(c.lowerAxes, [up2(end)/mvConv      up2(1)/mvConv]);
     %                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
-    
-                    c.saveD = final;
-                    c.saveX = up;
-                    c.saveY = up2;
-                    c.saveMode = 'galvo';
                 end
 
                 i = i + 1;
@@ -1962,10 +1950,6 @@ function varargout = diamondControl(varargin)
             set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
             xlim(c.lowerAxes, [1 512]);
             ylim(c.lowerAxes, [min(image) max(image)]);
-            
-            c.saveX = 1:512;
-            c.saveY = image;
-            c.saveMode = 'spectrum';
         end
         
 %         if image ~= -1

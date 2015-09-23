@@ -56,6 +56,11 @@ c.pc = [];
 c.plottingFigure =  figure('Visible', 'off', 'tag', 'Diamond Control Plotting');
 c.plottingAxes =    axes('Parent', c.plottingFigure);
 
+c.saveMode = '';
+c.saveD = 0;
+c.saveX = 0;
+c.saveY = 0;
+
 % IO ======================================================================
 c.vid = 0;              % Empty variable for video input
 
