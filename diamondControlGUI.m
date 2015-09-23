@@ -41,7 +41,7 @@ if ~isempty(varargin)
     end
 else
     screensize = get( groot, 'Screensize' );
-    c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none', 'Resize', 'off', 'Position', [screensize(1)-pw, 0, pw, puh+plh]);
+    c.parent = figure('Visible', 'off', 'tag', 'Diamond Control', 'Name', 'Diamond Control', 'Toolbar', 'figure', 'Menubar', 'none', 'Resize', 'off', 'Position', [screensize(1)-pw, 0, pw, puh+plh+2*bp+bh]);
 end
 
 set(c.parent, 'defaulttextinterpreter', 'latex');
@@ -260,6 +260,8 @@ minfig(c.pleFigure, 1); % ple figure starts minimized
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
 c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 c.lowerAxes =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [.05 .05 .9 .9]); %, 'PickableParts', 'all');
+c.saveData =    uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'Save','Position', [bp bp 2*bw+1 bh]);
+
 c.imageAxes =   axes('Parent', c.imageFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 % c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
 
@@ -310,7 +312,9 @@ end
 
 % PANELS ==================================================================
 display('  Making Panels');
-c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh pw puh]);
+c.globalStopButton= uicontrol('Parent', c.parent, 'Style', 'pushbutton', 'String', 'Global Stop','Position', [2*bp bp 2*bw+1 bh]);
+c.globalStop = false;
+c.ioPanel =         uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 plh+bh+bp pw puh]);
 c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
     c.microText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Micrometers:', 'Position',[bp      puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
     c.microXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp       puh-bp-4*bh bw/2 bh],	'HorizontalAlignment', 'right');
@@ -369,7 +373,7 @@ c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
     c.piezoCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Piezo','Position', [bp puh-bp-8*bh 2*bw bh]);
     c.calibStat = uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
     
-c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 0 pw plh]);
+c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position', [0 2*bp+bh pw plh]);
 c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoMLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Micrometers: ',   'Position', [bp plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
     c.gotoMXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp      plh-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');

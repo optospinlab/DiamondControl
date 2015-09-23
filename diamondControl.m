@@ -145,7 +145,9 @@ function varargout = diamondControl(varargin)
     set(c.counterButton, 'Callback',  @counter_Callback);           
                                        % to autoproceed using a checkbox.
     % Spectra Fields (unfinished) -----------------------------------------
-    set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);          
+    set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);      
+    
+    set(c.globalStopButton, 'Callback', @globalStop_Callback);
     
     % PLE Fields
     % set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
@@ -416,11 +418,13 @@ function varargout = diamondControl(varargin)
         try
             data = load('C:\Users\Tomasz\Desktop\DiamondControl\state.mat');
             piezoZ = data.piezoZ;
-            set(c.parent, 'Position', data.parentP);
-            set(c.upperFigure, 'Position', data.upperP);
-            set(c.lowerFigure, 'Position', data.lowerP);
-            set(c.imageFigure, 'Position', data.imageP);
-            set(c.pleFigure, 'Position', data.pleP);
+            prev = get(c.parent, 'Position')
+            
+            set(c.parent,       'Position', [data.parentP(1) data.parentP(2) prev(3) prev(4)]);
+            set(c.upperFigure,  'Position', data.upperP);
+            set(c.lowerFigure,  'Position', data.lowerP);
+            set(c.imageFigure,  'Position', data.imageP);
+            set(c.pleFigure,    'Position', data.pleP);
         catch err
             display(err.message);
             piezoZ = 0;
@@ -538,6 +542,9 @@ function varargout = diamondControl(varargin)
         delete(c.imageFigure);
         delete(c.pleFigure);
         delete(c.parent);
+    end
+    function globalStop_Callback()
+        c.globalStop = true;
     end
 
     % OUTPUTS =============================================================
@@ -1037,7 +1044,7 @@ function varargout = diamondControl(varargin)
         
         n = 1;
         
-        while c.focusing
+        while c.focusing && ~c.globalStop
             start(c.vid);
             data = getdata(c.vid);
             img = data(121:360, 161:480);
@@ -1074,6 +1081,8 @@ function varargout = diamondControl(varargin)
             
             getPiezo();
         end
+        
+        c.globalStop = false;
         
         display('    end focusing');
     end
@@ -1506,16 +1515,9 @@ function varargout = diamondControl(varargin)
         for y = up2
             yCopy = y;
 
-%             queueOutputData(c.s, [up'     y*ones(length(up2),1) otherRows]);
-
             daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
             [out, times] = c.s.startForeground();
             out = out(:,1);
-            
-%             queueOutputData(c.s, [down'   linspace(y, y + up2(2) - up2(1), length(down))' otherRowsFast]);
-
-%             down'
-%             linspace(y, y + up2(2) - up2(1), length(down))'
             
             if y ~= up2(end)
                 daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
@@ -1524,11 +1526,9 @@ function varargout = diamondControl(varargin)
             
             final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
             
-%             tic
             if i > 1
                 strings = get(c.piezoC, 'string');
                 curval = get(c.piezoC, 'value');
-%                 set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
                 
                 surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
                 view(c.lowerAxes, 2);
@@ -1536,137 +1536,17 @@ function varargout = diamondControl(varargin)
                 set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
                 xlim(c.lowerAxes, [up(1)       up(end)]);
                 ylim(c.lowerAxes, [up2(1)      up2(end)]);
-                
-%                 surf(c.lowerAxes2, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
-%                 view(c.lowerAxes2, 2);
-%                 colormap(c.lowerAxes2, strings{curval});
-%                 set(c.lowerAxes2, 'Xdir', 'reverse', 'Ydir', 'reverse');
-%                 xlim(c.lowerAxes2, [up(1)       up(end)]);
-%                 ylim(c.lowerAxes2, [up2(1)      up2(end)]);
-%                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
             end
-%             toc
 
             i = i + 1;
+            
+            if c.globalStop
+                c.globalStop = false;
+                break;
+            end
 
             c.s.wait();
         end
-        
-%         set(c.lowerAxes, 'Xdir', 'normal', 'Ydir', 'normal');
-        
-%         notOptimized = 1;
-        
-%         % Old method
-%         while false && notOptimized && c.running
-%             display(range);
-%             
-% %             rows = wextend('ar', 'ppd', [c.piezo(3) c.galvo], 10, 'd');
-%             rows = [c.piezo(3)*ones(pixels+1,1) c.galvo(1)*ones(pixels+1,1) c.galvo(2)*ones(pixels+1,1)];
-%             
-%             upx = linspace(c.piezo(1)-range, c.piezo(1)+range, pixels+1);
-%             upy = linspace(c.piezo(2)-range, c.piezo(2)+range, pixels+1);
-%             
-% %             piezoOutSmooth([upx(end)  upy(end) c.piezo(3)]);
-%             resetPiezoXY_Callback(0, 0);
-%             piezoOutSmooth([upx(1)  upy(1) c.piezo(3)]);
-%             
-% %             queueOutputData(c.s, [upx(1)  upy(1) c.piezo(3) c.galvo]);
-%             
-%             for y = upy(1:2:pixels+1)
-%                 
-%                 queueOutputData(c.s, [upx'           y*ones(pixels+1,1)            rows]);
-%                 if y ~= upy(end)
-%                     queueOutputData(c.s, [upx(pixels+1:-1:1)'  (y+range/pixels)*ones(pixels+1,1)	rows]);
-%                 end
-%             end
-%             
-%             [out, ~] = c.s.startForeground();
-%             
-%             c.piezo = [upx(end)  upy(end) c.piezo(3)];
-%             resetPiezoXY_Callback(0, 0);
-% 
-% %             size(reshape(out(1:end), pixels+1, []))
-%             
-%             data = reshape(out, [], pixels+1)';
-%             data = diff(data, 1, 2);
-%             data = data(1:2:end, :);
-%            
-% %             size(data);
-%             
-%             m = min(min(data)); M = max(max(data));
-%             
-%             if m ~= M
-% %                 figure()
-% %                 surf(data)
-% %                 pause(5);
-%                 data = (data - m)/(M - m);
-% %                 data > .7
-%                 [fx, fy] = myMean(data.*(data > .5), upx, upy(1:2:end));
-%                 
-%                 if fx > 10
-%                     fx = 10;
-%                 end
-%                 if fy > 10
-%                     fy = 10;
-%                 end
-%                 if fx < 0
-%                     fx = 0;
-%                 end
-%                 if fy < 0
-%                     fy = 0;
-%                 end
-%             
-% %                 piezoOutSmooth([upx(1)  upy(1) c.piezo(3)]);
-%                 
-% %                 piezoOutSmooth([x y c.piezo(3)]);
-% %                 piezoOutSmooth([5 5 c.piezo(3)]);
-%                 
-% %                 (data > .7)
-% %                 figure()
-% %                 surf(data)
-% %                 pause(5);
-% %                 figure()
-% %                 plot(data)
-% %                 pause(5);
-% %                 hold(c.lowerAxes, 'on');
-%                 scatter3(c.upperAxes, fx, fy, 0);
-%                 xlim(c.upperAxes, [upx(1) upx(end)]);
-%                 ylim(c.upperAxes, [upy(1) upy(end)]);
-%                 zlim(c.upperAxes, [0 1]);
-%                 dim = size(data);
-%                 upy2 = upy(1:2:end);
-%                 surf(c.lowerAxes, upx(1:dim(2)), upy2(1:dim(1)), data, 'EdgeColor', 'none');
-%                 view(c.lowerAxes,2);
-%                 set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-%                 xlim(c.lowerAxes, [upx(1) upx(end)]);
-%                 ylim(c.lowerAxes, [upy(1) upy(end)]);
-% %                 hold(c.lowerAxes, 'off');
-% %                 pause(10);
-%                 
-%                 
-%                 
-% %                 piezoOutSmooth([upx(end)  upy(end) c.piezo(3)]);
-% %                 resetPiezoXY_Callback(0, 0);
-%                 piezoOutSmooth([upx(1)  upy(1)  c.piezo(3)]);
-%                 piezoOutSmooth([upx(1)  fy      c.piezo(3)]);
-%                 piezoOutSmooth([fx      fy      c.piezo(3)]);
-% 
-%                 notOptimized = false;
-% 
-% %                 if sum(abs(c.piezo(1:2) - prev)) < c.piezoStep || 8*range < c.piezoStep
-% %                     notOptimized = false;
-% %                 end
-%                 
-%                 prev = c.piezo(1:2);
-%                 
-% %                 range = range/4;
-%             end
-%             
-% %             range = range*2;
-%         end
-% %         while notOptimized
-        
-%         resetPeizoXY_Callback(0, 0);
     end
     function piezoVar_Callback(hObject, ~)
         limit_Callback(hObject,0);
@@ -1853,11 +1733,17 @@ function varargout = diamondControl(varargin)
                 end
 
                 i = i + 1;
+            
+                if c.globalStop
+                    c.globalStop = false;
+                    break;
+                end
 
                 c.s.wait();
             end
             
-            c.galvo = [up(1) yCopy];
+            %c.galvo = [up(1) yCopy];
+%             c.galvo = [prev(end,4) prev(end,5)];
 
 %             queueOutputData(c.s, [piezoRowsFast	linspace(mvConv*range/2, 0, stepsFast)'     linspace(yCopy, 0, stepsFast)']);
 %             c.s.startForeground();    % Go back to start from finishing point
@@ -2139,13 +2025,13 @@ function varargout = diamondControl(varargin)
             error('n123 == n4!');
         end
 
-        if abs(dot(V2(1:2) - V1(1:2), V3(1:2) - V1(1:2))) == 1
-            error('Position vectors are not linearly independent!');
-        end
-
-        if abs(dot(n2 - n1, n3 - n1)) == 1
-            error('Grid vectors are not linearly independent!');
-        end
+%         if abs(dot(normc(V2(1:2) - V1(1:2)), normc(V3(1:2) - V1(1:2)))) == 1
+%             error('Position vectors are not linearly independent!');
+%         end
+% 
+%         if abs(dot(normc(n2 - n1), normc(n3 - n1))) == 1
+%             error('Grid vectors are not linearly independent!');
+%         end
 
         % +++++ Broken method with broken logic below:
 %         % Find the V0 = [x y] of n0 = [0 0]
@@ -2332,7 +2218,7 @@ function varargout = diamondControl(varargin)
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
                 for d = ndrange(1):ndrange(2)
-                    if c.autoScanning && c.running
+                    if c.autoScanning && c.running && ~c.globalStop
                         try
                             c.micro = p(1:2,i)' - [10 10];
                             setPos();
@@ -2363,12 +2249,12 @@ function varargout = diamondControl(varargin)
 
                             display(['Arrived at ' name{i}]);
 
-                            if ~onlyTest
+                            if ~onlyTest && ~c.globalStop
                                 old = [c.piezo c.galvo];
 
                                 display('  Focusing...');
 
-                                if get(c.autoTaskFocus, 'Value') == 1
+                                if get(c.autoTaskFocus, 'Value') == 1 && ~c.globalStop
                                     focus_Callback(0, 0);
                                 end
                                 
@@ -2380,7 +2266,7 @@ function varargout = diamondControl(varargin)
                                 
                                 old = [c.piezo c.galvo];
                                 
-                                if get(c.autoTaskBlue, 'Value') == 1
+                                if get(c.autoTaskBlue, 'Value') == 1 && ~c.globalStop
                                     try
                                         start(c.vid);
                                         data = getdata(c.vid);
@@ -2408,7 +2294,7 @@ function varargout = diamondControl(varargin)
                                 
                                 j = 2;
                                 
-                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String')))
+                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String'))) && ~c.globalStop
                                     old = [c.piezo c.galvo];
 
 %                                     display('    Z...');    piezoOptimizeZ();
@@ -2416,7 +2302,7 @@ function varargout = diamondControl(varargin)
                                     
                                     display('    XYZ...');   optAll_Callback(0,0);
 
-                                    if get(c.autoTaskGalvo, 'Value') == 1
+                                    if get(c.autoTaskGalvo, 'Value') == 1 && ~c.globalStop
                                         if j == round(str2double(get(c.autoTaskNumRepeat, 'String')));
                                             display('  Scanning...');
                                             scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
@@ -2453,14 +2339,14 @@ function varargout = diamondControl(varargin)
                                         fprintf(fhv, ['                               from ' num2str(old(3)) ' V.\r\n']);
                                 end
                                 
-                                if get(c.autoTaskSpectrum, 'Value') == 1
+                                if get(c.autoTaskSpectrum, 'Value') == 1 && ~c.globalStop
                                     display('  Taking Spectrum...');
 
                                     spectrum = -1;
                                     
                                     k = 0;
                                     
-                                    while sum(size(spectrum)) == 2 && k < 3
+                                    while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop
                                         try
     %                                         sendSpectrumTrigger();
     %                                         spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
@@ -2471,7 +2357,7 @@ function varargout = diamondControl(varargin)
                                         k = k + 1;
                                     end
                                 
-                                    if sum(size(spectrum)) ~= 2
+                                    if sum(size(spectrum)) ~= 2 && ~c.globalStop
                                         try
                                             savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
                                         catch err
@@ -2517,9 +2403,21 @@ function varargout = diamondControl(varargin)
                                 end
                                 
                                 imwrite(piezo0/max(max(piezo0)),   [prefix name{i} '_piezo_debug'  '.png']);
-
+                                
                                 imwrite(img, [prefix name{i} '_blue' '.png']);
+                                
+                                if get(c.autoTaskBlue, 'Value') == 1
+                                    try
+                                        start(c.vid);
+                                        data = getdata(c.vid);
+                                        img = data(360:-1:121, 161:480);    % Fixed flip...
+                                    catch err
+                                        display(err.message)
+                                    end
+                                end
 
+                                imwrite(img, [prefix name{i} '_blue_after' '.png']);
+                                
                                 if results
                                     display('  Remarking...');
 
