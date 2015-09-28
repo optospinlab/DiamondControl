@@ -139,7 +139,7 @@ function varargout = diamondControl(varargin)
     set(c.autoButton, 'Callback',  @automate_Callback);             % Starts the automation!
     set(c.autoProceed, 'Callback',  @proceed_Callback);             % Button to proceed to the next device. The use has the option to use this to proceed or 
                                                                     % to autoproceed using a checkbox.
-    set(c.autoStop, 'Callback',  @autoStop_Callback);
+    set(c.autoSkip, 'Callback',  @autoSkip_Callback);
     
     % Counter Fields -----------------------------------------
     set(c.counterButton, 'Callback',  @counter_Callback);           
@@ -148,6 +148,8 @@ function varargout = diamondControl(varargin)
     set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);      
     
     set(c.globalStopButton, 'Callback', @globalStop_Callback);
+    set(c.globalSaveButton, 'Callback', @globalSave_Callback);
+    set(c.powerButton, 'Callback', @power_Callback);
     
     % PLE Fields
     % set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
@@ -543,10 +545,21 @@ function varargout = diamondControl(varargin)
         delete(c.pleFigure);
         delete(c.parent);
     end
-    function globalStop_Callback()
+    function globalStop_Callback(~,~)
+%         set(c.globalStopButton, 'Enable', 'off');
+        display('Stopping');
+        
         c.globalStop = true;
+        c.autoScanning = false;
+%         pause(3);
+%         if c.globalStop
+%             display('Nothing was stopped...');
+%             c.globalStop = false;
+%         end
+        
+%         set(c.globalStopButton, 'Enable', 'on');
     end
-    function globalSave_Callback()
+    function globalSave_Callback(~,~)
         clk = clock;
         
         timestamp =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3)) ' ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
@@ -558,8 +571,15 @@ function varargout = diamondControl(varargin)
                 yrange = c.saveY;
                 data = c.saveD;
                 
+%                 m = min(data);
+                M = max(max(data));
+                
                 save(   [c.directory timestamp '_' c.saveMode '.mat'], 'xrange', 'yrange', 'data');
-                imwrite([c.directory timestamp '_' c.saveMode '.png'], data);
+                if M ~= 0
+                    imwrite(data./M, [c.directory timestamp '_' c.saveMode '.png']);
+                else
+                    imwrite(data, [c.directory timestamp '_' c.saveMode '.png']);
+                end
             case {'spectrum', 'optscan'}
                 type = c.saveMode;
                 xdata = c.saveX;
@@ -572,6 +592,14 @@ function varargout = diamondControl(varargin)
         end
         
         
+    end
+    function power_Callback(~,~)
+        set(c.powerButton, 'Enable', 'off');
+        
+        [power, ~] = getPower();
+        set(c.powerValue, 'String', power);
+        
+        set(c.powerButton, 'Enable', 'on');
     end
 
     % OUTPUTS =============================================================
@@ -728,6 +756,8 @@ function varargout = diamondControl(varargin)
 %         try
             % initPle();
             daqInit_Callback(0,0);
+            
+            initNormalization(true)
             
             getState();
             set(c.upperFigure, 'Visible', 'On');
@@ -1496,11 +1526,35 @@ function varargout = diamondControl(varargin)
 %         image(flipdim(data,1));
      end
 
+    % NORMALIZATION =======================================================
+    function initNormalization(useAnalog)
+        if useAnalog && c.normInit == 0
+            % Norm Analog
+            c.sn = daq.createSession(   'ni');
+            c.sn.addAnalogInputChannel( c.devNorm,   c.chnNorm,    'Voltage');
+            
+            c.normInit = 1;
+        end
+    end
+    function [power, dpower] = getPower()
+        if  c.normInit == 1
+            c.sn.Rate = 10000;
+            c.sn.DurationInSeconds = 1; % 10000 samples
+
+            data = startForeground(c.sn);
+
+            power =     mean(data);
+            dpower =    std(data);
+        end
+    end
+    
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
         % Method 1
 %         range = .8;
 %         pixels = 40;
+
+        c.globalStop = false;
 
         range = rangeUM/5;
         upspeed = upspeedUM/5;
@@ -1521,7 +1575,7 @@ function varargout = diamondControl(varargin)
         X = up;
         Y = up2;
 
-        final = ones(steps);
+        final = zeros(steps);
 %             prev = 0;
         i = 1;
 
@@ -1573,6 +1627,7 @@ function varargout = diamondControl(varargin)
             i = i + 1;
             
             if c.globalStop
+                display('Stopped');
                 c.globalStop = false;
                 break;
             end
@@ -1666,6 +1721,8 @@ function varargout = diamondControl(varargin)
         [final, ~, ~] = galvoScanFull(useUI, c.galvoRange, c.galvoSpeed, c.galvoPixels);
     end
     function [final, X, Y] = galvoScanFull(useUI, range, upspeed, pixels)
+        c.globalStop = false;
+        
         if useUI
             set(c.galvoButton, 'String', 'Stop!');
         end
@@ -1699,7 +1756,7 @@ function varargout = diamondControl(varargin)
             X = up;
             Y = up2;
 
-            final = ones(steps);
+            final = zeros(steps);
 %             prev = 0;
             i = 1;
             
@@ -1772,6 +1829,7 @@ function varargout = diamondControl(varargin)
                 i = i + 1;
             
                 if c.globalStop
+                    display('Stopped');
                     c.globalStop = false;
                     break;
                 end
@@ -2287,15 +2345,16 @@ function varargout = diamondControl(varargin)
                             pause(.5);
 
                             piezoOutSmooth([5 5 p(3,i)]);
+                            resetGalvo_Callback(0,0);
 
                             display(['Arrived at ' name{i}]);
 
-                            if ~onlyTest && ~c.globalStop
+                            if ~onlyTest && ~c.globalStop && c.autoScanning
                                 old = [c.piezo c.galvo];
 
                                 display('  Focusing...');
 
-                                if get(c.autoTaskFocus, 'Value') == 1 && ~c.globalStop
+                                if get(c.autoTaskFocus, 'Value') == 1 && ~c.globalStop && c.autoScanning
                                     focus_Callback(0, 0);
                                 end
                                 
@@ -2307,7 +2366,7 @@ function varargout = diamondControl(varargin)
                                 
                                 old = [c.piezo c.galvo];
                                 
-                                if get(c.autoTaskBlue, 'Value') == 1 && ~c.globalStop
+                                if get(c.autoTaskBlue, 'Value') == 1 && ~c.globalStop && c.autoScanning
                                     try
                                         start(c.vid);
                                         data = getdata(c.vid);
@@ -2335,7 +2394,7 @@ function varargout = diamondControl(varargin)
                                 
                                 j = 2;
                                 
-                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String'))) && ~c.globalStop
+                                while j <= round(str2double(get(c.autoTaskNumRepeat, 'String'))) && ~c.globalStop && c.autoScanning
                                     old = [c.piezo c.galvo];
 
 %                                     display('    Z...');    piezoOptimizeZ();
@@ -2380,14 +2439,14 @@ function varargout = diamondControl(varargin)
                                         fprintf(fhv, ['                               from ' num2str(old(3)) ' V.\r\n']);
                                 end
                                 
-                                if get(c.autoTaskSpectrum, 'Value') == 1 && ~c.globalStop
+                                if get(c.autoTaskSpectrum, 'Value') == 1 && ~c.globalStop && c.autoScanning
                                     display('  Taking Spectrum...');
 
                                     spectrum = -1;
                                     
                                     k = 0;
                                     
-                                    while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop
+                                    while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop && c.autoScanning
                                         try
     %                                         sendSpectrumTrigger();
     %                                         spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
@@ -2398,7 +2457,7 @@ function varargout = diamondControl(varargin)
                                         k = k + 1;
                                     end
                                 
-                                    if sum(size(spectrum)) ~= 2 && ~c.globalStop
+                                    if sum(size(spectrum)) ~= 2 && ~c.globalStop && c.autoScanning
                                         try
                                             savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
                                         catch err
@@ -2524,6 +2583,12 @@ function varargout = diamondControl(varargin)
                         end
                         
                         i = i+1;
+                        
+                        if c.autoSkipping
+                            c.autoScanning = true;
+                            c.globalStop = false;
+                            c.autoSkipping = false;
+                        end
                     end
                 end
             end
@@ -2542,14 +2607,17 @@ function varargout = diamondControl(varargin)
             setPos();
 
             c.autoScanning = false;
+            c.globalStop = false;
             ledSet(0);
         end
     end
     function proceed_Callback(~, ~)
         c.proceed = true;
     end
-    function autoStop_Callback(~, ~)
+    function autoSkip_Callback(~, ~)
         c.autoScanning = false;
+        c.autoSkipping = true;
+        c.globalStop = true;
     end
 
     % UI ==================================================================

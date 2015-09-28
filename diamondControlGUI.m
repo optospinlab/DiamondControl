@@ -101,6 +101,12 @@ c.microYAddr =  '1';
 c.s = 0; 
 c.daqInitiated = false;
 
+% Normalization DEVice and CHaNnel
+c.devNorm =     'Dev1';         
+c.chnNorm =     'ai6';
+c.sn =          0;      % Empty variable for session.
+c.normInit =    0;
+
 % SPCM DEVice and CHaNnel
 c.devSPCM =     'Dev1';         
 c.chnSPCM =     'ctr2';
@@ -265,7 +271,7 @@ minfig(c.pleFigure, 1); % ple figure starts minimized
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
 c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 c.lowerAxes =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [.05 .05 .9 .9]); %, 'PickableParts', 'all');
-c.saveData =    uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'Save','Position', [bp bp 2*bw+1 bh]);
+c.globalSaveButton =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'Save','Position', [bp bp 2*bw+1 bh]);
 
 c.imageAxes =   axes('Parent', c.imageFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 % c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
@@ -503,18 +509,23 @@ c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
 
         c.spectraTab =  uitab('Parent', c.scanningPanel, 'Title', 'Spectra');
             c.spectrumButton = uicontrol('Parent', c.spectraTab, 'Style', 'pushbutton', 'String', 'Take Spectrum', 'Position', [bp plhi-bp-3*bh bp+2*bw bh]);
+        
+        c.powerTab =  uitab('Parent', c.scanningPanel, 'Title', 'Power');
+            c.powerValue = uicontrol('Parent', c.powerTab, 'Style', 'edit', 'String', '0', 'Position', [bp plhi-bp-3*bh bp+2*bw bh]);
+            c.powerButton = uicontrol('Parent', c.powerTab, 'Style', 'pushbutton', 'String', 'Get Power', 'Position', [bp plhi-bp-4*bh bp+2*bw bh]);
 
 c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
     c.autoPanel = uitabgroup('Parent', c.automationTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
         c.autoTabC =         uitab('Parent', c.autoPanel, 'Title', 'Controls');
             c.autoPreview =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton','String', 'Preview Path', 'Position', [bp	plhi-bp-3*bh 2*bw+bp bh]);
             c.autoTest =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Test Path', 'Position', [bp	plhi-bp-4*bh 2*bw+bp bh]);
-            c.autoButton =  uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plhi-bp-5*bh 2*bw+bp bh]);
-            c.autoAutoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plhi-bp-6*bh bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
-            c.autoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plhi-bp-6*bh bw bh]);
+            c.autoButton =  uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Automate!', 'Position', [bp	plhi-bp-6*bh 2*bw+bp bh]);
+            c.autoAutoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Auto Proceed', 'Position', [bp	plhi-bp-8*bh bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
+            c.autoProceed = uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Proceed!', 'Position', [2*bp+bw	plhi-bp-8*bh bw bh]);
             c.proceed = false;  % Variable for whether to proceed or not.
-            c.autoStop =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Stop', 'Position', [bp	plhi-bp-7*bh 2*bw+bp bh]);
+            c.autoSkip =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Skip', 'Position', [bp	plhi-bp-9*bh 2*bw+bp bh]);
             c.autoScanning = false;
+            c.autoSkipping = true;
             
         c.autoTab =         uitab('Parent', c.autoPanel, 'Title', 'Grid');
             k = 3;
