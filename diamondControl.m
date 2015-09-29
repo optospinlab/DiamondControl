@@ -1254,10 +1254,21 @@ function varargout = diamondControl(varargin)
             data = diff(double(out))./diff(double(times));
             final = data;
             
-            display('      plot');
-            plot(c.lowerAxes, up(1:pixels), data);
             
             [fz, ~] = myMeanAdvanced(data, up(1:pixels), [0]);
+            
+            display('      plot');
+            
+            mx = min(up(1:pixels));
+            Mx = max(up(1:pixels));
+            
+            my = min(data);
+            My = max(data);
+            dy = My - my;
+            
+            plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, Mx + dy/10], 'r--', [center, center], [my - dy/10, Mx + dy/10], 'r:');
+            xlim(c.lowerAxes, [mx Mx]);
+            ylim(c.lowerAxes, [my - dy/10, Mx + dy/10]);
 
 %             m = min(min(data)); M = max(max(data));
 % 
@@ -2202,7 +2213,7 @@ function varargout = diamondControl(varargin)
                         color(i,:) = [0 1 0];
                     end
                     if (d == nd4 && sum(n4 == [x y]') == 2)
-                        color(i,:) = [1 1 0];
+                        color(i,:) = [1 .5 0];
                     end
                     if (p(3,i) < c.piezoMin(3))
                         p(3,i) = c.piezoMin(3);
@@ -2225,6 +2236,7 @@ function varargout = diamondControl(varargin)
         
         c.pv = p;           % Transportation variables
         c.pc = color;
+        c.len = len;
 
 %         xlim(c.upperAxes, [min(p(1,:)) max(p(1,:))]);
 %         ylim(c.upperAxes, [min(p(2,:)) max(p(2,:))]);
@@ -2625,6 +2637,7 @@ function varargout = diamondControl(varargin)
         if c.axesMode ~= 2
             p =     [c.pv   [c.microActual(1) c.microActual(2) c.piezo(3)]' [c.micro(1) c.micro(2) c.piezo(3)]'];
             color = [c.pc;   [1 0 1];  [0 0 0]];
+            shape = [repmat('c', 1, c.len) 'd' 'd'];
             
             mx = min(p(1,:));   Mx = max(p(1,:));   Ax = (Mx + mx)/2;   Ox = .55*(Mx - mx) + 25;
             my = min(p(2,:));   My = max(p(2,:));   Ay = (My + my)/2;   Oy = .55*(My - my) + 25;
@@ -2637,7 +2650,7 @@ function varargout = diamondControl(varargin)
 
             Of = max([Ox Oy]);
             
-            scatter(c.upperAxes, p(1,:), p(2,:), 36, color);
+            scatter(c.upperAxes, p(1,:), p(2,:), 36, color, shape);
             
             xlim(c.upperAxes, [Ax-Of Ax+Of]);
             ylim(c.upperAxes, [Ay-Of Ay+Of]);

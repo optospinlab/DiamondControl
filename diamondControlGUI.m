@@ -53,6 +53,7 @@ c.running = false;
 c.linAct = [0 0];
 c.pv = [];
 c.pc = [];
+c.len = 0;
 c.plottingFigure =  figure('Visible', 'off', 'tag', 'Diamond Control Plotting');
 c.plottingAxes =    axes('Parent', c.plottingFigure);
 
