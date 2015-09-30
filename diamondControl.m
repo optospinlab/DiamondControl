@@ -167,7 +167,7 @@ function varargout = diamondControl(varargin)
     set(c.stop_vid, 'Callback',  @stopvid_Callback);
     set(c.track_clear, 'Callback',  @cleartrack_Callback);
     set(c.track_set, 'Callback',  @settrack_Callback);
-    set(c.parent,'WindowButtonDownFcn', @click_trackCallback);
+    set(c.imageFigure,'WindowButtonDownFcn', @diskclick_Callback);
     
     
     % UI Fields -----------------------------------------------------------
@@ -3813,6 +3813,129 @@ function varargout = diamondControl(varargin)
         save('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\pleData.mat', 'yData'); %'freqBase', 'perotBase', 'xData', 'yData', 'pData');
     end
 
+    %Blue F/B for grid=====================================================
+    function go_detect_disk(~,~) %Detects disks and plots them
+         frame = flipdim(getsnapshot(c.vid),1);
+         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
+    
+        I3 = img_enhance(frame);          
+        set(c.imageAxes,'CData',I3); 
+
+
+        IBW=im2bw(I3,0.7); %Convert to BW and Manual Threshold
+        [c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Get Circles
+
+        %Delete any old detections   
+         try
+             delete(c.hg1);
+             delete(c.hg2);
+         catch
+         end
+             
+         %Plot Detected Disks
+         if ~isempty(c.radii)
+            axes(c.imageAxes);
+            c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
+         end
+    end
+    
+    function diskclick_Callback(~,~) % Mark selected disk and get position 
+        %disp('click')
+        c.trackpt = get (c.imageAxes, 'CurrentPoint');
+        if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0
+             axes(c.imageAxes);
+             for i=1:length(c.radii)
+                if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
+                        && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
+                    c.selcircle(1)=c.circles(i,1); 
+                    c.selcircle(2)=c.circles(i,2);
+                    c.selradii=c.radii(i);
+                    c.hg2=viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
+                    c.seldisk=1;
+                end
+             end
+        end
+    end
+
+    function setdisk_Callback(~,~)
+        if c.seldisk==1 
+            
+            %Adaptive ROI creation
+            xrange=abs(640/2-c.selcircle(1))+c.selradii+c.roi_pad;
+            xlow=640/2-xrange;
+            yrange=abs(480/2-c.selcircle(2))+c.selradii+c.roi_pad;
+            ylow=480/2-yrange;
+            c.roi=[xlow ylow xrange yrange];
+            roi = round(c.roi);
+            c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
+               
+             %Center the disk on the blue image
+             % 4 attempts with decreasing offsets
+             for i=1:4
+                
+               [X,Y,R] = centroid_fun();
+      
+               deltaX = X - (640/2);
+               deltaY = -(Y - 480/2);
+
+               %Always approach from same direction (from bottom left)
+               offset=6-i; % in um
+               try
+                S=load('micro_calib.mat');
+               catch err
+                   disp(err.message)
+               end
+
+               deltaXm = deltaX*S.mX;
+               deltaYm = deltaY*S.mY;
+               deltaXmo= deltaXm - offset;
+               deltaYmo= deltaYm - offset;
+
+               c.micro = c.micro + [deltaXmo deltaYmo];
+               setPos();
+
+               while sum(abs(c.microActual - c.micro)) > .1
+                    pause(.1);
+                    getPos();
+                    renderUpper();
+                end
+
+               %Approach from bottom left
+               c.micro = c.micro + [offset offset];
+               setPos(); 
+               renderUpper();
+
+               while sum(abs(c.microActual - c.micro)) > .1
+                    pause(.1);
+                    getPos();
+                    renderUpper();
+                end
+
+             end
+             
+            %PLot the center (for a manual check) 
+            pt=impoint(c.imageAxes);
+            setPosition(pt,[640/2 480/2]);
+            setColor(pt,'g');
+            pause(3);
+            
+        else
+            disp('No Disk Selected ...')
+        end
+        
+        cleardisk_Callback();
+    end
+
+    function cleardisk_Callback(~,~)
+         c.seldisk=0;
+         c.roi='';
+         try
+             delete(c.hg1);
+             delete(c.hg2);
+         catch
+         end
+    end
+
     % TRACKING ============================================================
     function out_img=img_enhance(in_img)
             %Sharpen 
@@ -3948,7 +4071,7 @@ function varargout = diamondControl(varargin)
     end
     function click_trackCallback(~,~)
         %disp('click')
-        c.trackpt = get (gca, 'CurrentPoint');
+        c.trackpt = get (c.imageAxes, 'CurrentPoint');
         w=strcat('%0','3.1f');
         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
              set(c.track_stat,'String',['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]);
