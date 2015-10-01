@@ -261,12 +261,13 @@ c.upperFigure =     0;
 c.lowerFigure =     0;
 c.imageFigure =     0;
 c.pleFigure =       0;
+c.bluefbFigure=0;
 
 c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Upper Figure', 'Name', 'Upper Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Lower Figure', 'Name', 'Lower Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Image Figure', 'Name', 'Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-
+c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'Blue FB Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 minfig(c.pleFigure, 1); % ple figure starts minimized
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
@@ -276,6 +277,7 @@ c.globalSaveButton =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 
 
 c.imageAxes =   axes('Parent', c.imageFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 % c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
+c.bluefbAxes = axes('Parent', c.bluefbFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 
 c.pleAxesSum =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 0 1 .2]);
 c.pleAxesOne =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .2 1 .2]);
@@ -671,7 +673,12 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoV5ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
             c.autoV5Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoV5Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
-        
+            k = k+2;
+            c.autoDiskT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'T (0-1):',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
+            c.autoDiskThresh = uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0.65,       'Position', [bp+bw/2    plhi-bp-k*bh bw/3 bh]);
+            c.autoDiskDet = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Detect', 'Position', [bp+bw	plhi-bp-k*bh bw/2 bh]);
+            c.autoDiskClr = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Clear', 'Position', [bp+3*bw/2	plhi-bp-k*bh bw/2 bh]);
+            
         c.autoTabT =         uitab('Parent', c.autoPanel, 'Title', 'Tasks');
             c.autoTaskFocus = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Focus upon arrival?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-3*bh 2*bw bh]); 
 %             c.autoTaskReset = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Reset piezos and galvos?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
@@ -725,7 +732,7 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.ratetrack = 50;  % tracking corrections / sec
     c.vid_on=0; c.seldisk=0;
     c.roi='';
-    c.roi_pad=10;      %ROI padding of 10 pixels on each side of the disk
+    c.roi_pad=30;      %ROI padding of 30 pixels on each side of the disk
     
     c.start_vid =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Start',                   'Position',[2*bp plhi-bp-2*bh bw bh]);  
     c.stop_vid =       uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stop!',                    'Position',[2*bp+bw plhi-bp-2*bh bw bh]);
@@ -733,7 +740,7 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     c.trk_gain_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Gain:', 'Position',[bp/2 plhi-bp-18*bh bw/2 bh]);  
     c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.8,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
     c.trk_min_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-18*bh 2*bw/3 bh]);  
-    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 1,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
+    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 3,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
     
     c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-20*bh bw bh]);
     c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-20*bh bw bh]);

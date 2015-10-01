@@ -134,6 +134,9 @@ function varargout = diamondControl(varargin)
     set(c.autoV3Get, 'Callback', @setCurrent_Callback);
     set(c.autoV4Get, 'Callback', @setCurrent_Callback);
     
+    set(c.autoDiskDet, 'Callback', @diskdetect_Callback);
+    set(c.autoDiskClr, 'Callback', @diskclear_Callback);
+    
     set(c.autoPreview, 'Callback',  @autoPreview_Callback);         % Displays the devices that will be tested to an axes. Useful for error-correcting
     set(c.autoTest, 'Callback',  @autoTest_Callback);               % Displays the devices that will be tested to an axes. Useful for error-correcting
     set(c.autoButton, 'Callback',  @automate_Callback);             % Starts the automation!
@@ -167,7 +170,9 @@ function varargout = diamondControl(varargin)
     set(c.stop_vid, 'Callback',  @stopvid_Callback);
     set(c.track_clear, 'Callback',  @cleartrack_Callback);
     set(c.track_set, 'Callback',  @settrack_Callback);
-    set(c.imageFigure,'WindowButtonDownFcn', @diskclick_Callback);
+    set(c.bluefbFigure,'WindowButtonDownFcn', @diskclick_Callback);
+    %set(c.track_Axes,'WindowButtonDownFcn', @click_trackCallback);
+    
     
     
     % UI Fields -----------------------------------------------------------
@@ -534,6 +539,7 @@ function varargout = diamondControl(varargin)
         delete(c.imageAxes);
         delete(c.upperAxes);
         delete(c.lowerAxes);
+        delete(c.bluefbAxes);
         %delete(c.counterAxes);
         %delete(c.upperAxes2);
         %delete(c.lowerAxes2);
@@ -543,6 +549,7 @@ function varargout = diamondControl(varargin)
         delete(c.lowerFigure);
         delete(c.imageFigure);
         delete(c.pleFigure);
+        delete(c.bluefbFigure);
         delete(c.parent);
     end
     function globalStop_Callback(~,~)
@@ -744,12 +751,10 @@ function varargout = diamondControl(varargin)
         
         axes(c.track_Axes);
         frame = getsnapshot(c.vid);
-        
+        imshow(frame);
         %Testing image 
         %frame = flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png')),1);
         
-        c.track_img = imshow(frame);
-
     end
     function initAll()
         % Self-explainatory
@@ -764,6 +769,7 @@ function varargout = diamondControl(varargin)
             set(c.lowerFigure, 'Visible', 'On');
             set(c.imageFigure, 'Visible', 'On');
             set(c.pleFigure, 'Visible', 'On');
+            set(c.bluefbFigure,'Visible', 'On');
             set(c.parent, 'Visible', 'On');
             
             videoInit();
@@ -2056,25 +2062,37 @@ function varargout = diamondControl(varargin)
                 set(c.autoV1Z, 'String', c.piezo(3));
                 set(c.autoV1NX, 'String', c.Sx);
                 set(c.autoV1NY, 'String', c.Sy);
+                c.autoV1DX = c.selcircle(1);
+                c.autoV1DY = c.selcircle(2);
             case c.autoV2Get
                 set(c.autoV2X, 'String', c.microActual(1));
                 set(c.autoV2Y, 'String', c.microActual(2));
                 set(c.autoV2Z, 'String', c.piezo(3));
                 set(c.autoV2NX, 'String', c.Sx);
                 set(c.autoV2NY, 'String', c.Sy);
+                c.autoV2DX = c.selcircle(1);
+                c.autoV2DY = c.selcircle(2);
             case c.autoV3Get
                 set(c.autoV3X, 'String', c.microActual(1));
                 set(c.autoV3Y, 'String', c.microActual(2));
                 set(c.autoV3Z, 'String', c.piezo(3));
                 set(c.autoV3NX, 'String', c.Sx);
                 set(c.autoV3NY, 'String', c.Sy);
+                c.autoV3DX = c.selcircle(1);
+                c.autoV3DY = c.selcircle(2);
             case c.autoV4Get
                 set(c.autoV4X, 'String', c.microActual(1));
                 set(c.autoV4Y, 'String', c.microActual(2));
                 set(c.autoV4Z, 'String', c.piezo(3));
                 set(c.autoV4NX, 'String', c.Sx);
                 set(c.autoV4NY, 'String', c.Sy);
+                c.autoV4DX = c.selcircle(1);
+                c.autoV4DY = c.selcircle(2);
         end
+         disp('Disk Centroid ...')
+         c.selcircle(1)
+         c.selcircle(2)
+        diskclear_Callback();
     end
     function V = getStoredV(d)
         switch d
@@ -2279,6 +2297,22 @@ function varargout = diamondControl(varargin)
             
             results = true;
             
+            %Get mean centroid
+            disp('Mean Centroid ...')
+            c.autoDX = mean([c.autoV1DX c.autoV2DX c.autoV3DX c.autoV4DX])
+            c.autoDY = mean([c.autoV1DY c.autoV2DY c.autoV3DY c.autoV4DY])
+            
+            %Set ROI based on mean centroid
+            c.roi=[c.autoDX-c.selradii-c.roi_pad c.autoDY-c.selradii-c.roi_pad 2*(c.selradii+c.roi_pad) 2*(c.selradii+c.roi_pad)];   
+            roi = round(c.roi);
+            
+            %Load Piezo Calibration Data
+            try
+                c.calib=load('piezo_calib.mat');
+            catch err
+                disp(err.message)
+            end
+            
             try
                 fh =  fopen([prefix 'results.txt'],         'w');  
                 fhv = fopen([prefix 'results_verbose.txt'], 'w');
@@ -2325,6 +2359,7 @@ function varargout = diamondControl(varargin)
         original = c.micro;
         
         i = 1;
+        resetGalvo_Callback(0,0);
 
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
@@ -2357,7 +2392,6 @@ function varargout = diamondControl(varargin)
                             pause(.5);
 
                             piezoOutSmooth([5 5 p(3,i)]);
-                            resetGalvo_Callback(0,0);
 
                             display(['Arrived at ' name{i}]);
 
@@ -2389,8 +2423,11 @@ function varargout = diamondControl(varargin)
                                 end
 
                                 display('  Optimizing...');
-                                display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
-                                display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
+                                diskcheck(roi); % Check Centroid
+                                %display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                                if get(c.autoTaskBlue, 'Value') ~= 0
+                                    display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
+                                end
                                 
                                 scan = scan0; % in case there is only one repeat tasked.
                                 
@@ -2637,7 +2674,7 @@ function varargout = diamondControl(varargin)
         if c.axesMode ~= 2
             p =     [c.pv   [c.microActual(1) c.microActual(2) c.piezo(3)]' [c.micro(1) c.micro(2) c.piezo(3)]'];
             color = [c.pc;   [1 0 1];  [0 0 0]];
-            shape = [repmat('c', 1, c.len) 'd' 'd'];
+            % shape = [repmat('c', 1, c.len) 'd' 'd'];
             
             mx = min(p(1,:));   Mx = max(p(1,:));   Ax = (Mx + mx)/2;   Ox = .55*(Mx - mx) + 25;
             my = min(p(2,:));   My = max(p(2,:));   Ay = (My + my)/2;   Oy = .55*(My - my) + 25;
@@ -2650,7 +2687,7 @@ function varargout = diamondControl(varargin)
 
             Of = max([Ox Oy]);
             
-            scatter(c.upperAxes, p(1,:), p(2,:), 36, color, shape);
+            scatter(c.upperAxes, p(1,:), p(2,:), 36, color);
             
             xlim(c.upperAxes, [Ax-Of Ax+Of]);
             ylim(c.upperAxes, [Ay-Of Ay+Of]);
@@ -3814,15 +3851,17 @@ function varargout = diamondControl(varargin)
     end
 
     %Blue F/B for grid=====================================================
-    function go_detect_disk(~,~) %Detects disks and plots them
+    function diskdetect_Callback(~,~) %Detects disks and plots them
          frame = flipdim(getsnapshot(c.vid),1);
          %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
     
         I3 = img_enhance(frame);          
-        set(c.imageAxes,'CData',I3); 
-
-
-        IBW=im2bw(I3,0.7); %Convert to BW and Manual Threshold
+        %set(c.bluefbAxes,'CData',I3); 
+        axes(c.bluefbAxes);
+        
+        thresh=str2double(get(c.autoDiskThresh, 'String'));
+        IBW=im2bw(I3,thresh); %Convert to BW and Manual Threshold
+        imshow(IBW);
         [c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Get Circles
 
         %Delete any old detections   
@@ -3834,16 +3873,15 @@ function varargout = diamondControl(varargin)
              
          %Plot Detected Disks
          if ~isempty(c.radii)
-            axes(c.imageAxes);
+            axes(c.bluefbAxes);
             c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
          end
     end
-    
     function diskclick_Callback(~,~) % Mark selected disk and get position 
         %disp('click')
-        c.trackpt = get (c.imageAxes, 'CurrentPoint');
+        c.trackpt = get (c.bluefbAxes, 'CurrentPoint');
         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0
-             axes(c.imageAxes);
+             axes(c.bluefbAxes);
              for i=1:length(c.radii)
                 if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
                         && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
@@ -3856,79 +3894,41 @@ function varargout = diamondControl(varargin)
              end
         end
     end
-
-    function setdisk_Callback(~,~)
-        if c.seldisk==1 
-            
-            %Adaptive ROI creation
-            xrange=abs(640/2-c.selcircle(1))+c.selradii+c.roi_pad;
-            xlow=640/2-xrange;
-            yrange=abs(480/2-c.selcircle(2))+c.selradii+c.roi_pad;
-            ylow=480/2-yrange;
-            c.roi=[xlow ylow xrange yrange];
-            roi = round(c.roi);
-            c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
-               
-             %Center the disk on the blue image
-             % 4 attempts with decreasing offsets
-             for i=1:4
-                
-               [X,Y,R] = centroid_fun();
-      
-               deltaX = X - (640/2);
-               deltaY = -(Y - 480/2);
-
-               %Always approach from same direction (from bottom left)
-               offset=6-i; % in um
-               try
-                S=load('micro_calib.mat');
-               catch err
-                   disp(err.message)
-               end
-
-               deltaXm = deltaX*S.mX;
-               deltaYm = deltaY*S.mY;
-               deltaXmo= deltaXm - offset;
-               deltaYmo= deltaYm - offset;
-
-               c.micro = c.micro + [deltaXmo deltaYmo];
-               setPos();
-
-               while sum(abs(c.microActual - c.micro)) > .1
-                    pause(.1);
-                    getPos();
-                    renderUpper();
-                end
-
-               %Approach from bottom left
-               c.micro = c.micro + [offset offset];
-               setPos(); 
-               renderUpper();
-
-               while sum(abs(c.microActual - c.micro)) > .1
-                    pause(.1);
-                    getPos();
-                    renderUpper();
-                end
-
-             end
-             
-            %PLot the center (for a manual check) 
-            pt=impoint(c.imageAxes);
-            setPosition(pt,[640/2 480/2]);
-            setColor(pt,'g');
-            pause(3);
-            
-        else
-            disp('No Disk Selected ...')
-        end
+    function diskcheck(roi) 
         
-        cleardisk_Callback();
-    end
+            %Get device Image
+            frame = flipdim(getsnapshot(c.vid),1);
+            I3 = img_enhance(frame);           
+            thresh=str2double(get(c.autoDiskThresh, 'String'));
+            IBW=im2bw(I3,thresh); %Convert to BW and Manual Threshold
+            c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
+            
+            disp('disk at:')
+            [X,Y,R] = centroid_fun()
+            delX = X-c.autoDX;
+            delY = Y-c.autoDY;
+            
+                minAdjustmentpx = str2double(get(c.trk_min, 'String'));
+                c.mindelVx = minAdjustmentpx*c.calib.pX;
+                c.mindelVy = minAdjustmentpx*c.calib.pY;
 
-    function cleardisk_Callback(~,~)
+                delVx = delX*c.calib.pX;
+                delVy = delY*c.calib.pY;
+
+                
+                if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
+                    %disp('corrected')
+                     c.s.outputSingleScan([(c.piezo + [-delVx delVy 0]) c.galvo]);
+                elseif (abs(delVx)>c.mindelVx)
+                   % disp('corrected')
+                     c.s.outputSingleScan([(c.piezo + [-delVx 0 0]) c.galvo]);
+                elseif (abs(delVy) > c.mindelVy)
+                   % disp('corrected')
+                     c.s.outputSingleScan([(c.piezo + [0 delVy 0]) c.galvo]);
+                end
+    end
+    function diskclear_Callback(~,~)
          c.seldisk=0;
-         c.roi='';
          try
              delete(c.hg1);
              delete(c.hg2);
@@ -3943,8 +3943,8 @@ function varargout = diamondControl(varargin)
             I1 = imfilter(in_img, filter);
 
             %Adjust contrast
-           % I2 = imtophat(I1,strel('disk',32));
-            out_img = imadjust(I1);       
+            I2 = imtophat(I1,strel('disk',32));
+            out_img = imadjust(I2);       
     end
     function startvid_Callback(hObject,~)
          if hObject ~= 0 && ~c.vid_on
@@ -3974,7 +3974,7 @@ function varargout = diamondControl(varargin)
          
         if c.vid_on 
             I3 = img_enhance(frame);          
-            set(c.track_img,'CData',I3); 
+            set(c.track_Axes,'CData',I3); 
             
             
             IBW=im2bw(I3,0.7); %Convert to BW and Threshold
@@ -4054,13 +4054,13 @@ function varargout = diamondControl(varargin)
 
                 
                 if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
-                    %disp('corrected')
+                    disp('corrected')
                      c.s.outputSingleScan([(c.piezo + [-delVx delVy 0]) c.galvo]);
                 elseif (abs(delVx)>c.mindelVx)
-                   % disp('corrected')
+                    disp('corrected')
                      c.s.outputSingleScan([(c.piezo + [-delVx 0 0]) c.galvo]);
                 elseif (abs(delVy) > c.mindelVy)
-                   % disp('corrected')
+                    disp('corrected')
                      c.s.outputSingleScan([(c.piezo + [0 delVy 0]) c.galvo]);
                 end
                 
