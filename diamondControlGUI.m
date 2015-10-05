@@ -263,11 +263,11 @@ c.imageFigure =     0;
 c.pleFigure =       0;
 c.bluefbFigure=0;
 
-c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Upper Figure', 'Name', 'Upper Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Lower Figure', 'Name', 'Lower Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Image Figure', 'Name', 'Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Grid Figure', 'Name', 'Grid Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Data Figure', 'Name', 'Data Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Image Figure', 'Name', 'Blue Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'Blue FB Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Disk Detection Figure', 'Name', 'Blue Disk Detection Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 minfig(c.pleFigure, 1); % ple figure starts minimized
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
@@ -288,22 +288,28 @@ function closeRequestHide(src, data)
 end
 
 function closeRequestMinimize(src, data)
-    minfig(src, 1);
+%     minfig(src, 1);
+    
+    ratio = [500 500];
+
+    if src == c.imageFigure || src == c.bluefbFigure
+        ratio = [640 480];
+    end
+    
+    set(src, 'Position', [100 100 ratio(1) ratio(2)]);
 end
 
 function resizeUISmall_Callback(hObject, ~)
+    set(0, 'units', 'pixels'); 
+    screen = get(0, 'screensize');
+    
     p = get(hObject, 'Position');
     w = p(3); h = p(4);
 
     ratio = [50 50];
 
-    switch hObject
-        case c.upperFigure
-            ratio = [50 50];
-        case c.lowerFigure
-            ratio = [50 50];
-        case c.imageFigure
-            ratio = [64 48];
+    if hObject == c.imageFigure || hObject == c.bluefbFigure
+        ratio = [64 48];
     end
     
     % pleFigure does not care at the moment;
@@ -311,11 +317,18 @@ function resizeUISmall_Callback(hObject, ~)
     if hObject ~= c.pleFigure
         if w < h*ratio(1)/ratio(2)  % Make the figure larger to fit the ratio
             w = h*ratio(1)/ratio(2);
-            set(hObject, 'Position', [p(1) p(2) w h]);
         else
             h = w*ratio(2)/ratio(1);
-            set(hObject, 'Position', [p(1) p(2) w h]);
         end
+        
+        toobig = max([w/screen(3) h/screen(4)]);
+        
+        if toobig > 1
+            w = w/toobig; 
+            h = h/toobig;
+        end
+        
+        set(hObject, 'Position', [p(1) p(2) w h]);
     end
 end
 
@@ -529,6 +542,8 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoSkip =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Skip', 'Position', [bp	plhi-bp-9*bh 2*bw+bp bh]);
             c.autoScanning = false;
             c.autoSkipping = true;
+            c.autoBlueEnable = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Blue Feedback Enabled', 'Position', [bp	plhi-bp-12*bh 2*bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
+
             
         c.autoTab =         uitab('Parent', c.autoPanel, 'Title', 'Grid');
             k = 3;
@@ -565,9 +580,9 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             k = k+1;
             
             c.autoV123nT =  uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'nx123: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV123n =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV123n =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoV123nyT =  uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'ny123: ',   'Position', [2*bp+bw         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV123ny =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 2,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV123ny =   uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
             k = k+1;
 
             c.autoV1T =     uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Device 1: ', 'Position', [bp         plhi-bp-k*bh 2*bw bh],         'HorizontalAlignment', 'left');
@@ -630,9 +645,9 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             k = k+1;
             
             c.autoV4nT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'nx: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV4n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoV4nyT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'ny: ',   'Position', [2*bp+bw         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV4ny =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV4ny =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
             k = k+1;
             
             c.autoV4NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -655,9 +670,9 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             k = k+1;
             
             c.autoV5nT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'nx: ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV5n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5n =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoV5nyT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'ny: ',   'Position', [2*bp+bw         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV5ny =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5ny =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
             k = k+1;
             
             c.autoV5NXT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'NX: ',       'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -668,7 +683,7 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoV5XT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
             c.autoV5X =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 10,           'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoV5YT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoV5Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', -2,           'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
+            c.autoV5Y =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,           'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
             k = k+1;
             c.autoV5ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
             c.autoV5Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
@@ -685,11 +700,12 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             
             c.autoTaskBlue = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take blue image?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
             c.autoTaskGalvo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Galvo scan?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-5*bh 2*bw bh]); 
+            c.autoTaskPiezo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Piezo scan?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-6*bh 2*bw bh]); 
 
-            c.autoTaskNumRepeatT = uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Repeat Optimization #: ',   'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
-            c.autoTaskNumRepeat  = uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 2,     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
+            c.autoTaskNumRepeatT = uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Repeat Optimization #: ',   'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
+            c.autoTaskNumRepeat  = uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 2,     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
             
-            c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take spectrum?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-7*bh 2*bw bh]); 
+            c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take spectrum?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-8*bh 2*bw bh]); 
             
 c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
     c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
@@ -739,8 +755,8 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
     
     c.trk_gain_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Gain:', 'Position',[bp/2 plhi-bp-18*bh bw/2 bh]);  
     c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.8,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
-    c.trk_min_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-18*bh 2*bw/3 bh]);  
-    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 3,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
+    c.trk_min_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-18*bh 2*bw/3 bh]);  
+    c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 1,     'Position', [bp/2+bw+2*bw/3 plhi-bp-18*bh bw/3 bh]);
     
     c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-20*bh bw bh]);
     c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-20*bh bw bh]);

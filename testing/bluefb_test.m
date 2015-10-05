@@ -14,9 +14,9 @@ figure
 imshow(out_img)
 
 figure
-IBW=im2bw(,0.7); %Convert to BW and Manual Threshold
+IBW=im2bw(out_img,0.7); %Convert to BW and Manual Threshold
 imshow(IBW)
-[c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Get Circles
+imfindcircles(IBW,[14 26]) %Get Circles
 
 
 if ~isempty(c.radii)
