@@ -6,10 +6,10 @@ I2 = img_enhance(rgb2gray(imread('test_image_shifted1.png')));
 
 tic
 roi1 = I1(20:220,20:300);
-C1 = corner(roi1,100);
+C1 = corner(roi1,50);
 
 roi2 = I2(20:220,20:300);
-C2 = corner(roi2,100);
+C2 = corner(roi2,50);
 
 [features1, valid_points1] = extractFeatures(roi1, C1);
 [features2, valid_points2] = extractFeatures(roi2, C2);

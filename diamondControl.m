@@ -1111,6 +1111,19 @@ function varargout = diamondControl(varargin)
     function final = daqOutQueueCleverPLE(array)
         final = daqOutQueueCleverFull(array(1:2), 0);
     end
+    function gotoMicro(pos)
+        c.micro = pos;
+        setPos();
+
+        j = 0;
+
+        while norm(c.microActual - c.micro) > .2 && j < 600
+            pause(.1);
+            getPos();
+            renderUpper();
+            j = j + 1;
+        end
+    end
     % --- RESETS ----------------------------------------------------------
     function resetMicro_Callback(~, ~)
         c.micro = [0 0];
@@ -2349,26 +2362,49 @@ function varargout = diamondControl(varargin)
     function autoTest_Callback(~, ~)
         automate(true);
     end
+    function enabled = checkTask(ui)
+        enabled = (get(ui, 'Value') == 1)  && ~c.globalStop && c.autoScanning;
+    end
+    function sayResult(string)
+        if c.results
+            for char = string
+                switch char
+                    case 'X'
+                        fprintf(c.fhv, ['\tX:\t' num2str(c.old(1)) '\t==>\t'  num2str(c.piezo(1)) '\tV\r\n']);
+                    case 'Y'
+                        fprintf(c.fhv, ['\tY:\t' num2str(c.old(2)) '\t==>\t'  num2str(c.piezo(2)) '\tV\r\n']);
+                    case 'Z'
+                        fprintf(c.fhv, ['\tZ:\t' num2str(c.old(3)) '\t==>\t'  num2str(c.piezo(3)) '\tV\r\n']);
+                    case 'x'
+                        fprintf(c.fhv, ['\tGX:\t' num2str(c.old(4)*1000) '\t==>\t'  num2str(c.galvo(1)*1000) '\tmV\r\n']);
+                    case 'y'
+                        fprintf(c.fhv, ['\tGY:\t' num2str(c.old(5)*1000) '\t==>\t'  num2str(c.galvo(2)*1000) '\tmV\r\n']);
+                end
+            end
+        end
+    end
     function automate(onlyTest)
-        c.autoScanning = true;
-%         [V, V0, v, nxrange, nyrange, ndrange] = varin;
+        c.autoScanning = true;          % 'Running' variable
         
-        nxrange = getStoredR('x');    % Range of the major grid
+        nxrange = getStoredR('x');      % Range of the major grid
         nyrange = getStoredR('y');
 
-        ndrange = getStoredR('dx');    % Range of the minor grid
-        ndyrange = getStoredR('dy');    % Range of the minor grid
+        ndrange = getStoredR('dx');     % Range of the minor grid
+        ndyrange = getStoredR('dy');
         
+        % Get the grid...
         [p, color, name, len] = generateGrid();
         
-        if ~onlyTest
+        c.results = false;
+        
+        if ~onlyTest    % Generate directory...
             clk = clock;
             ledSet(1);
 
-            superDirectory = c.directory;              % Setup the folders
-            dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];           % Today's folder is formatted in YYYY_MM_DD Form
-            scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))]; % This scan's folder is fomatted in @ HH-MM-SS.sss
-            directory =     [superDirectory '\' c.autoFolder '\' dateFolder];
+            superDirectory = [c.directory '\' c.autoFolder];                                    % Setup the folders
+            dateFolder =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3))];          % Today's folder is formatted in YYYY_MM_DD Form
+            scanFolder =    ['Scan @ ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];% This scan's folder is fomatted in @ HH-MM-SS.sss
+            directory =     [superDirectory '\' dateFolder];
             subDirectory =  [directory '\' scanFolder];
 
             [status, message, messageid] = mkdir(superDirectory, dateFolder);                   % Make sure today's folder has been created.
@@ -2379,7 +2415,7 @@ function varargout = diamondControl(varargin)
 
             prefix = [subDirectory '\'];
             
-            results = true;
+            c.results = true;     % Record results?
             
             %Get mean centroid
 %             disp('Mean Centroid ...')
@@ -2391,35 +2427,35 @@ function varargout = diamondControl(varargin)
 %                 Xi=mean([c.autoV1DX c.autoV2DX c.autoV3DX])
 %                 Yi=mean([c.autoV1DY c.autoV2DY c.autoV3DY])
 %             end
-                if get(c.autoAutoProceed,'Value')==1
-                    c.autoDX=c.autoV3DX;
-                    c.autoDY=c.autoV3DY;
+            if get(c.autoAutoProceed,'Value')==1
+                c.autoDX=c.autoV3DX;
+                c.autoDY=c.autoV3DY;
 
-                    Xi= c.autoV3DX;
-                    Yi= c.autoV3DY;
-               
-                    %Load Piezo Calibration Data
-                    try
-                        c.calib=load('piezo_calib.mat');
-                    catch err
-                        disp(err.message)
-                    end
+                Xi= c.autoV3DX;
+                Yi= c.autoV3DY;
 
-                    %debug
-                    pX=c.calib.pX
-                    pY=c.calib.pY
+                %Load Piezo Calibration Data
+                try
+                    c.calib=load('piezo_calib.mat');
+                catch err
+                    disp(err.message)
                 end
+
+                %debug
+                pX=c.calib.pX
+                pY=c.calib.pY
+            end
                 
-            try
-                fh =  fopen([prefix 'results.txt'],         'w');  
-                fhv = fopen([prefix 'results_verbose.txt'], 'w');
-                fhb = fopen([prefix 'results_brief.txt'],   'w');
+            try     % Try to setup the results files...
+                fh =  fopen([prefix 'results.txt'],         'w');  c.fh = fh;
+                fhv = fopen([prefix 'results_verbose.txt'], 'w');  c.fhv = fhv;
+                fhb = fopen([prefix 'results_brief.txt'],   'w');  c.fhb = fhb;
 
                 if (fh == -1 || fhv == -1 || fhb == -1) 
                     error('oops, file cannot be written'); 
                 end 
             
-                fprintf(fhb, '  Set  |       Works       |\r\n');         % Change this in the future to be compatable with all possibilities.
+                fprintf(fhb, '  Set  |       Works       |\r\n');         % Change this in the future to be compatable with all possibilities!
                 fprintf(fhb, ' [x,y] | 1 | 2 | 3 | 4 | 5 |');
 
                 fprintf(fh, '  Set  |                          Counts                           |\r\n');
@@ -2427,33 +2463,34 @@ function varargout = diamondControl(varargin)
 
                 fprintf(fhv, 'Welcome to the verbose version of the results summary...\r\n\r\n');
             catch err
+                display('Failed to create results files...');
                 display(err.message);
-                results = false;
+                c.results = false;    % Don't record results if the above fails.
             end
             
-            [fileNorm, pathNorm] = uigetfile('*.SPE','Select the bare-diamond spectrum');
-
-            if isequal(fileNorm, 0)
-                spectrumNorm = 0;
-            else
-                spectrumNorm = readSPE([pathNorm fileNorm]);
-                
-                savePlotPng(1:512, spectrumNorm, [prefix 'normalization_spectrum.png']);
-
-                save([prefix 'normalization_spectrum.mat'], 'spectrumNorm');
-                copyfile([pathNorm fileNorm], [prefix 'normalization_spectrum.SPE']);
-            end
-            
-            if results
-                if spectrumNorm == 0
-                    fprintf(fhv, 'No bare-diamond normalization was selected.\r\n\r\n');
-                else
-                    fprintf(fhv, ['Bare diamond normalization was selected from:\r\n  ' pathNorm fileNorm '\r\n\r\n']);
-                end
-            end
+%             [fileNorm, pathNorm] = uigetfile('*.SPE','Select the bare-diamond spectrum');     % Normalization setup
+% 
+%             if isequal(fileNorm, 0)
+%                 spectrumNorm = 0;
+%             else
+%                 spectrumNorm = readSPE([pathNorm fileNorm]);
+%                 
+%                 savePlotPng(1:512, spectrumNorm, [prefix 'normalization_spectrum.png']);
+% 
+%                 save([prefix 'normalization_spectrum.mat'], 'spectrumNorm');
+%                 copyfile([pathNorm fileNorm], [prefix 'normalization_spectrum.SPE']);
+%             end
+%             
+%             if results
+%                 if spectrumNorm == 0
+%                     fprintf(fhv, 'No bare-diamond normalization was selected.\r\n\r\n');
+%                 else
+%                     fprintf(fhv, ['Bare diamond normalization was selected from:\r\n  ' pathNorm fileNorm '\r\n\r\n']);
+%                 end
+%             end
         end
         
-        original = c.micro;
+        original = c.micro; % Record the original position of the micrometers so we can return to it later...
         
         i = 1;
         resetGalvo_Callback(0,0);
@@ -2464,57 +2501,34 @@ function varargout = diamondControl(varargin)
                     for dy = ndyrange(1):ndyrange(2)
                         if c.autoScanning && c.running && ~c.globalStop
                             try
-                                if ~onlyTest
-                                    resetGalvo_Callback(0,0);
+                                gotoMicro(p(1:2,i)' - [10 10]);     % Goto the current device, approaching from the lower left.
+                                gotoMicro(p(1:2,i)');
+                                
+%                                 pause(.5);
+                                
+                                if ~onlytest
+                                    piezoOutSmooth([0 0 0]);
                                 end
-
-                                c.micro = p(1:2,i)' - [10 10];
-                                setPos();
-
-                                j = 0;
-
-                                while sum(abs(c.microActual - c.micro)) > .2 && j < 600
-                                    pause(.1);
-                                    getPos();
-                                    renderUpper();
-                                    j = j + 1;
-                                end
-
-                                c.micro = p(1:2,i)';
-                                setPos();
-
-                                j = 0;
-
-                                while sum(abs(c.microActual - c.micro)) > .2 && j < 600
-                                    pause(.1);
-                                    getPos();
-                                    renderUpper();
-                                    j = j + 1;
-                                end
-                                pause(.5);
-
-                                piezoOutSmooth([5 5 p(3,i)]);
+                                piezoOutSmooth([5 5 p(3,i)]);       % Reset the piezos and goto the proper height
 
                                 display(['Arrived at ' name{i}]);
 
                                 if ~onlyTest && ~c.globalStop && c.autoScanning
-                                    old = [c.piezo c.galvo];
+                                    c.old = [c.piezo c.galvo];        % Save the previous state of the galvos and piezos.
 
-                                    display('  Focusing...');
-
-                                    if get(c.autoTaskFocus, 'Value') == 1 && ~c.globalStop && c.autoScanning
+                                    if checkTask(c.autoTaskFocus)
+                                        display('  Focusing...');
                                         focus_Callback(0, 0);
                                     end
 
-                                    if results
+                                    if c.results
                                         fprintf(fhv, ['We moved to ' name{i} '\r\n']);
-                                        fprintf(fhv, ['    Z was initially focused to ' num2str(c.piezo(3)) ' V\r\n']);
-                                        fprintf(fhv, ['                          from ' num2str(old(3)) ' V.\r\n']);
+                                        sayResult('Z');
                                     end
 
                                     old = [c.piezo c.galvo];
 
-                                    if get(c.autoTaskBlue, 'Value') == 1 && ~c.globalStop && c.autoScanning
+                                    if checkTask(c.autoTaskBlue)
                                         try
                                             start(c.vid);
                                             data = getdata(c.vid);
@@ -2526,15 +2540,14 @@ function varargout = diamondControl(varargin)
 
                                     display('  Optimizing...');
                                     
-                                    if get(c.autoAutoProceed,'Value')==1
+                                    if checkTask(c.autoAutoProceed)
                                         %Running Blue Feedback
-                                        for ii=1:4
-                                            [c.Xf,c.Yf]=diskcheck(); % Check Centroid
+                                        for ii = 1:4
+                                            [c.Xf,c.Yf] = diskcheck(); % Check Centroid
                                         end
                                     end
-                                  
                                     
-                                    if get(c.autoTaskPiezo, 'Value') == 1
+                                    if checkTask(c.autoTaskPiezo)
                                         display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
                                     end
 
@@ -2544,17 +2557,12 @@ function varargout = diamondControl(varargin)
 
                                     if round(str2double(get(c.autoTaskNumRepeat, 'String'))) ~= 0
                                         display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
-                                        scan = scan0; % in case there is only one repeat tasked.
+                                        scan = scan0; % In case there is only one repeat tasked.
                                     end
 
-                                    if results
-                                        fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
-                                        fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
-                                        fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
-                                        fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
+                                    if c.results
+                                        sayResult('XYxy');
                                         fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(scan0)))) ' counts/sec.\r\n']);
-                                        fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
-                                        fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
                                     end
 
                                     j = 2;
@@ -2579,15 +2587,9 @@ function varargout = diamondControl(varargin)
                                             end
                                         end
 
-                                        if results
-                                            fprintf(fhv, ['    Z was optimized to ' num2str(c.piezo(3)) ' V\r\n']);
-                                            fprintf(fhv, ['                  from ' num2str(old(3)) ' V.\r\n']);
-                                            fprintf(fhv, ['    XY were optimized to ' num2str(c.piezo(1)) ', ' num2str(c.piezo(2))  ' V\r\n']);
-                                            fprintf(fhv, ['                    from ' num2str(old(1))   ', ' num2str(old(2))    ' V.\r\n']);
-                                            if get(c.autoTaskGalvo, 'Value') == 1
-                                                fprintf(fhv, ['    The galvos were optimized to ' num2str(c.galvo(1)*1000) ', ' num2str(c.galvo(2)*1000) ' mV\r\n']);
-                                                fprintf(fhv, ['                            from ' num2str(old(4)*1000) ', ' num2str(old(5)*1000) ' mV.\r\n']);
-                                            end
+                                        sayResult('XYZxy');
+                                        
+                                        if c.results
                                             fprintf(fhv, ['    This gives us a countrate of ' num2str(round(max(max(scan)))) ' counts/sec.\r\n']);
                                         end
 
@@ -2596,15 +2598,9 @@ function varargout = diamondControl(varargin)
 
                                     old = [c.piezo c.galvo];
 
-    %                                 display('    Z...');
-    %                                 piezoOptimizeZ();
+                                    sayResult('Z');
 
-                                    if results
-                                            fprintf(fhv, ['    Z was optimized a final time to ' num2str(c.piezo(3)) ' V\r\n']);
-                                            fprintf(fhv, ['                               from ' num2str(old(3)) ' V.\r\n']);
-                                    end
-
-                                    if get(c.autoTaskSpectrum, 'Value') == 1 && ~c.globalStop && c.autoScanning
+                                    if checkTask(c.autoTaskSpectrum)
                                         display('  Taking Spectrum...');
 
                                         spectrum = -1;
@@ -2613,8 +2609,6 @@ function varargout = diamondControl(varargin)
 
                                         while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop && c.autoScanning
                                             try
-        %                                         sendSpectrumTrigger();
-        %                                         spectrum = waitForSpectrum([prefix name{i} '_spectrum']);
                                                 spectrum = waitForSpectrum([prefix name{i} '_spectrum'], sendSpectrumTrigger());
                                             catch err
                                                 display(err.message);
@@ -2659,21 +2653,23 @@ function varargout = diamondControl(varargin)
     %     %                             xlim(c.lowerAxes, [1 512]);
     %                                 saveas(png, [prefix name{i} '_spectrum' '.png']);
 
-                                    if get(c.autoTaskGalvo, 'Value') == 1
-    %                                     display('here');
+                                    if checkTask(c.autoTaskGalvo)
                                         save([prefix name{i} '_galvo' '.mat'], 'scan');
-
-                                        imwrite(rot90(scan0,2)/max(max(scan0)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
-                                        imwrite(rot90(scan,2)/max(max(scan)),     [prefix name{i} '_galvo'        '.png']);
+                                        if scan0 ~= 0
+                                            imwrite(rot90(scan0,2)/max(max(scan0)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
+                                        end
+                                        if scan ~= 0
+                                            imwrite(rot90(scan,2)/max(max(scan)),     [prefix name{i} '_galvo'        '.png']);
+                                        end
                                     end
 
-                                    if get(c.autoTaskPiezo, 'Value') == 1
+                                    if checkTask(c.autoTaskPiezo) && piezo0 ~= 0
                                         imwrite(piezo0/max(max(piezo0)),   [prefix name{i} '_piezo_debug'  '.png']);
                                     end
 
-                                    imwrite(img, [prefix name{i} '_blue' '.png']);
-
-                                    if get(c.autoTaskBlue, 'Value') == 1
+                                    if checkTask(c.autoTaskBlue)
+                                        imwrite(img, [prefix name{i} '_blue' '.png']);
+                                        
                                         try
                                             start(c.vid);
                                             data = flipdim(getdata(c.vid),1);
@@ -2686,28 +2682,29 @@ function varargout = diamondControl(varargin)
                                         catch err
                                             display(err.message)
                                         end
+                                        
+                                        imwrite(img, [prefix name{i} '_blue_after' '.png']);
                                     end
 
-                                    imwrite(img, [prefix name{i} '_blue_after' '.png']);
 
-                                    if results
+                                    if c.results
                                         display('  Remarking...');
 
                                         counts = max(max(scan));
         %                                 counts2 = max(max(intitial));
 
-                                        works = true;
-
-                                        if get(c.autoTaskGalvo, 'Value') == 1
-                                            J = imresize(scan, 5);
-                                            J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
-
-                                            level = graythresh(J);
-                                            IBW = im2bw(J, level);
-                                            [centers, radii] = imfindcircles(IBW, [15 60]);
-
-                                            works = ~isempty(centers);
-                                        end
+%                                         works = true;
+% 
+%                                         if get(c.autoTaskGalvo, 'Value') == 1
+%                                             J = imresize(scan, 5);
+%                                             J = imcrop(J, [length(J)/2-25 length(J)/2-20 55 55]);
+% 
+%                                             level = graythresh(J);
+%                                             IBW = im2bw(J, level);
+%                                             [centers, radii] = imfindcircles(IBW, [15 60]);
+% 
+%                                             works = ~isempty(centers);
+%                                         end
 
         %                                 IBW = im2bw(scan, graythresh(scan));
         %                                 [centers, radii] = imfindcircles(IBW,[5 25]);
@@ -2717,18 +2714,20 @@ function varargout = diamondControl(varargin)
                                             fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] |']);
                                         end
 
-                                        if works
-                                            fprintf(fhb, ' W |');
-                                            fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
-                                            fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
-                                        else
+%                                         if works
+%                                             fprintf(fhb, ' W |');
+%                                             fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
+%                                             fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
+%                                         else
                                             fprintf(fhb, '   |');
                                             fprintf(fh, ['   ' num2str(round(counts), '%07i') ' |']);
-                                            fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
-                                        end
+%                                             fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
+%                                         end
                                     end
 
                                     display('  Finished...');
+                            
+                                    resetGalvo_Callback(0,0);
 
                                     while ~(c.proceed || get(c.autoAutoProceed, 'Value'))
                                         pause(.5);
@@ -2738,7 +2737,7 @@ function varargout = diamondControl(varargin)
                                 end
                             catch err
                                 ledSet(2);
-                                if results
+                                if c.results
                                     try
                                         fprintf(fhb, ' F |');
                                         fprintf(fh, [' F ' num2str(0, '%07i') ' |']);
@@ -2765,7 +2764,7 @@ function varargout = diamondControl(varargin)
             end
         end
         
-        if ~onlyTest
+        if ~onlyTest && c.results
             fclose(fhb);
             fclose(fh);
             fclose(fhv);
@@ -4033,85 +4032,76 @@ function varargout = diamondControl(varargin)
              end
         end
     end
-    function [Xf,Yf]=diskcheck() 
-        
-            %Get device Image
-            
-            frame = flipdim(getsnapshot(c.vid),1);
-            I3 = img_enhance(frame);     
-            
-            %thresh=str2double(get(c.autoDiskThresh, 'String'));
-            
-            %Find the centroid of the required disk
-            thresh = linspace(0.35,0.65,10);
-            for ii=1:length(thresh)
-                
-                IBW=im2bw(I3,thresh(ii)); 
-                circles = imfindcircles(IBW,[14 23]); %Get Circles
-                
-                if size(circles,1)
-                    
-                    for kk=1:size(circles,1)
-                        a(kk)=abs(circles(kk,1)-c.autoDX) + abs(circles(kk,2)-c.autoDY);
-                    end
+    function [Xf, Yf] = diskcheck() 
 
-                    [min_v(ii),min_i(ii)] = min(a);
-                    clear a;
-                    
-                    pcirc(ii,:) = [circles(min_i(ii),1) circles(min_i(ii),2)];
-                    
-                else
-                    min_v(ii)=1000;
-                    pcirc(ii,:) = [0 0];
+        %Get device Image
+
+        frame = flipdim(getsnapshot(c.vid), 1);
+        I3 = img_enhance(frame);     
+
+        %thresh=str2double(get(c.autoDiskThresh, 'String'));
+
+        %Find the centroid of the required disk
+        thresh = linspace(0.35, 0.65, 10);
+        for ii = 1:length(thresh)
+
+            IBW = im2bw(I3, thresh(ii)); 
+            circles = imfindcircles(IBW, [14 23]); %Get Circles
+
+            if size(circles, 1)
+                for kk = 1:size(circles, 1)
+                    a(kk) = (circles(kk, 1)-c.autoDX)^2 + (circles(kk,2)-c.autoDY)^2;
                 end
 
-            end
-            
-         
-            [min_V, min_i] = min(min_v);
-                
-            if min_V==1000
-                 disp('WARNING!!! No disks detected!!!')
+                [min_v(ii), min_i(ii)] = min(a);
+                clear a;
+
+                pcirc(ii,:) = [circles(min_i(ii),1) circles(min_i(ii),2)];
+
             else
-                
-              
-                XX = pcirc(min_i,1);
-                YY = pcirc(min_i,2);
-              
-
-                %[X,Y,R] = centroid_fun()
-                delX = XX-c.autoDX;
-                delY = YY-c.autoDY;                                
-
-
-                if abs(delX)>50 || abs(delY)>50
-                    disp('WARNING!!! Large drift or Broken Device!!!')
-                    Xf=XX;s
-                    Yf=YY;
-                else
-                    Xf=XX-delX;
-                    Yf=YY-delY;
-                    minAdjustmentpx = str2double(get(c.trk_min, 'String'));
-                    c.mindelVx = minAdjustmentpx*c.calib.pX;
-                    c.mindelVy = minAdjustmentpx*c.calib.pY;
-
-                    delVx = delX*c.calib.pX;
-                    delVy = delY*c.calib.pY;
-
-                    if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
-                        disp('corrected')
-                         piezoOutSmooth(c.piezo + [-delVx delVy 0]);
-                    elseif (abs(delVx)>c.mindelVx)
-                        disp('corrected')
-                         piezoOutSmooth(c.piezo + [-delVx 0 0]);
-                    elseif (abs(delVy) > c.mindelVy)
-                        disp('corrected')
-                         piezoOutSmooth(c.piezo + [0 delVy 0]);
-                    end
-                end
-            
+                min_v(ii) = 1000;
+                pcirc(ii,:) = [0 0];
             end
- 
+        end
+
+        [min_V, min_i] = min(min_v);
+
+        if min_V == 1000
+             disp('WARNING!!! No disks detected!!!')
+        else
+            XX = pcirc(min_i, 1);
+            YY = pcirc(min_i, 2);
+
+            %[X,Y,R] = centroid_fun()
+            delX = XX-c.autoDX;
+            delY = YY-c.autoDY;                                
+
+            if abs(delX)>50 || abs(delY)>50
+                disp('WARNING!!! Large drift or Broken Device!!!')
+                Xf = XX;
+                Yf = YY;
+            else
+                Xf = XX-delX;
+                Yf = YY-delY;
+                minAdjustmentpx = str2double(get(c.trk_min, 'String'));
+                c.mindelVx = minAdjustmentpx*c.calib.pX;
+                c.mindelVy = minAdjustmentpx*c.calib.pY;
+
+                delVx = delX*c.calib.pX;
+                delVy = delY*c.calib.pY;
+
+                if (abs(delVx) > c.mindelVx) && (abs(delVy) > c.mindelVy)
+                    disp('corrected')
+                    piezoOutSmooth(c.piezo + [-delVx delVy 0]);
+                elseif (abs(delVx) > c.mindelVx)
+                    disp('corrected')
+                    piezoOutSmooth(c.piezo + [-delVx 0 0]);
+                elseif (abs(delVy) > c.mindelVy)
+                    disp('corrected')
+                    piezoOutSmooth(c.piezo + [0 delVy 0]);
+                end
+            end
+        end
     end
     function diskclear_Callback(~,~)
          c.seldisk=0;
