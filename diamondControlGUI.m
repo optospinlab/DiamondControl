@@ -102,11 +102,12 @@ c.microYAddr =  '1';
 c.s = 0; 
 c.daqInitiated = false;
 
-% Normalization DEVice and CHaNnel
-c.devNorm =     'Dev1';         
-c.chnNorm =     'ai6';
-c.sn =          0;      % Empty variable for session.
-c.normInit =    0;
+% Normalization DEVice and CHaNnel (unused)
+% c.devNorm =     'Dev1';         
+% c.chnNorm =     'ai6';
+% c.sn =          0;      % Empty variable for session.
+% c.normInit =    0;
+c.norm = 0;
 
 % SPCM DEVice and CHaNnel
 c.devSPCM =     'Dev1';         
@@ -542,7 +543,7 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoSkip =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Skip', 'Position', [bp	plhi-bp-9*bh 2*bw+bp bh]);
             c.autoScanning = false;
             c.autoSkipping = true;
-            c.autoBlueEnable = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Blue Feedback Enabled', 'Position', [bp	plhi-bp-12*bh 2*bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
+            % c.autoBlueEnable = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Blue Feedback Enabled', 'Position', [bp	plhi-bp-12*bh 2*bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
 
             
         c.autoTab =         uitab('Parent', c.autoPanel, 'Title', 'Grid');
@@ -695,17 +696,23 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoDiskClr = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Clear', 'Position', [bp+3*bw/2	plhi-bp-k*bh bw/2 bh]);
             
         c.autoTabT =         uitab('Parent', c.autoPanel, 'Title', 'Tasks');
-            c.autoTaskFocus = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Focus upon arrival?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-3*bh 2*bw bh]); 
+            c.autoTaskOptT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Optimization:', 'Position', [bp        plhi-bp-3*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            
+            c.autoTaskNumRepeatT = uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Linear Optimization #: ',   'Position', [bp        plhi-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
+            c.autoTaskNumRepeat  = uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 2,     'Position', [bp+bw   plhi-bp-4*bh bw/2 bh]);
+            
+            c.autoTaskGalvoI = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Initial Galvo',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-5*bh bw bh]); 
+            c.autoTaskPiezoI = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Initial Piezo',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-5*bh bw bh]); 
+            c.autoTaskDiskI = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Blue Disk Feedback',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-6*bh bw bh]); 
+            c.autoTaskFocus = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Autofocus', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-6*bh bw bh]); 
+            
 %             c.autoTaskReset = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Reset piezos and galvos?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
             
-            c.autoTaskBlue = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take blue image?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-4*bh 2*bw bh]); 
-            c.autoTaskGalvo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Galvo scan?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-5*bh 2*bw bh]); 
-            c.autoTaskPiezo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Piezo scan?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-6*bh 2*bw bh]); 
-
-            c.autoTaskNumRepeatT = uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Repeat Optimization #: ',   'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
-            c.autoTaskNumRepeat  = uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 2,     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
-            
-            c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Take spectrum?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-8*bh 2*bw bh]); 
+            c.autoTaskTaskT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Tasks:', 'Position', [bp        plhi-bp-8*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            c.autoTaskBlue = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Blue Image',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-9*bh bw bh]); 
+            c.autoTaskGalvo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Final Galvo',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-9*bh bw bh]); 
+            c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Spectrum',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-10*bh bw bh]); 
+            c.autoTaskPower = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Record Powers',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-10*bh bw bh]); 
             
 c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
     c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);

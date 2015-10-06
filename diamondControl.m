@@ -509,6 +509,7 @@ function varargout = diamondControl(varargin)
         display('  Goodbye DAQ I/O...');
         try     % Reset and release the DAQ devices
             % daqOutSmooth([0 0 0 0 0]);
+            
             ledSet(0);
             pause(.25);
             
@@ -531,6 +532,8 @@ function varargout = diamondControl(varargin)
             delete(c.sp);  
             delete(c.sd);
             delete(c.sl);
+            
+            fclose(c.norm);
             
             display('    Released DAQs...');
         catch err
@@ -637,7 +640,7 @@ function varargout = diamondControl(varargin)
         set(c.powerButton, 'Enable', 'off');
         
         [power, ~] = getPower();
-        set(c.powerValue, 'String', power);
+        set(c.powerValue, 'String', power2str(power));
         
         set(c.powerButton, 'Enable', 'on');
     end
@@ -789,13 +792,33 @@ function varargout = diamondControl(varargin)
         %frame = flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png')),1);
         
     end
+    function normInit()
+        try
+            c.norm = instrfind('Type', 'visa-gpib', 'RsrcName', 'GPIB0::5::INSTR', 'Tag', '');
+
+            if isempty(c.norm)    % Create the VISA-GPIB object if it does not exist
+                c.norm = visa('NI', 'GPIB0::5::INSTR');
+            else                % otherwise use the object that was found.
+                fclose(c.norm);
+                c.norm = c.norm(1);
+            end
+
+            fopen(c.norm);
+            flushinput(c.norm);
+            flushoutput(c.norm);
+            
+            c.normInit = 1;
+        catch err
+            display(err.message);
+        end
+    end
     function initAll()
         % Self-explainatory
 %         try
             % initPle();
             daqInit_Callback(0,0);
             
-            initNormalization(true)
+%             initNormalization(true)
             
             getState();
             set(c.upperFigure, 'Visible', 'On');
@@ -807,6 +830,7 @@ function varargout = diamondControl(varargin)
             
             videoInit();
             microInit_Callback(0,0);
+            normInit();
 
 %             focus_Callback(0,0);
             
@@ -1590,7 +1614,7 @@ function varargout = diamondControl(varargin)
      end
 
     % NORMALIZATION =======================================================
-    function initNormalization(useAnalog)
+    function initNormalization(useAnalog) % Unused
         if useAnalog && c.normInit == 0
             % Norm Analog
             c.sn = daq.createSession(   'ni');
@@ -1601,16 +1625,43 @@ function varargout = diamondControl(varargin)
     end
     function [power, dpower] = getPower()
         if  c.normInit == 1
-            c.sn.Rate = 10000;
-            c.sn.DurationInSeconds = 1; % 10000 samples
-
-            data = startForeground(c.sn);
+%             c.sn.Rate = 10000;
+%             c.sn.DurationInSeconds = 1; % 10000 samples
+% 
+%             data = startForeground(c.sn);
+            len = 30;
+            data = zeros(1,len);
+            
+            for jj = 1:len
+                fprintf(c.norm, 'R_B?');
+                pause(0.005);
+                data(jj) = str2double(fscanf(c.norm));
+                pause(0.005);
+            end
 
             power =     mean(data);
             dpower =    std(data);
         end
     end
-    
+    function str = power2str(power)
+        [char, magn] = getMagn(power);
+        
+        str = [num2str(power/magn) ' ' char 'W'];
+    end
+    function [char, magn] = getMagn(num)
+        chars = 'TZEPTGMkm unpfazy';
+        
+        m = floor(log10(num)/3)
+        9-m
+        
+        char = chars(9-m);
+        if char == ' '
+            char = '';
+        end
+        
+        magn = 1000^m;
+    end
+
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
         % Method 1
@@ -2526,7 +2577,7 @@ function varargout = diamondControl(varargin)
                                         sayResult('Z');
                                     end
 
-                                    old = [c.piezo c.galvo];
+                                    c.old = [c.piezo c.galvo];
 
                                     if checkTask(c.autoTaskBlue)
                                         try
@@ -2540,22 +2591,22 @@ function varargout = diamondControl(varargin)
 
                                     display('  Optimizing...');
                                     
-                                    if checkTask(c.autoAutoProceed)
+                                    if checkTask(c.autoTaskDiskI)
                                         %Running Blue Feedback
-                                        for ii = 1:4
+                                        for ii = 1:6
                                             [c.Xf,c.Yf] = diskcheck(); % Check Centroid
                                         end
-                                    end
-                                    
-                                    if checkTask(c.autoTaskPiezo)
-                                        display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
                                     end
 
                                     scan0 = 0;
                                     scan = 0;
                                     piezo0 = 0;
+                                    
+                                    if checkTask(c.autoTaskPiezoI)
+                                        display('    XY...');       piezo0 = piezoOptimizeXY(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                                    end
 
-                                    if round(str2double(get(c.autoTaskNumRepeat, 'String'))) ~= 0
+                                    if checkTask(c.autoTaskGalvoI)
                                         display('    Galvo...');    scan0 = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
                                         scan = scan0; % In case there is only one repeat tasked.
                                     end
@@ -2565,27 +2616,14 @@ function varargout = diamondControl(varargin)
                                         fprintf(fhv, ['    This gave us an inital countrate of ' num2str(round(max(max(scan0)))) ' counts/sec.\r\n']);
                                     end
 
-                                    j = 2;
+                                    j = 1;
 
                                     while j <= round(str2double(get(c.autoTaskNumRepeat, 'String'))) && ~c.globalStop && c.autoScanning
-                                        old = [c.piezo c.galvo];
-
-    %                                     display('    Z...');    piezoOptimizeZ();
-    %                                     display('    XY...');   piezoOptimizeXY(c.piezoRange/3, c.piezoSpeed, round(c.piezoPixels/3));
-
+                                        c.old = [c.piezo c.galvo];
+                                        
                                         display('    XYZ...');   optAll_Callback(0,0);
-
-                                        if get(c.autoTaskGalvo, 'Value') == 1 && ~c.globalStop
-                                            if j == round(str2double(get(c.autoTaskNumRepeat, 'String')));
-                                                display('  Scanning...');
-                                                scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
-                                            else
-                                                display('    Galvo...');
-    %                                             scan = galvoOptimize(c.galvoRange, c.galvoSpeed, round(c.galvoPixels/2));
-                                                optimizeAxis(4, .05, 500, 500);
-                                                scan = optimizeAxis(5, .05, 500, 500);
-                                            end
-                                        end
+                                        
+                                        display('    Galvo...'); optimizeAxis(4, .05, 500, 500);  scan = optimizeAxis(5, .05, 500, 500);
 
                                         sayResult('XYZxy');
                                         
@@ -2596,9 +2634,14 @@ function varargout = diamondControl(varargin)
                                         j = j + 1;
                                     end
 
-                                    old = [c.piezo c.galvo];
+                                    c.old = [c.piezo c.galvo];
+                                    
+                                    if checkTask(c.autoTaskGalvo)
+                                            display('  Scanning...');
+                                            scan = galvoOptimize(c.galvoRange, c.galvoSpeed, c.galvoPixels);
+                                    end
 
-                                    sayResult('Z');
+                                    sayResult('xy');
 
                                     if checkTask(c.autoTaskSpectrum)
                                         display('  Taking Spectrum...');
@@ -2609,7 +2652,13 @@ function varargout = diamondControl(varargin)
 
                                         while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop && c.autoScanning
                                             try
-                                                spectrum = waitForSpectrum([prefix name{i} '_spectrum'], sendSpectrumTrigger());
+                                                trig = sendSpectrumTrigger();
+                                                
+                                                if checkTask(c.autoTaskPower)
+                                                    % getPower()    % Where to put!?
+                                                end
+                                                
+                                                spectrum = waitForSpectrum([prefix name{i} '_spectrum'], trig);
                                             catch err
                                                 display(err.message);
                                             end
@@ -2653,17 +2702,14 @@ function varargout = diamondControl(varargin)
     %     %                             xlim(c.lowerAxes, [1 512]);
     %                                 saveas(png, [prefix name{i} '_spectrum' '.png']);
 
-                                    if checkTask(c.autoTaskGalvo)
-                                        save([prefix name{i} '_galvo' '.mat'], 'scan');
-                                        if scan0 ~= 0
-                                            imwrite(rot90(scan0,2)/max(max(scan0)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
-                                        end
-                                        if scan ~= 0
-                                            imwrite(rot90(scan,2)/max(max(scan)),     [prefix name{i} '_galvo'        '.png']);
-                                        end
+                                    if scan0  ~= 0
+                                        imwrite(rot90(scan0,2)/max(max(scan0)),   [prefix name{i} '_galvo_debug'  '.png']);  % rotate because the dims are flipped.
                                     end
-
-                                    if checkTask(c.autoTaskPiezo) && piezo0 ~= 0
+                                    if scan   ~= 0
+                                        save([prefix name{i} '_galvo' '.mat'], 'scan');
+                                        imwrite(rot90(scan,2)/max(max(scan)),     [prefix name{i} '_galvo'        '.png']);
+                                    end
+                                    if piezo0 ~= 0
                                         imwrite(piezo0/max(max(piezo0)),   [prefix name{i} '_piezo_debug'  '.png']);
                                     end
 
