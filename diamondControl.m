@@ -1344,7 +1344,7 @@ function varargout = diamondControl(varargin)
             
             plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, Mx + dy/10], 'r--', [center, center], [my - dy/10, Mx + dy/10], 'r:');
             xlim(c.lowerAxes, [mx Mx]);
-            ylim(c.lowerAxes, [my - dy/10, Mx + dy/10]);
+%             ylim(c.lowerAxes, [my - dy/10, Mx + dy/10]);
 
 %             m = min(min(data)); M = max(max(data));
 % 
@@ -1651,8 +1651,7 @@ function varargout = diamondControl(varargin)
     function [char, magn] = getMagn(num)
         chars = 'TZEPTGMkm unpfazy';
         
-        m = floor(log10(num)/3)
-        9-m
+        m = floor(log10(num)/3);
         
         char = chars(9-m);
         if char == ' '
@@ -2557,7 +2556,7 @@ function varargout = diamondControl(varargin)
                                 
 %                                 pause(.5);
                                 
-                                if ~onlytest
+                                if ~onlyTest
                                     piezoOutSmooth([0 0 0]);
                                 end
                                 piezoOutSmooth([5 5 p(3,i)]);       % Reset the piezos and goto the proper height
@@ -2593,9 +2592,16 @@ function varargout = diamondControl(varargin)
                                     
                                     if checkTask(c.autoTaskDiskI)
                                         %Running Blue Feedback
-                                        for ii = 1:6
-                                            [c.Xf,c.Yf] = diskcheck(); % Check Centroid
+                                        
+                                        
+%                                         for ii = 1:4
+%                                             [c.Xf,c.Yf] = diskcheck(1); % Check Centroid for inverted image 
+%                                         end
+                                        
+                                        for ii = 1:4
+                                            [c.Xf,c.Yf] = diskcheck(); % Check Centroid for positive image
                                         end
+                                        
                                     end
 
                                     scan0 = 0;
@@ -4031,9 +4037,12 @@ function varargout = diamondControl(varargin)
             filter = fspecial('unsharp', 1);
             I1 = imfilter(in_img, filter);
 
-            %Adjust contrast
-            I2 = imtophat(I1,strel('disk',32));
-            out_img = imadjust(I2);       
+           % Clean up background and Adjust contrast
+           % I2 = imtophat(I1,strel('disk',32));
+           % out_img = imadjust(I2); 
+           % Not reuired for round 3 devices
+           
+            out_img = I1;
     end
     function diskdetect_Callback(~,~) %Detects disks and plots them
          frame = flipdim(getsnapshot(c.vid),1);
@@ -4044,9 +4053,18 @@ function varargout = diamondControl(varargin)
         axes(c.bluefbAxes);
         
         thresh=str2double(get(c.autoDiskThresh, 'String'));
-        IBW=im2bw(I3,thresh); %Convert to BW and Manual Threshold
-        imshow(IBW);
-        [c.circles, c.radii] = imfindcircles(IBW,[14 23]); %Get Circles
+        
+        
+        % the ~ inverts the greyscale image 
+        % inversion requiired for round 3 devices
+        if (get(c.autoDiskInv,'Value')==1)
+            IBW=~im2bw(I3,thresh); %Convert to BW and Manual Threshold
+        else    
+            IBW=im2bw(I3,thresh); %Convert to BW and Manual Threshold
+        end
+        
+            imshow(IBW);
+            [c.circles, c.radii] = imfindcircles(IBW,[4 10]); %Get Circles
 
         %Delete any old detections   
          try
@@ -4088,12 +4106,17 @@ function varargout = diamondControl(varargin)
         %thresh=str2double(get(c.autoDiskThresh, 'String'));
 
         %Find the centroid of the required disk
-        thresh = linspace(0.35, 0.65, 10);
+        thresh = linspace(0.2, 0.9, 20);
         for ii = 1:length(thresh)
-
-            IBW = im2bw(I3, thresh(ii)); 
-            circles = imfindcircles(IBW, [14 23]); %Get Circles
-
+            
+%             if(inv==1)
+%                 IBW = ~im2bw(I3, thresh(ii));  
+%                 circles = imfindcircles(~IBW, [10 23]); %Get Inverted Circles
+%             else
+                IBW = im2bw(I3, thresh(ii));  
+                circles = imfindcircles(IBW, [4 10]); %Get Circles
+%             end
+            
             if size(circles, 1)
                 for kk = 1:size(circles, 1)
                     a(kk) = (circles(kk, 1)-c.autoDX)^2 + (circles(kk,2)-c.autoDY)^2;
@@ -4114,6 +4137,9 @@ function varargout = diamondControl(varargin)
 
         if min_V == 1000
              disp('WARNING!!! No disks detected!!!')
+             Xf=640/2;
+             Yf=480/2;
+             
         else
             XX = pcirc(min_i, 1);
             YY = pcirc(min_i, 2);

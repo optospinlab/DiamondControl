@@ -689,12 +689,14 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoV5ZT =    uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Z (V): ',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
             c.autoV5Z =     uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoV5Get =   uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw	plhi-bp-k*bh bw bh]);
-            k = k+2;
+            k = k+1;
             c.autoDiskT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'T (0-1):',    'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
-            c.autoDiskThresh = uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0.65,       'Position', [bp+bw/2    plhi-bp-k*bh bw/3 bh]);
+            c.autoDiskThresh = uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0.25,       'Position', [bp+bw/2    plhi-bp-k*bh bw/3 bh]);
             c.autoDiskDet = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Detect', 'Position', [bp+bw	plhi-bp-k*bh bw/2 bh]);
             c.autoDiskClr = uicontrol('Parent', c.autoTab, 'Style', 'pushbutton', 'String', 'Clear', 'Position', [bp+3*bw/2	plhi-bp-k*bh bw/2 bh]);
-            
+            k=k+1;
+            c.autoDiskInv = uicontrol('Parent', c.autoTab, 'Style', 'checkbox', 'String', 'Inv', 'Position', [bp	plhi-bp-k*bh bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
+
         c.autoTabT =         uitab('Parent', c.autoPanel, 'Title', 'Tasks');
             c.autoTaskOptT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Optimization:', 'Position', [bp        plhi-bp-3*bh 2*bw bh],         'HorizontalAlignment', 'left');
             
