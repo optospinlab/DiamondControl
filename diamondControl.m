@@ -165,7 +165,6 @@ function varargout = diamondControl(varargin)
     set(c.pleSpeed, 'Callback',  @updateScanGraph_Callback);
     set(c.pleScans, 'Callback',  @updateScanGraph_Callback);
     
-    
     % Tracking Fields
     set(c.start_vid, 'Callback',  @startvid_Callback);
     set(c.stop_vid, 'Callback',  @stopvid_Callback);
@@ -173,25 +172,6 @@ function varargout = diamondControl(varargin)
     set(c.track_set, 'Callback',  @settrack_Callback);
     set(c.bluefbFigure,'WindowButtonDownFcn', @diskclick_Callback);
     %set(c.track_Axes,'WindowButtonDownFcn', @click_trackCallback);
-    
-    
-    
-    % UI Fields -----------------------------------------------------------
-    % set(c.parent, 'ButtonDownFcn', @click_Callback);
-    % set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-    % set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-    
-    
-%     set(c.upperAxes, 'ButtonDownFcn', @requestShow);
-%     set(c.lowerAxes, 'ButtonDownFcn', @requestShow);
-%     set(c.counterAxes, 'ButtonDownFcn', @requestShow);
-%     
-%     set(c.mouseEnabled, 'Callback', @mouseEnabled_Callback);
-    
-%     set(c.microInit, 'Callback', @microInit_Callback);
-    
-    % We do resizing programatically
-%     set(c.parent, 'SizeChangedFcn', @resizeUI_Callback);
     
     % Create the joystick object =====
     try
@@ -210,17 +190,17 @@ function varargout = diamondControl(varargin)
     
     % set(c.parent, 'Visible', 'On');
     
-    % Initiate Everything...
+    % Initiate all external devices. e.g. piezos, micrometers.
     initAll();
     
-    % Start main loop
+    % Start the main loop
     main();
     
     function main()
               
         while c.running     % c.running is currently unused, but likely will be used.
             if ~c.pleScanning
-                if ~c.focusing
+                if ~c.focusing && ~c.autoScanning && ~c.doing
                     [outputXY, outputZ] = readJoystick();
 
                     if outputXY && c.microInitiated % If X or Y have been changed
@@ -246,6 +226,7 @@ function varargout = diamondControl(varargin)
 
     % INPUTS ==============================================================
     function [outputXY, outputZ] = readJoystick()
+        % Reads the joystick. Outputs are true if the corresponding axes were changed.
         outputXY = 0;
         outputZ = 0;
         if c.joystickEnabled == 1 && get(c.joyEnabled, 'Value') == 1   % If the joystick is enabled...
@@ -321,7 +302,7 @@ function varargout = diamondControl(varargin)
             outputZ =   (prevZ ~= c.piezo(3));
         end
     end
-    function speed = joystickAxesFunc(num, ignore) 
+    function speed = joystickAxesFunc(num, ignore)
         % Input a number for -1 to 1, get the 'speed' to drive the micrometers/piezo
         if abs(num) < ignore % Ignore small movements of the joystick
             speed = 0;
@@ -608,7 +589,7 @@ function varargout = diamondControl(varargin)
         timestamp =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3)) ' ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
         
         switch c.saveMode
-            case {'piezo', 'galvo'}
+            case {'piezo', 'galvo'} % Need to fix the image flipping!
                 type = c.saveMode;
                 xrange = c.saveX;
                 yrange = c.saveY;
@@ -1166,7 +1147,7 @@ function varargout = diamondControl(varargin)
         galvoOutSmooth([0 0]);
     end
     % --- OPTIMIZATION ----------------------------------------------------
-    function focus_Callback(~, ~)
+    function focus_Callback(~, ~)   % Needs to be improved!
         display('    begin focusing');
         
         c.focusing = 1;
@@ -1260,128 +1241,134 @@ function varargout = diamondControl(varargin)
         optimizeAxis(5, .05, 500, 500);
     end
     function final = optimizeAxis(axis, range, pixels, rate)     % 1,2,3,4,5 = piezo x,y,z, galvo x,y
-        center = -1;
-        
-        prevRate = c.s.Rate;
-        c.s.Rate = rate; 
-        
-        if axis >= 1 && axis <= 3
-            center = c.piezo(axis);
-        elseif axis >= 4 && axis <= 5
-            center = c.galvo(axis-3);
-        else
-            display('    Axis for optimization not understood');
-        end
-        
-        if center ~= -1
-            up = -1;
+        if ~c.doing
+            c.doing = true;
             
+            center = -1;
+
+            prevRate = c.s.Rate;
+            c.s.Rate = rate; 
+
             if axis >= 1 && axis <= 3
-                up = linspace(center-range/2, center+range/2, pixels+1);
-                if up(end) > 10
-                    up = linspace(center-range/2, 10, pixels+1);
-                end
+                center = c.piezo(axis);
+            elseif axis >= 4 && axis <= 5
+                center = c.galvo(axis-3);
+            else
+                display('    Axis for optimization not understood');
+            end
 
-                if up(1) < 0
-                    up = linspace(0, center+range/2, pixels+1);
+            if center ~= -1
+                up = -1;
 
+                if axis >= 1 && axis <= 3
+                    up = linspace(center-range/2, center+range/2, pixels+1);
                     if up(end) > 10
-                        up = linspace(0, 10, pixels+1);
+                        up = linspace(center-range/2, 10, pixels+1);
                     end
-                end
-            elseif axis == 4
-                up = linspace(center+range/2, center-range/2, pixels+1);
-            elseif axis == 5
-                up = linspace(center-range/2, center+range/2, pixels+1);
-            end
-            
-            prev = [c.piezo c.galvo];
-            
-            prev2 = prev;
-            
-            if axis >= 1 && axis <= 3
-                prev2(axis) = 0;
-            elseif axis == 4
-                prev2(axis) = .2;
-            elseif axis == 5
-                prev2(axis) = -.2;
-            end
-            daqOutSmooth(prev2);
-            
-            prev2(axis) = up(1);
-            daqOutSmooth(prev2);
-            
-            switch axis
-                case 1
-                    daqOutQueueClever({up, NaN, NaN, NaN, NaN, NaN, NaN});
-                case 2
-                    daqOutQueueClever({NaN, up, NaN, NaN, NaN, NaN, NaN});
-                case 3
-                    daqOutQueueClever({NaN, NaN, up, NaN, NaN, NaN, NaN});
-                case 4
-                    daqOutQueueClever({NaN, NaN, NaN, up, NaN, NaN, NaN});
-                case 5
-                    daqOutQueueClever({NaN, NaN, NaN, NaN, up, NaN, NaN});
-            end
-            
-            [out, times] = c.s.startForeground();
-            out = out(:,1);
-            
-            data = diff(double(out))./diff(double(times));
-            final = data;
-            
-            
-            [fz, ~] = myMeanAdvanced(data, up(1:pixels), [0]);
-            
-            display('      plot');
-            
-            mx = min(up(1:pixels));
-            Mx = max(up(1:pixels));
-            
-            my = min(data);
-            My = max(data);
-            dy = My - my;
-            
-            plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, Mx + dy/10], 'r--', [center, center], [my - dy/10, Mx + dy/10], 'r:');
-            xlim(c.lowerAxes, [mx Mx]);
-%             ylim(c.lowerAxes, [my - dy/10, Mx + dy/10]);
 
-%             m = min(min(data)); M = max(max(data));
-% 
-%             if m ~= M
-%                 data = (data - m)/(M - m);
-%                 data = data.*(data > .5);
-% 
-%                 total = sum(sum(data));
-%                 fz = sum((data).*(up(1:pixels)'))/total;
-% 
-%                 if axis >= 1 && axis <= 3
-%                     if (fz > 10 || fz < 0 || isnan(fz))
-%                         fz = center;
-%                         display(['    ' num2str(axis) '-axis optimization failed']);
-%                     end
-%                 elseif axis >= 4 && axis <= 5
-%                     if isnan(fz)
-%                         fz = center;
-%                         display(['    ' num2str(axis) '-axis optimization failed']);
-%                     end
-%                 end
-%             end
-            
-            if axis >= 1 && axis <= 3
-                prev2(axis) = 0;
-            elseif axis == 4
-                prev2(axis) = .2;
-            elseif axis == 5
-                prev2(axis) = -.2;
+                    if up(1) < 0
+                        up = linspace(0, center+range/2, pixels+1);
+
+                        if up(end) > 10
+                            up = linspace(0, 10, pixels+1);
+                        end
+                    end
+                elseif axis == 4
+                    up = linspace(center+range/2, center-range/2, pixels+1);
+                elseif axis == 5
+                    up = linspace(center-range/2, center+range/2, pixels+1);
+                end
+
+                prev = [c.piezo c.galvo];
+
+                prev2 = prev;
+
+                if axis >= 1 && axis <= 3
+                    prev2(axis) = 0;
+                elseif axis == 4
+                    prev2(axis) = .2;
+                elseif axis == 5
+                    prev2(axis) = -.2;
+                end
+                daqOutSmooth(prev2);
+
+                prev2(axis) = up(1);
+                daqOutSmooth(prev2);
+
+                switch axis
+                    case 1
+                        daqOutQueueClever({up, NaN, NaN, NaN, NaN, NaN, NaN});
+                    case 2
+                        daqOutQueueClever({NaN, up, NaN, NaN, NaN, NaN, NaN});
+                    case 3
+                        daqOutQueueClever({NaN, NaN, up, NaN, NaN, NaN, NaN});
+                    case 4
+                        daqOutQueueClever({NaN, NaN, NaN, up, NaN, NaN, NaN});
+                    case 5
+                        daqOutQueueClever({NaN, NaN, NaN, NaN, up, NaN, NaN});
+                end
+
+                [out, times] = c.s.startForeground();
+                out = out(:,1);
+
+                data = diff(double(out))./diff(double(times));
+                final = data;
+
+
+                [fz, ~] = myMeanAdvanced(data, up(1:pixels), [0]);
+
+                display('      plot');
+
+                mx = min(up(1:pixels));
+                Mx = max(up(1:pixels));
+
+                my = min(data);
+                My = max(data);
+                dy = My - my;
+
+                plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, Mx + dy/10], 'r--', [center, center], [my - dy/10, My + dy/10], 'r:');
+                xlim(c.lowerAxes, [mx Mx]);
+                ylim(c.lowerAxes, [my - dy/10, My + dy/10]);
+
+    %             m = min(min(data)); M = max(max(data));
+    % 
+    %             if m ~= M
+    %                 data = (data - m)/(M - m);
+    %                 data = data.*(data > .5);
+    % 
+    %                 total = sum(sum(data));
+    %                 fz = sum((data).*(up(1:pixels)'))/total;
+    % 
+    %                 if axis >= 1 && axis <= 3
+    %                     if (fz > 10 || fz < 0 || isnan(fz))
+    %                         fz = center;
+    %                         display(['    ' num2str(axis) '-axis optimization failed']);
+    %                     end
+    %                 elseif axis >= 4 && axis <= 5
+    %                     if isnan(fz)
+    %                         fz = center;
+    %                         display(['    ' num2str(axis) '-axis optimization failed']);
+    %                     end
+    %                 end
+    %             end
+
+                if axis >= 1 && axis <= 3
+                    prev2(axis) = 0;
+                elseif axis == 4
+                    prev2(axis) = .2;
+                elseif axis == 5
+                    prev2(axis) = -.2;
+                end
+
+                daqOutSmooth(prev2);
+
+                prev2(axis) = fz;
+                daqOutSmooth(prev2);
+
+                c.s.Rate = prevRate;
             end
             
-            daqOutSmooth(prev2);
-            
-            prev2(axis) = fz;
-            daqOutSmooth(prev2);
-            
-            c.s.Rate = prevRate;
+            c.doing = false;
         end
     end
     function piezoOptimizeAxis(axis)    % decrepatated.
@@ -1663,89 +1650,101 @@ function varargout = diamondControl(varargin)
 
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
-        % Method 1
-%         range = .8;
-%         pixels = 40;
+        if ~c.doing
+            % Method 1
+    %         range = .8;
+    %         pixels = 40;
 
-        c.globalStop = false;
+%             c.globalStop = false;
 
-        range = rangeUM/5;
-        upspeed = upspeedUM/5;
-        
-        c.s.Rate = pixels*(upspeed/range);
-        
-        steps =      round(pixels);
-        stepsFast =  round(pixels/8);
-
-        % New method
-        up =    linspace(-range/2 + c.piezo(1),  range/2 + c.piezo(1), steps);
-        down =  linspace( range/2 + c.piezo(1), -range/2 + c.piezo(1), stepsFast);
-        up2 =   linspace(-range/2 + c.piezo(2),  range/2 + c.piezo(2), steps);
-        
-        if sum(up < 0) ~= 0 || sum(down < 0) ~= 0 || sum(up2 < 0) ~= 0
-            error('Piezos might go negative!');
-        end
-        X = up;
-        Y = up2;
-
-        final = zeros(steps);
-%             prev = 0;
-        i = 1;
-
-%         otherRows =     [c.piezo(3)*ones(steps,1)       c.galvo(1)*ones(steps,1)        c.galvo(2)*ones(steps,1)];
-%         otherRowsFast = [c.piezo(3)*ones(stepsFast,1)   c.galvo(1)*ones(stepsFast,1)    c.galvo(2)*ones(stepsFast,1)];
-
-        prev = c.piezo;
-
-%         resetPiezo_Callback(0, 0);
-        piezoOutSmooth([0       0       c.piezo(3)]);
-        piezoOutSmooth([up(1)   up2(1)  c.piezo(3)]);
-
-        set(c.piezoXX, 'String', '(scanning)');
-        set(c.piezoYY, 'String', '(scanning)');
-
-        yCopy = 0;
-
-        for y = up2
-            yCopy = y;
-
-            daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
-            [out, times] = c.s.startForeground();
-            out = out(:,1);
-            
-            if y ~= up2(end)
-                daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
-                c.s.startForeground();
-            end
-            
-            final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
-            
-            if i > 1
-                strings = get(c.piezoC, 'string');
-                curval = get(c.piezoC, 'value');
-                
-                surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
-                view(c.lowerAxes, 2);
-                colormap(c.lowerAxes, strings{curval});
-                set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
-                xlim(c.lowerAxes, [up(1)       up(end)]);
-                ylim(c.lowerAxes, [up2(1)      up2(end)]);
-                
-                c.saveD = final;
-                c.saveX = up;
-                c.saveY = up2;
-                c.saveMode = 'piezo';
-            end
-
-            i = i + 1;
-            
             if c.globalStop
                 display('Stopped');
                 c.globalStop = false;
-                break;
+                return;
             end
+            
+            c.doing = true;
 
-            c.s.wait();
+            range = rangeUM/5;
+            upspeed = upspeedUM/5;
+
+            c.s.Rate = pixels*(upspeed/range);
+
+            steps =      round(pixels);
+            stepsFast =  round(pixels/8);
+
+            % New method
+            up =    linspace(-range/2 + c.piezo(1),  range/2 + c.piezo(1), steps);
+            down =  linspace( range/2 + c.piezo(1), -range/2 + c.piezo(1), stepsFast);
+            up2 =   linspace(-range/2 + c.piezo(2),  range/2 + c.piezo(2), steps);
+
+            if sum(up < 0) ~= 0 || sum(down < 0) ~= 0 || sum(up2 < 0) ~= 0
+                error('Piezos might go negative!');
+            end
+            X = up;
+            Y = up2;
+
+            final = zeros(steps);
+    %             prev = 0;
+            i = 1;
+
+    %         otherRows =     [c.piezo(3)*ones(steps,1)       c.galvo(1)*ones(steps,1)        c.galvo(2)*ones(steps,1)];
+    %         otherRowsFast = [c.piezo(3)*ones(stepsFast,1)   c.galvo(1)*ones(stepsFast,1)    c.galvo(2)*ones(stepsFast,1)];
+
+            prev = c.piezo;
+
+    %         resetPiezo_Callback(0, 0);
+            piezoOutSmooth([0       0       c.piezo(3)]);
+            piezoOutSmooth([up(1)   up2(1)  c.piezo(3)]);
+
+            set(c.piezoXX, 'String', '(scanning)');
+            set(c.piezoYY, 'String', '(scanning)');
+
+            yCopy = 0;
+
+            for y = up2
+                yCopy = y;
+
+                daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
+                [out, times] = c.s.startForeground();
+                out = out(:,1);
+
+                if y ~= up2(end)
+                    daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
+                    c.s.startForeground();
+                end
+
+                final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
+
+                if i > 1
+                    strings = get(c.piezoC, 'string');
+                    curval = get(c.piezoC, 'value');
+
+                    surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
+                    view(c.lowerAxes, 2);
+                    colormap(c.lowerAxes, strings{curval});
+                    set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
+                    xlim(c.lowerAxes, [up(1)       up(end)]);
+                    ylim(c.lowerAxes, [up2(1)      up2(end)]);
+
+                    c.saveD = final;
+                    c.saveX = up;
+                    c.saveY = up2;
+                    c.saveMode = 'piezo';
+                end
+
+                i = i + 1;
+
+                if c.globalStop
+                    display('Stopped');
+                    c.globalStop = false;
+                    break;
+                end
+
+                c.s.wait();
+            end
+            
+            c.doing = false;
         end
     end
     function piezoVar_Callback(hObject, ~)
@@ -1836,11 +1835,16 @@ function varargout = diamondControl(varargin)
     function [final, X, Y] = galvoScanFull(useUI, range, upspeed, pixels)
         c.globalStop = false;
         
-        if useUI
-            set(c.galvoButton, 'String', 'Stop!');
-        end
-        
-        if get(c.galvoButton, 'Value') == 1 || ~useUI
+        if ~c.doing
+            
+            if c.globalStop
+                display('Stopped');
+                c.globalStop = false;
+                return;
+            end
+            
+            c.doing = true;
+            
             % range in microns, speed in microns per second (up is upscan; down is downscan)
             %Scan the Galvo +/- mvConv*range/2 deg
             %min step of DAQ = 20/2^16 = 3.052e-4V
@@ -1962,12 +1966,10 @@ function varargout = diamondControl(varargin)
 
 %             c.galvo = [0 0];
             getGalvo();
+            
+            c.doing = false;
         end
         
-        if useUI
-            set(c.galvoButton, 'String', 'Scan!');
-            set(c.galvoButton, 'Value', 0);
-        end    
     end
     function setGalvoAxesLimits()
         xlim(c.lowerAxes, [-c.galvoRange/2, c.galvoRange/2]);
@@ -2046,17 +2048,20 @@ function varargout = diamondControl(varargin)
 
     % SPECTROMETER ========================================================
     function t = sendSpectrumTrigger()
-        set(c.spectrumButton, 'Enable', 'off');
-        
-        t = now;
-        
-        % create the trigger file
-        fh = fopen('Z:\WinSpec_Scan\matlabfile.txt', 'w');  
-        if (fh == -1) 
-            error('oops, file cannot be written'); 
-        end 
-        fprintf(fh, 'Trigger Spectrum\n');
-        fclose(fh);
+        if ~c.doing
+            c.doing = true;
+            set(c.spectrumButton, 'Enable', 'off');
+
+            t = now;
+
+            % create the trigger file
+            fh = fopen('Z:\WinSpec_Scan\matlabfile.txt', 'w');  
+            if (fh == -1) 
+                error('oops, file cannot be written'); 
+            end 
+            fprintf(fh, 'Trigger Spectrum\n');
+            fclose(fh);
+        end
     end
     function spectrum = waitForSpectrum(filename, t)
         file = '';
@@ -2124,6 +2129,8 @@ function varargout = diamondControl(varargin)
             k = waitforbuttonpress 
         end
         set(c.spectrumButton, 'Enable', 'on');
+        
+        c.doing = false;
     end
     function takeSpectrum_Callback(~,~)
         image = waitForSpectrum(0, sendSpectrumTrigger());
@@ -2377,17 +2384,21 @@ function varargout = diamondControl(varargin)
                             color(i,:) = [1 0 0];
                         end
 
-    %                     name{i} = ['Device ' num2str(d) 'in set [' num2str(x) ', '  num2str(y) ']'];
+    %                     name{i} = ['Device ' num2str(d) ' in set [' num2str(x) ', '  num2str(y) ']'];
                         name{i} = '';
                         
                         if diff(ndyrange) == 0 && diff(ndxrange) ~= 0
-                            name{i} = [c.device '_' num2str(dx) '_' c.set '[' num2str(x) ','  num2str(y) ']'];
+                            name{i} = ['d_[' num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
                         elseif diff(ndxrange) == 0 && diff(ndyrange) ~= 0
-                            name{i} = [c.device '_' num2str(dy) '_' c.set '[' num2str(x) ','  num2str(y) ']'];
+                            name{i} = ['d_[' num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
                         elseif diff(ndyrange) == 0 && diff(ndxrange) == 0
-                            name{i} = [c.set '[' num2str(x) ','  num2str(y) ']'];
+                            name{i} = ['s_[' num2str(x) ','  num2str(y) ']'];
                         else
-                            name{i} = [c.device '_' num2str(dy) '_c_'  num2str(dx) '_' c.set '[' num2str(x) ','  num2str(y) ']'];
+                            if (get(c.autoTaskRows, 'Value') == 1)
+                                name{i} = ['d_[' num2str(dx) ']_r_['  num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                            else
+                                name{i} = ['d_[' num2str(dy) ']_c_['  num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                            end
                         end
 
                         i = i + 1;
@@ -2436,11 +2447,11 @@ function varargout = diamondControl(varargin)
     function automate(onlyTest)
         c.autoScanning = true;          % 'Running' variable
         
-        nxrange = getStoredR('x');      % Range of the major grid
-        nyrange = getStoredR('y');
+        nxrange =   getStoredR('x');    % Range of the major grid
+        nyrange =   getStoredR('y');
 
-        ndrange = getStoredR('dx');     % Range of the minor grid
-        ndyrange = getStoredR('dy');
+        ndrange =   getStoredR('dx');   % Range of the minor grid
+        ndyrange =  getStoredR('dy');
         
         % Get the grid...
         [p, color, name, len] = generateGrid();
@@ -2505,11 +2516,12 @@ function varargout = diamondControl(varargin)
                     error('oops, file cannot be written'); 
                 end 
             
-                fprintf(fhb, '  Set  |       Works       |\r\n');         % Change this in the future to be compatable with all possibilities!
-                fprintf(fhb, ' [x,y] | 1 | 2 | 3 | 4 | 5 |');
+                fprintf(fhb,  '  Set  \t Info \r\n');
+                fprintf(fhb, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndxrange(1), ndxrange(2), ndxrange(2)-ndxrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
+                % The above is incomplete, as it does not include dy
 
-                fprintf(fh, '  Set  |                          Counts                           |\r\n');
-                fprintf(fh, ' [x,y] |     1     |     2     |     3     |     4     |     5     |');
+                fprintf(fhb,  '  Set  \t Counts \r\n');
+                fprintf(fhb, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndxrange(1), ndxrange(2), ndxrange(2)-ndxrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
 
                 fprintf(fhv, 'Welcome to the verbose version of the results summary...\r\n\r\n');
             catch err
@@ -2544,6 +2556,8 @@ function varargout = diamondControl(varargin)
         
         i = 1;
         resetGalvo_Callback(0,0);
+        
+        dZ = 0;     % Variable to account for significant drift in Z.
 
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
@@ -2559,7 +2573,7 @@ function varargout = diamondControl(varargin)
                                 if ~onlyTest
                                     piezoOutSmooth([0 0 0]);
                                 end
-                                piezoOutSmooth([5 5 p(3,i)]);       % Reset the piezos and goto the proper height
+                                piezoOutSmooth([5 5 p(3,i) + dZ]);       % Reset the piezos and goto the proper height
 
                                 display(['Arrived at ' name{i}]);
 
@@ -2569,6 +2583,9 @@ function varargout = diamondControl(varargin)
                                     if checkTask(c.autoTaskFocus)
                                         display('  Focusing...');
                                         focus_Callback(0, 0);
+                                        
+%                                         dZ = dZ + (c.piezo(3)- c.old(3))/2;     % Add any discrepentcy to dZ (over 2 to help prevent mistakes).
+                                        % Disabled the above feature on 10/6 until autofocus is improved.
                                     end
 
                                     if c.results
@@ -2762,8 +2779,8 @@ function varargout = diamondControl(varargin)
         %                                 [centers, radii] = imfindcircles(IBW,[5 25]);
 
                                         if d == ndrange(1)
-                                            fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] |']);
-                                            fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] |']);
+                                            fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] ']);
+                                            fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] ']);
                                         end
 
 %                                         if works
@@ -2771,10 +2788,19 @@ function varargout = diamondControl(varargin)
 %                                             fprintf(fh, [' W ' num2str(round(counts), '%07i') ' |']);
 %                                             fprintf(fhv, '    Our program detects that this device works.\r\n\r\n');
 %                                         else
-                                            fprintf(fhb, '   |');
-                                            fprintf(fh, ['   ' num2str(round(counts), '%07i') ' |']);
+%                                             fprintf(fhb, '   |');
+%                                             fprintf(fh, ['   ' num2str(round(counts), '%07i') ' |']);
 %                                             fprintf(fhv, '    Our program detects that this device does not work.\r\n\r\n');
 %                                         end
+
+                                        if c.autoSkipping
+                                            fprintf(fhb, '\tS');
+                                            fprintf(fh, ['\t' num2str(round(counts), '%07i')]);
+                                            fprintf(fhv, '    This device was skipped.\r\n\r\n');
+                                        else
+                                            fprintf(fhb, '\t');
+                                            fprintf(fh, ['\t' num2str(round(counts), '%07i')]);
+                                        end
                                     end
 
                                     display('  Finished...');
@@ -2791,15 +2817,15 @@ function varargout = diamondControl(varargin)
                                 ledSet(2);
                                 if c.results
                                     try
-                                        fprintf(fhb, ' F |');
-                                        fprintf(fh, [' F ' num2str(0, '%07i') ' |']);
-                                        fprintf(fhv, '    Something went horribly wrong with this device... Skipping to the next one.\r\n\r\n');
+                                        fprintf(fhb, '\tF');
+                                        fprintf(fh, ['\t' num2str(round(counts), '%07i')]);
+                                        fprintf(fhv, '    Our program failed durign this device...\r\n\r\n');
                                     catch err2
                                         display(['Something went horribly when trying to say that something went horribly wrong with device ' name{i}]);
                                         display(err2.message);
                                     end
                                 end
-                                display(['Something went horribly wrong with device ' name{i} '... Here is the error message:']);
+                                display([name{i} ' failed... Here is the error message:']);
                                 display(err.message);
                             end
 
@@ -3140,36 +3166,6 @@ function varargout = diamondControl(varargin)
 %         c.iC = c.iC + 1;
     
     end
-
-    % Popup Plots =========================================================
-%     function mouseEnabled_Callback(~, ~)
-%         if get(c.mouseEnabled, 'Value')
-%            set(c.lowerAxes, 'ButtonDownFcn', @click_Callback);
-%            set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-%         else
-%            set(c.lowerAxes, 'ButtonDownFcn', '');
-%            set(c.counterAxes, 'ButtonDownFcn', '');
-%         end
-%     end
-%     function click_Callback(hObject, ~)
-%         try
-%             delete(c.pop);
-%         end
-%         c.pop=figure;
-%         hc = copyobj(hObject, gcf);
-%         set(hc, 'Units', 'normal','Position', [0.05 0.06 0.9 0.9]);
-%         uiwait(c.pop);
-%     end
-%     function requestShow(hObject, ~)
-%         switch hObject
-%             case c.upperAxes
-%                 set(c.upperFigure, 'Visible', 'on');
-%             case c.lowerAxes
-%                 set(c.lowerFigure, 'Visible', 'on');
-%             case c.counterAxes
-%                 set(c.counterFigure, 'Visible', 'on');
-%         end
-%     end
 
     % PLE! ================================================================
     function initPle()  % Unused
@@ -4510,7 +4506,7 @@ function varargout = diamondControl(varargin)
         delete(pt);
         delete(mask);
     end
-    function go_mouse_fbk_Callback(~,~)  %Unused For Now
+    function go_mouse_fbk_Callback(~,~)  % Unused For Now
 %         axes(c.imageAxes);
 %         mask=rectangle('Position',[640/2-200,480/2-150,400,300],'EdgeColor','r');
 %         
@@ -4596,7 +4592,7 @@ function varargout = diamondControl(varargin)
 %         delete(pt);
 %         delete(mask);
     end
-    function a_delta=actual_delta(img_before,img_after)%Need to have a working computer vision toolbox!!
+    function a_delta=actual_delta(img_before,img_after)% Need to have a working computer vision toolbox!!
 %         I1 = img_before;
 %         I2 = img_after;
 %         

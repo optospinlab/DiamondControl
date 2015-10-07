@@ -61,6 +61,7 @@ c.saveMode = '';
 c.saveD = 0;
 c.saveX = 0;
 c.saveY = 0;
+c.doing = false;    % Variable for when the program is doing something that should not be disturbed.
 
 % IO ======================================================================
 c.vid = 0;              % Empty variable for video input
@@ -715,6 +716,10 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoTaskGalvo = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Final Galvo',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-9*bh bw bh]); 
             c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Spectrum',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-10*bh bw bh]); 
             c.autoTaskPower = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Record Powers',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-10*bh bw bh]); 
+                        
+            
+            c.autoTaskNameT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Tasks:', 'Position', [bp        plhi-bp-12*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            c.autoTaskRow = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Devices in Rows',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-13*bh bw bh]); 
             
 c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
     c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
