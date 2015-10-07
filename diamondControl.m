@@ -2205,6 +2205,13 @@ function varargout = diamondControl(varargin)
                 % c.autoV4DY = c.selcircle(2);
         end
         
+        if (c.piezo(1) ~= 5 || c.piezo(2) ~= 5) && (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
+            questdlg('The piezos are not set to [5,5] and the galvos are not set to [0,0]!', 'Warning!', 'Okay');
+        elseif (c.piezo(1) ~= 5 || c.piezo(2) ~= 5)
+            questdlg('The piezos are not set to [5,5]!', 'Warning!', 'Okay');
+        elseif (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
+            questdlg('The galvos are not set to [0,0]!', 'Warning!', 'Okay');
+        end
     end
     function V = getStoredV(d)
         switch d
