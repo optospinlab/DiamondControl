@@ -1,0 +1,62 @@
+mcc -C -o DiamondControl -W WinMain:DiamondControl -T link:exe -d C:\Users\Tomasz\Desktop\DiamondControl\DiamondControl\for_testing -v C:\Users\Tomasz\Desktop\DiamondControl\diamondControl.m 
+Compiler version: 6.1 (R2015b)
+
+Dependency analysis by REQUIREMENTS.
+
+[Warning: Adding path "C:\Users\Tomasz\Desktop\DiamondControl" to Compiler path
+instance.] 
+[] 
+Parsing file "C:\Users\Tomasz\Desktop\DiamondControl\diamondControl.m"
+	(Referenced from: "Compiler Command Line").
+Deleting 42 temporary MEX authorization files.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c8298_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c28164_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c10967_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c24358_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c11991_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c13086_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c24745_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c11158_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c2070_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c21228_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c18646_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c15751_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c3862_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c12985_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c18767_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c25021_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c8661_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c11153_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c15807_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c4288_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c29712_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c2644_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c18264_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c3981_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c32031_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c22026_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c18899_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c2187_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c11467_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c32027_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c2419_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c25607_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c20598_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c14770_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c12480_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c23873_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c25838_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c8137_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c27028_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c9280_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c12462_6684.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01a1c15039_6684.auth'.
+Generating file "C:\Users\Tomasz\Desktop\DiamondControl\DiamondControl\for_testing\readme.txt".
+Packaging...
+Adding custom icon C:\Program Files\MATLAB\R2015b\toolbox\compiler\Resources\default_icon.ico to C:\Users\Tomasz\Desktop\DiamondControl\DiamondControl\for_testing\DiamondControl.exe.
+Attempting to embed the CTF archive into the application C:\Users\Tomasz\Desktop\DiamondControl\DiamondControl\for_testing\DiamondControl.exe.
+Finished embedding CTF archive. Deleting the external CTF archive.
+Creating the bundle...
+Web based installer created at C:\Users\Tomasz\Desktop\DiamondControl\DiamondControl\for_redistribution\MyAppInstaller_web.exe.
+Packaging complete.
+Elapsed packaging time was: 2 minutes and 35 seconds.
