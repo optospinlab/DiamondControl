@@ -166,11 +166,13 @@ function varargout = diamondControl(varargin)
     set(c.pleScans, 'Callback',  @updateScanGraph_Callback);
     
     % Tracking Fields
-    set(c.start_vid, 'Callback',  @startvid_Callback);
-    set(c.stop_vid, 'Callback',  @stopvid_Callback);
-    set(c.track_clear, 'Callback',  @cleartrack_Callback);
-    set(c.track_set, 'Callback',  @settrack_Callback);
-    set(c.bluefbFigure,'WindowButtonDownFcn', @diskclick_Callback);
+%     set(c.start_vid, 'Callback',  @startvid_Callback);
+%     set(c.stop_vid, 'Callback',  @stopvid_Callback);
+%     set(c.track_clear, 'Callback',  @cleartrack_Callback);
+%     set(c.track_set, 'Callback',  @settrack_Callback);
+%     set(c.bluefbFigure,'WindowButtonDownFcn', @diskclick_Callback);
+    set(c.start_newTrack,'Callback', @newTrack_Callback)
+    set(c.stop_newTrack,'Callback', @stopnewTrack_Callback)
     %set(c.track_Axes,'WindowButtonDownFcn', @click_trackCallback);
     
     % Create the joystick object =====
@@ -766,9 +768,9 @@ function varargout = diamondControl(varargin)
             disp(err.message)
         end
         
-        axes(c.track_Axes);
-        frame = getsnapshot(c.vid);
-        imshow(frame);
+%         axes(c.track_Axes);
+%         frame = getsnapshot(c.vid);
+%         imshow(frame);
         %Testing image 
         %frame = flipdim(rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png')),1);
         
@@ -4188,214 +4190,311 @@ function varargout = diamondControl(varargin)
     end
 
     % TRACKING ============================================================ 
-    function startvid_Callback(hObject,~)
-         if hObject ~= 0 && ~c.vid_on
-            set(c.track_stat,'String','Status: Started vid');
+%     function startvid_Callback(hObject,~)
+%          if hObject ~= 0 && ~c.newtrack_on
+%             set(c.track_stat,'String','Status: Started vid');
+% 
+%                 c.tktime = timer;
+%                 c.tktime.TasksToExecute = Inf;
+%                 c.tktime.Period = 1/c.ratevid;
+%                 c.tktime.TimerFcn = @(~,~)tkListener;
+%                 c.tktime.ExecutionMode = 'fixedSpacing';
+%                 
+%                 c.centroidtime = timer;
+%                 c.centroidtime.TasksToExecute = Inf;
+%                 c.centroidtime.Period = 1/c.ratetrack;
+%                 c.centroidtime.TimerFcn = @(~,~)centroidListener;
+%                 c.centroidtime.ExecutionMode = 'fixedSpacing';
+%                     
+%                 
+%                 c.vid_on=1;
+%                 c.seldisk=0;
+%                 start(c.tktime);
+%          end
+%     end
+%     function tkListener(~, ~)
+%          frame = flipdim(getsnapshot(c.vid),1);        
+%         if c.vid_on 
+%             I3 = img_enhance(frame);          
+%             set(c.track_Axes,'CData',I3); 
+%             
+%             
+%             IBW=im2bw(I3,0.7); %Convert to BW and Threshold
+%             [c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Track Full image
+%             
+%              try
+%                  delete(c.hg1);
+%              catch
+%              end
+%              if ~isempty(c.radii)
+%                 axes(c.track_Axes);
+%                 c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
+%              end
+%              
+%        end
+%     end
+%     function centroidListener(~,~)
+%        
+%          frame = flipdim(getsnapshot(c.vid),1);
+%         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
+% 
+%         
+%         IBW=im2bw(frame,0.6);
+%         %c.roi_image=imcrop(IBW,c.roi);
+%         roi = round(c.roi);
+%         c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
+%         
+%         
+%             if c.centroid_init
+%                 axes(c.roi_Axes); 
+%                 c.hroi=imshow(c.roi_image);
+% 
+%                 [c.centroidXi,c.centroidYi]=centroid_fun();
+%                 set(c.track_stat,'String',['Got Initial Centroid']);
+%                 c.centroid_init=0;
+%                 
+%                 try
+%                     c.S=load('piezo_calib.mat');
+%                 catch err
+%                     disp(err.message)
+%                 end
+%                 
+%                 c.gain = str2double(get(c.trk_gain, 'String'));
+%                 minAdjustmentpx = str2double(get(c.trk_min, 'String'));
+%                 
+%                 c.mindelVx = minAdjustmentpx*c.S.pX;
+%                 c.mindelVy = minAdjustmentpx*c.S.pY;
+%                 %zfocuscounter = 0;
+%                 
+%             else 
+% 
+%                  [c.centroidX,c.centroidY, R]=centroid_fun();
+%                  %set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
+%                  set(c.hroi,'CData',c.roi_image);
+%                  try
+%                     delete(c.hg2);
+%                     delete(c.hg3);
+%                  catch
+%                  end
+% 
+%                 try
+%                  c.hg2=viscircles([c.centroidX c.centroidY] ,R,'EdgeColor','r','LineWidth',1.5); hold on;
+%                  c.hg3=scatter(c.centroidX, c.centroidY,50,'g','LineWidth',4);    hold off;    
+%                 catch err
+%                     disp(err.message)
+%                 end
+% 
+%                 delX = c.centroidX-c.centroidXi;
+%                 delY = c.centroidY-c.centroidYi;
+% 
+%                 delVx = delX*c.S.pX*c.gain;
+%                 delVy = delY*c.S.pY*c.gain;
+%                 
+%                 %only move if voltage stays positive
+%                 %Vxnew = max([0, Vxold - delVx])
+%                 %Vynew = max([0, Vyold - delVy])
+% 
+%                 
+%                 if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
+%                     disp('corrected')
+%                      c.s.outputSingleScan([(c.piezo + [-delVx delVy 0]) c.galvo]);
+%                 elseif (abs(delVx)>c.mindelVx)
+%                     disp('corrected')
+%                      c.s.outputSingleScan([(c.piezo + [-delVx 0 0]) c.galvo]);
+%                 elseif (abs(delVy) > c.mindelVy)
+%                     disp('corrected')
+%                      c.s.outputSingleScan([(c.piezo + [0 delVy 0]) c.galvo]);
+%                 end
+%                 
+%                 %getPiezo();
+%                 
+%             end
+%            
+%     end
+%     function click_trackCallback(~,~)
+%         %disp('click')
+%         c.trackpt = get (c.imageAxes, 'CurrentPoint');
+%         w=strcat('%0','3.1f');
+%         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
+%              set(c.track_stat,'String',['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]);
+%              axes(c.track_Axes);
+%              for i=1:length(c.radii)
+%                 if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
+%                         && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
+%                     c.selcircle(1)=c.circles(i,1); 
+%                     c.selcircle(2)=c.circles(i,2);
+%                     c.selradii=c.radii(i);
+%                     c.hg2=viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
+%                     c.seldisk=1;
+%                     stop(c.tktime);
+%                 end
+%              end
+%         end
+%     end
+%     function stopvid_Callback(~,~)
+%         if c.vid_on
+%             set(c.track_stat,'String','Status: Stopped Everything');
+% 
+%             try
+%             stop(c.tktime);
+%             delete(c.tktime);
+%             catch err
+%                 disp(err.message)
+%             end
+% 
+%             try
+%                 stop(c.centroidtime);
+%                 delete(c.centroidtime);
+%             catch err
+%                 disp(err.message)
+%             end
+% 
+%             c.vid_on = 0;
+%         end
+%     end
+%     function cleartrack_Callback(~,~)
+%         if c.vid_on && c.seldisk
+%             c.seldisk=0;
+%             start(c.tktime);
+%             
+%             try
+%                 stop(c.centroidtime);
+%             catch err
+%                 disp(err.message)
+%             end
+%              
+%              c.roi='';
+%              axes(c.roi_Axes); cla;
+%              try
+%                  delete(c.hg1);
+%              catch
+%              end
+%              try
+%                     delete(c.hg2);
+%                     delete(c.hg3);
+%              catch
+%              end
+%              set(c.track_stat,'String','Status: ROI cleared');
+%         end
+%     end
+%     function settrack_Callback(~,~)
+%       if isempty(c.roi) && c.seldisk 
+%        %Set the ROI for tracking
+%        c.roi=[c.selcircle(1)-c.selradii-c.roi_pad c.selcircle(2)-c.selradii-c.roi_pad 2*(c.selradii+c.roi_pad) 2*(c.selradii+c.roi_pad)];   
+%        set(c.track_stat,'String','Status: New ROI Selected');
+%        
+%        %Get Initial Centroid Position  
+%        c.centroid_init=1;   
+%        start(c.centroidtime);
+%       end
+%     end
+%     function [X,Y,R] = centroid_fun()
+%          st = regionprops( c.roi_image, 'Area', 'Centroid','MajorAxisLength','MinorAxisLength');
+%          sel = [st.Area] > pi*15*15;
+%          st = st(sel);
+%          X=st.Centroid(1); Y=st.Centroid(2);
+%          diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
+%          R = diameters/2;
+%     end
+
+%New code using MSER Features
+    function newTrack_Callback(hObject,~)
+         if hObject ~= 0
+            %set(c.track_stat,'String','Status: Started tracking');
 
                 c.tktime = timer;
                 c.tktime.TasksToExecute = Inf;
                 c.tktime.Period = 1/c.ratevid;
-                c.tktime.TimerFcn = @(~,~)tkListener;
+                c.tktime.TimerFcn = @(~,~)newtkListener;
                 c.tktime.ExecutionMode = 'fixedSpacing';
                 
-                c.centroidtime = timer;
-                c.centroidtime.TasksToExecute = Inf;
-                c.centroidtime.Period = 1/c.ratetrack;
-                c.centroidtime.TimerFcn = @(~,~)centroidListener;
-                c.centroidtime.ExecutionMode = 'fixedSpacing';
-                    
-                c.vid_on=1;
-                c.seldisk=0;
+                c.newtrack_on=1;
                 
+                %Grab the Initial Image
+                c.frame_init = imadjust(flipdim(getsnapshot(c.vid),1));  
+                c.points1 = detectSURFFeatures(c.frame_init, 'NumOctaves', 6, 'NumScaleLevels', 10,'MetricThreshold', 500);
+                [c.features1, c.valid_points1] = extractFeatures(c.frame_init,  c.points1);
+                
+                try
+                    c.calib=load('piezo_calib.mat');
+                catch err
+                    disp(err.message)
+                end
+            
                 start(c.tktime);
          end
     end
-    function tkListener(~, ~)
-         frame = flipdim(getsnapshot(c.vid),1);
-         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
-         
-        if c.vid_on 
-            I3 = img_enhance(frame);          
-            set(c.track_Axes,'CData',I3); 
-            
-            
-            IBW=im2bw(I3,0.7); %Convert to BW and Threshold
-            [c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Track Full image
-            
-             try
-                 delete(c.hg1);
-             catch
-             end
-             if ~isempty(c.radii)
-                axes(c.track_Axes);
-                c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
-             end
-             
-       end
-    end
-    function centroidListener(~,~)
-       
-         frame = flipdim(getsnapshot(c.vid),1);
-        %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
-
+    function newtkListener(~,~)
+        %Grab image
+         frame = imadjust(flipdim(getsnapshot(c.vid),1));
         
-        IBW=im2bw(frame,0.6);
-        %c.roi_image=imcrop(IBW,c.roi);
-        roi = round(c.roi);
-        c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
-        
-        
-            if c.centroid_init
-                axes(c.roi_Axes); 
-                c.hroi=imshow(c.roi_image);
+        if c.newtrack_on            
+                 points2 = detectSURFFeatures(frame, 'NumOctaves', 6, 'NumScaleLevels', 10,'MetricThreshold', 500);
+                [features2, valid_points2] = extractFeatures(frame,  points2);
 
-                [c.centroidXi,c.centroidYi]=centroid_fun();
-                set(c.track_stat,'String',['Got Initial Centroid']);
-                c.centroid_init=0;
-                
-                try
-                    c.S=load('piezo_calib.mat');
-                catch err
-                    disp(err.message)
+                indexPairs = matchFeatures(c.features1, features2);
+
+                matchedPoints1 = c.valid_points1(indexPairs(:, 1), :);
+                matchedPoints2 = valid_points2(indexPairs(:, 2), :);
+
+                % Remove Outliers
+                delta=(matchedPoints2.Location-matchedPoints1.Location);
+                dist=sqrt(delta(:,1).*delta(:,1) + delta(:,2).*delta(:,2));
+
+                mean_dist=mean(dist);
+                stdev_dist=std(dist);
+
+                count=1;
+                for i=1:length(dist)
+                    if (dist(i)<mean_dist+stdev_dist) && (dist(i)> mean_dist-stdev_dist)
+                        filtered_Points1(count,:) = matchedPoints1.Location(i,:);
+                        filtered_Points2(count,:) = matchedPoints2.Location(i,:);
+                        count=count+1;
+                    end
+                end    
+               
+                %Debug
+                % deltaa=(filtered_Points2-filtered_Points1);
+                %dista=sqrt(deltaa(:,1).*deltaa(:,1) + deltaa(:,2).*deltaa(:,2));
+                %delta1=round(mean(matchedPoints2.Location-matchedPoints1.Location));
+                if exist('filtered_Points1', 'var')
+                    % Calculate the delta
+                    [delX, delY]=round(mean(filtered_Points2 - filtered_Points1));
+
+                    minAdjustmentpx = c.trk_min;
+                    c.mindelVx = minAdjustmentpx*c.calib.pX;
+                    c.mindelVy = minAdjustmentpx*c.calib.pY;
+
+                    delVx = delX*c.calib.pX;
+                    delVy = delY*c.calib.pY;
+
+                    if (abs(delVx) > c.mindelVx) && (abs(delVy) > c.mindelVy)
+                        disp('corrected')
+                        piezoOutSmooth(c.piezo + [-delVx delVy 0]);
+                    elseif (abs(delVx) > c.mindelVx)
+                        disp('corrected')
+                        piezoOutSmooth(c.piezo + [-delVx 0 0]);
+                    elseif (abs(delVy) > c.mindelVy)
+                        disp('corrected')
+                        piezoOutSmooth(c.piezo + [0 delVy 0]);
+                    end
+
+                    
                 end
-                
-                c.gain = str2double(get(c.trk_gain, 'String'));
-                minAdjustmentpx = str2double(get(c.trk_min, 'String'));
-                
-                c.mindelVx = minAdjustmentpx*c.S.pX;
-                c.mindelVy = minAdjustmentpx*c.S.pY;
-                %zfocuscounter = 0;
-                
-            else 
-
-                 [c.centroidX,c.centroidY, R]=centroid_fun();
-                 %set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
-                 set(c.hroi,'CData',c.roi_image);
-                 try
-                    delete(c.hg2);
-                    delete(c.hg3);
-                 catch
-                 end
-
-                try
-                 c.hg2=viscircles([c.centroidX c.centroidY] ,R,'EdgeColor','r','LineWidth',1.5); hold on;
-                 c.hg3=scatter(c.centroidX, c.centroidY,50,'g','LineWidth',4);    hold off;    
-                catch err
-                    disp(err.message)
-                end
-
-                delX = c.centroidX-c.centroidXi;
-                delY = c.centroidY-c.centroidYi;
-
-                delVx = delX*c.S.pX*c.gain;
-                delVy = delY*c.S.pY*c.gain;
-                
-                %only move if voltage stays positive
-                %Vxnew = max([0, Vxold - delVx])
-                %Vynew = max([0, Vyold - delVy])
-
-                
-                if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
-                    disp('corrected')
-                     c.s.outputSingleScan([(c.piezo + [-delVx delVy 0]) c.galvo]);
-                elseif (abs(delVx)>c.mindelVx)
-                    disp('corrected')
-                     c.s.outputSingleScan([(c.piezo + [-delVx 0 0]) c.galvo]);
-                elseif (abs(delVy) > c.mindelVy)
-                    disp('corrected')
-                     c.s.outputSingleScan([(c.piezo + [0 delVy 0]) c.galvo]);
-                end
-                
-                %getPiezo();
-                
-            end
-           
-    end
-    function click_trackCallback(~,~)
-        %disp('click')
-        c.trackpt = get (c.imageAxes, 'CurrentPoint');
-        w=strcat('%0','3.1f');
-        if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
-             set(c.track_stat,'String',['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]);
-             axes(c.track_Axes);
-             for i=1:length(c.radii)
-                if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
-                        && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
-                    c.selcircle(1)=c.circles(i,1); 
-                    c.selcircle(2)=c.circles(i,2);
-                    c.selradii=c.radii(i);
-                    c.hg2=viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
-                    c.seldisk=1;
-                    stop(c.tktime);
-                end
-             end
         end
     end
-    function stopvid_Callback(~,~)
-        if c.vid_on
-            set(c.track_stat,'String','Status: Stopped Everything');
 
-            try
-            stop(c.tktime);
-            delete(c.tktime);
-            catch err
-                disp(err.message)
-            end
-
-            try
-                stop(c.centroidtime);
-                delete(c.centroidtime);
-            catch err
-                disp(err.message)
-            end
-
-            c.vid_on = 0;
-        end
+function stopnewTrack_Callback(hObject,~)
+    try
+        stop(c.tktime);
+        delete(c.tktime);
+        clear c.tktime
+    catch err
+        disp(err.message)
     end
-    function cleartrack_Callback(~,~)
-        if c.vid_on && c.seldisk
-            c.seldisk=0;
-            start(c.tktime);
-            
-            try
-                stop(c.centroidtime);
-            catch err
-                disp(err.message)
-            end
-             
-             c.roi='';
-             axes(c.roi_Axes); cla;
-             try
-                 delete(c.hg1);
-             catch
-             end
-             try
-                    delete(c.hg2);
-                    delete(c.hg3);
-             catch
-             end
-             set(c.track_stat,'String','Status: ROI cleared');
-        end
-    end
-    function settrack_Callback(~,~)
-      if isempty(c.roi) && c.seldisk 
-       %Set the ROI for tracking
-       c.roi=[c.selcircle(1)-c.selradii-c.roi_pad c.selcircle(2)-c.selradii-c.roi_pad 2*(c.selradii+c.roi_pad) 2*(c.selradii+c.roi_pad)];   
-       set(c.track_stat,'String','Status: New ROI Selected');
-       
-       %Get Initial Centroid Position  
-       c.centroid_init=1;   
-       start(c.centroidtime);
-      end
-    end
-    function [X,Y,R] = centroid_fun()
-         st = regionprops( c.roi_image, 'Area', 'Centroid','MajorAxisLength','MinorAxisLength');
-         sel = [st.Area] > pi*15*15;
-         st = st(sel);
-         X=st.Centroid(1); Y=st.Centroid(2);
-         diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
-         R = diameters/2;
-    end
+    
+    c.newtrack_on=0;
+end
 
     % Mouse Control =======================================================
     function go_mouse_Callback(~,~)

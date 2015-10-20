@@ -1,4 +1,5 @@
 close all;
+clear all;
 
 I1 = imadjust(rgb2gray(imread('t3.png')));
 I2 = imadjust(rgb2gray(imread('t4.png')));
