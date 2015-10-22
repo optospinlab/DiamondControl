@@ -758,8 +758,8 @@ c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
 % c.everything = [c.boxTL c.boxTR c.boxBL c.boxBR]; 
 
 c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
-     c.ratevid = 1;     % vid update rate /sec
-     c.trk_min = 1;
+ %    c.ratevid = 0.2;     % vid update rate /sec
+    % c.trk_min = 2;
 %     c.ratetrack = 50;  % tracking corrections / sec
 %     c.vid_on=0; c.seldisk=0;
 %     c.roi='';
@@ -770,8 +770,13 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
 %     
 %     c.trk_gain_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Gain:', 'Position',[bp/2 plhi-bp-18*bh bw/2 bh]);  
 %     c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.8,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
-%     c.trk_min_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-18*bh 2*bw/3 bh]);  
-    % c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 1,     'Position', [bp/2+bw+2*bw/3 plhi-bp-6*bh bw/3 bh]);
+
+     c.trk_min_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-4*bh 2*bw/3 bh]);  
+     c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 2,     'Position', [bp/2+bw+2*bw/3 plhi-bp-4*bh bw/3 bh]);
+     
+         
+     c.ratevid_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Rate(/sec):', 'Position',[bp/2+bw plhi-bp-5*bh 2*bw/3 bh]);  
+     c.ratevid =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.2,     'Position', [bp/2+bw+2*bw/3 plhi-bp-5*bh bw/3 bh]);
 %     
 %     c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-20*bh bw bh]);
 %     c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-20*bh bw bh]);

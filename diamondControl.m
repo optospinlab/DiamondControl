@@ -549,6 +549,16 @@ function varargout = diamondControl(varargin)
                 end     
             end
             
+            try
+                stop(c.tktime);
+                delete(c.tktime);
+                clear c.tktime
+            catch err
+                disp(err.message)
+            end
+    
+    c.newtrack_on=0;
+            
         catch err
             display(err.message);
         end
@@ -2497,7 +2507,7 @@ function varargout = diamondControl(varargin)
 %                 Xi=mean([c.autoV1DX c.autoV2DX c.autoV3DX])
 %                 Yi=mean([c.autoV1DY c.autoV2DY c.autoV3DY])
 %             end
-            if get(c.autoAutoProceed,'Value')==1
+            if get(c.autoAutoProceed,'Value')==1 && checkTask(c.autoTaskDiskI)
                 c.autoDX=c.autoV3DX;
                 c.autoDY=c.autoV3DY;
 
@@ -4404,7 +4414,8 @@ function varargout = diamondControl(varargin)
 
                 c.tktime = timer;
                 c.tktime.TasksToExecute = Inf;
-                c.tktime.Period = 1/c.ratevid;
+                rate=str2num(get(c.ratevid,'String'));
+                c.tktime.Period = 1/rate;
                 c.tktime.TimerFcn = @(~,~)newtkListener;
                 c.tktime.ExecutionMode = 'fixedSpacing';
                 
@@ -4427,7 +4438,7 @@ function varargout = diamondControl(varargin)
     function newtkListener(~,~)
         %Grab image
          frame = imadjust(flipdim(getsnapshot(c.vid),1));
-        
+ %a=1       
         if c.newtrack_on            
                  points2 = detectSURFFeatures(frame, 'NumOctaves', 6, 'NumScaleLevels', 10,'MetricThreshold', 500);
                 [features2, valid_points2] = extractFeatures(frame,  points2);
@@ -4436,7 +4447,7 @@ function varargout = diamondControl(varargin)
 
                 matchedPoints1 = c.valid_points1(indexPairs(:, 1), :);
                 matchedPoints2 = valid_points2(indexPairs(:, 2), :);
-
+%a=2
                 % Remove Outliers
                 delta=(matchedPoints2.Location-matchedPoints1.Location);
                 dist=sqrt(delta(:,1).*delta(:,1) + delta(:,2).*delta(:,2));
@@ -4452,21 +4463,24 @@ function varargout = diamondControl(varargin)
                         count=count+1;
                     end
                 end    
-               
+                count
+ %a=2.5              
                 %Debug
                 % deltaa=(filtered_Points2-filtered_Points1);
                 %dista=sqrt(deltaa(:,1).*deltaa(:,1) + deltaa(:,2).*deltaa(:,2));
                 %delta1=round(mean(matchedPoints2.Location-matchedPoints1.Location));
                 if exist('filtered_Points1', 'var')
                     % Calculate the delta
-                    [delX, delY]=round(mean(filtered_Points2 - filtered_Points1));
-
-                    minAdjustmentpx = c.trk_min;
+                    del=round(mean(filtered_Points2 - filtered_Points1))
+%a=3
+                    trk_min=str2num(get(c.trk_min,'String'));
+                    
+                    minAdjustmentpx = trk_min;
                     c.mindelVx = minAdjustmentpx*c.calib.pX;
                     c.mindelVy = minAdjustmentpx*c.calib.pY;
-
-                    delVx = delX*c.calib.pX;
-                    delVy = delY*c.calib.pY;
+%a=4
+                    delVx = del(1)*c.calib.pX;
+                    delVy = del(2)*c.calib.pY;
 
                     if (abs(delVx) > c.mindelVx) && (abs(delVy) > c.mindelVy)
                         disp('corrected')
@@ -4478,13 +4492,12 @@ function varargout = diamondControl(varargin)
                         disp('corrected')
                         piezoOutSmooth(c.piezo + [0 delVy 0]);
                     end
-
+%a=5
                     
                 end
         end
     end
-
-function stopnewTrack_Callback(hObject,~)
+    function stopnewTrack_Callback(hObject,~)
     try
         stop(c.tktime);
         delete(c.tktime);
