@@ -2169,6 +2169,25 @@ function varargout = diamondControl(varargin)
     end
 
     % AUTOMATION! =========================================================
+    function array = loadWhitelist()
+        path = get(c.autoTaskList, 'String')
+        if exist(path) ~= 0
+            switch path(end-3:end)
+                case '.txt'
+                    file = fopen(path);
+                    array = textscan(file, '%s', 'Delimiter', ',');
+                case {'.xls', 'xlsx'}
+                    array = xlsread(path, 'A:A');
+            end
+        else 
+            array = 0;
+        end
+    end
+    function good = checkDevice(x, y, dx, dy, list)
+        for logic = list
+            
+        end
+    end
     function setCurrent_Callback(hObject, ~)
         switch hObject
             case c.autoV1Get
@@ -2289,47 +2308,6 @@ function varargout = diamondControl(varargin)
         nd4 =   [str2num(get(c.autoV4n, 'String')) str2num(get(c.autoV4ny, 'String'))]';      % The number of the device in the minor grid for 4
         nd5 =   [str2num(get(c.autoV5n, 'String')) str2num(get(c.autoV5ny, 'String'))]';      % The number of the device in the minor grid for 4
 
-%         if nd123 == nd4
-%             error('n123 == n4!');
-%         end
-
-%         if abs(dot(normc(V2(1:2) - V1(1:2)), normc(V3(1:2) - V1(1:2)))) == 1
-%             error('Position vectors are not linearly independent!');
-%         end
-% 
-%         if abs(dot(normc(n2 - n1), normc(n3 - n1))) == 1
-%             error('Grid vectors are not linearly independent!');
-%         end
-
-        % +++++ Broken method with broken logic below:
-%         % Find the V0 = [x y] of n0 = [0 0]
-%         V0 = V1 - dot(n1, n2-n1)*(V2-V1) - dot(n1, n3-n1)*(V3-V1);
-% 
-%         % Find the horizontal major grid vector from [0 0] to [1 0] in um
-%         Vx = (V1 - dot(n1-[1 0]', n2-n1)*(V2-V1) - dot(n1-[1 0]', n3-n1)*(V3-V1)) - V0;
-% 
-%         % Find the vertical major grid vector from [0 0] to [0 1] in um
-%         Vy = (V1 - dot(n1-[0 1]', n2-n1)*(V2-V1) - dot(n1-[0 1]', n3-n1)*(V3-V1)) - V0;
-% 
-%         % Structure the major grid in matrix form
-%         V = [Vx Vy];
-
-        % +++++ Better matrix way:
-%         m =    [n1(1)   n1(2)   0       0       1       0;
-%                 0       0       n1(1)   n1(2)   0       1;
-%                 n2(1)   n2(2)   0       0       1       0;
-%                 0       0       n2(1)   n2(2)   0       1;
-%                 n3(1)   n3(2)   0       0       1       0;
-%                 0       0       n3(1)   n3(2)   0       1]
-%             
-%         y = [V1(1)  V1(2)  V2(1)  V2(2)  V3(1)  V3(2)]'
-%         
-%         x = inv(m)*y
-%         
-%         V =     [x(1) x(2); x(3) x(4); 0 0]
-%         V0 =    [x(5) x(6) 0]'
-        
-        % +++++ Even better matrix way:
         % Major Grid
         m =    [n1(1)   n1(2)   1;
                 n2(1)   n2(2)   1;

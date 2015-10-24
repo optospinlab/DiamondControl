@@ -718,8 +718,23 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoTaskPower = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Record Powers',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-10*bh bw bh]); 
                         
             
-            c.autoTaskNameT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Tasks:', 'Position', [bp        plhi-bp-12*bh 2*bw bh],         'HorizontalAlignment', 'left');
-            c.autoTaskRow = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Devices in Rows',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-13*bh bw bh]); 
+            c.autoTaskNameT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Setup:', 'Position', [bp        plhi-bp-12*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            c.autoTaskRow = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Devices in Rows',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-13*bh bw bh]);
+            
+            c.autoTaskListT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Whitelist:',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-15*bh bw bh]);
+            c.autoTaskListBrowse = uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Browse', 'Position', [bp plhi-bp-16*bh bw bh], 'Callback', @autoTaskListBrowse_Callback);
+%             c.autoTaskWB =      uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Blacklist Instead',  'HorizontalAlignment', 'left', 'Value', 0, 'Position', [2*bp+bw plhi-bp-16*bh bw bh]); 
+            c.autoTaskList =    uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', '', 'Position', [bw plhi-bp-17*bh bw bh]);
+            
+    function autoTaskListBrowse_Callback(~,~)
+        [filename,pathname,~] = uigetfile('*.txt;*.xls;*.xlsx', 'Select the White/Black listing file');
+        
+        if isequal(filename,0)
+           disp('User selected Cancel');
+        else
+           set(c.autoTaskList, 'String', fullfile(pathname, filename));
+        end
+    end
             
 c.pleTab =  uitab(c.automationPanel, 'Title', 'PLE!');
     c.plePanel = uitabgroup('Parent', c.pleTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
