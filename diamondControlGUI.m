@@ -722,8 +722,8 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoTaskRow = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Devices in Rows',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-13*bh bw bh]);
             
             c.autoTaskListT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Whitelist:',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-15*bh bw bh]);
-            c.autoTaskListBrowse = uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Browse', 'Position', [bp plhi-bp-16*bh bw bh], 'Callback', @autoTaskListBrowse_Callback);
-%             c.autoTaskWB =      uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Blacklist Instead',  'HorizontalAlignment', 'left', 'Value', 0, 'Position', [2*bp+bw plhi-bp-16*bh bw bh]); 
+            c.autoTaskListBrowse = uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Browse', 'Position', [2*bp+bw plhi-bp-16*bh bw bh], 'Callback', @autoTaskListBrowse_Callback);
+            c.autoTaskWB =      uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Enabled?',  'HorizontalAlignment', 'left', 'Value', 0, 'Position', [bp plhi-bp-16*bh bw bh]); 
             c.autoTaskList =    uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', '', 'Position', [bw plhi-bp-17*bh bw bh]);
             
     function autoTaskListBrowse_Callback(~,~)

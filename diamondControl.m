@@ -2169,23 +2169,144 @@ function varargout = diamondControl(varargin)
     end
 
     % AUTOMATION! =========================================================
-    function array = loadWhitelist()
+    function [white, black] = loadWhitelist()
+%         path = 'C:\Users\phys\Desktop\whitelist.txt'
+        
         path = get(c.autoTaskList, 'String')
         if exist(path) ~= 0
             switch path(end-3:end)
                 case '.txt'
                     file = fopen(path);
-                    array = textscan(file, '%s', 'Delimiter', ',');
+                    array = textscan(file, '%s', 'Delimiter', '\n');
                 case {'.xls', 'xlsx'}
-                    array = xlsread(path, 'A:A');
+                    display('Excel whitelist files currently disabled');
+%                     array = xlsread(path, 'A:A');
+            end
+            
+            white = cell(1);    w = 1;
+            black = cell(1);    b = 1;
+            
+            isBlack = false;
+            
+%             white = array;
+%             return
+            
+            for x = 1:max(size(array{1}))
+%                 array{1}{x}
+%                 array{1}{x}(1)
+                if ~isempty(array{1}{x})
+                    switch array{1}{x}(1)
+                        case {'w', 'W'}
+                            isBlack = false;
+                        case {'b', 'B'}
+                            isBlack = true;
+                        otherwise
+    %                         array{1}{x}
+                            list = interpretWhiteString([array{1}{x}, ' ']);
+
+                            if length(list) ~= 1
+                                if isBlack
+                                    black{b,1} = list; b = b + 1;
+                                else
+                                    white{w,1} = list; w = w + 1;
+                                end
+                            end
+                    end
+                end
             end
         else 
-            array = 0;
+            white = 0;
+            black = 0;
+        end
+        
+        if w == 1
+            white = 0;
+        end
+        if b == 1
+            black = 0;
         end
     end
-    function good = checkDevice(x, y, dx, dy, list)
-        for logic = list
+    function list = interpretWhiteString(str)
+        list = [NaN, NaN, NaN, NaN];
+
+        ii = 1;
+        
+%         str
+        
+        while ii <= length(str)
+%             list
+            switch str(ii)
+                case {'x'}
+                    [list(1), ii] = getNum(str, list(1), ii);
+                case {'y'}
+                    [list(2), ii] = getNum(str, list(2), ii);
+                case {'d', 'c', 'r'}
+                    if true     %(get(c.autoTaskRows, 'Value') == 1)
+                        if str(ii) == 'd'
+                            [list(1), ii] = getNum(str, list(1), ii);
+                        elseif str(ii) == 'r'
+                            [list(2), ii] = getNum(str, list(2), ii);
+                        else
+                            disp([str ' not understood - expected rows, not columns']);
+                        end
+                    else
+                        if str(ii) == 'c'
+                            [list(1), ii] = getNum(str, list(1), ii);
+                        elseif str(ii) == 'd'
+                            [list(2), ii] = getNum(str, list(2), ii);
+                        else
+                            disp([str ' not understood - expected columns, not rows']);
+                        end
+                    end
+                case {'X'}
+                    [list(3), ii] = getNum(str, list(3), ii);
+                case {'Y'}
+                    [list(4), ii] = getNum(str, list(4), ii);
+                case {'s'}
+                    [list(3), ii] = getNum(str, list(3), ii);
+                    [list(4), ii] = getNum(str, list(4), ii);
+            end
             
+            if isnan(ii) == 1
+                break;
+            end
+            
+            ii = ii + 1;
+        end
+        
+        if sum(isnan(list)) == 4
+            list = 0;
+        end
+    end
+    function [num, ii] = getNum(str, default, ii)
+        jj = 0;
+        
+        while ii <= length(str);
+            switch str(ii)
+                case {'0','1','2','3','4','5','6','7','8','9'}
+                    jj = ii;
+                    break;
+            end
+            
+            ii = ii + 1;
+        end
+        
+        if jj == 0
+            num = default;
+            ii = NaN;
+            return;
+        end
+        
+        while jj <= length(str)
+            switch str(jj)
+                case {'0','1','2','3','4','5','6','7','8','9'}
+                    jj = jj + 1;
+                otherwise
+                    str(ii:(jj-1))
+                    num = eval(str(ii:(jj-1)));
+                    ii = jj;
+                    return;
+            end
         end
     end
     function setCurrent_Callback(hObject, ~)
@@ -2285,9 +2406,9 @@ function varargout = diamondControl(varargin)
         end
     end
     function autoPreview_Callback(~, ~)
-        generateGrid();
+        generateGrid(false);
     end
-    function [p, color, name, len] = generateGrid()
+    function [p, color, name, len] = generateGrid(onlyGoodListed)
         nxrange = getStoredR('x');    % Range of the major grid
         nyrange = getStoredR('y');
 
@@ -2354,51 +2475,94 @@ function varargout = diamondControl(varargin)
 %         l = cell(1, diff(nxrange)*diff(nyrange)*diff(ndrange));
 
         i = 1;
+        
+        [white, black] = loadWhitelist();
+        % [dx, dy, x, y]
 
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
                 for dx = ndxrange(1):ndxrange(2)
                     for dy = ndyrange(1):ndyrange(2)
-                        p(:,i) = V*([x y]') + v*([dx dy]') + V0;
-
-                        color(i,:) = [0 0 1];
-
-                        if ((dx == nd123(1) && dy == nd123(2)) && (sum(n1 == [x y]') == 2 || sum(n2 == [x y]') == 2 || sum(n3 == [x y]') == 2))
-                            color(i,:) = [0 1 0];
-                        end
-                        if ((dx == nd4(1) && dy == nd4(2)) && sum(n4 == [x y]') == 2)
-                            color(i,:) = [1 .5 0];
-                        end
-                        if ((dx == nd5(1) && dy == nd5(2)) && sum(n5 == [x y]') == 2)
-                            color(i,:) = [1 .5 0];
-                        end
-                        if (p(3,i) < c.piezoMin(3))
-                            p(3,i) = c.piezoMin(3);
-                            color(i,:) = [1 0 0];
-                        end
-                        if (p(3,i) > c.piezoMax(3))
-                            p(3,i) = c.piezoMax(3);
-                            color(i,:) = [1 0 0];
-                        end
-
-    %                     name{i} = ['Device ' num2str(d) ' in set [' num2str(x) ', '  num2str(y) ']'];
-                        name{i} = '';
+                        isWhite = 0;    % -1 = no list; 0 = not on list; 1 = on list; 2 = specific;
+                        isBlack = 0;    % -1 = no list; 0 = not on list; 1 = on list; 2 = specific;
+                        isGood = true;
                         
-                        if diff(ndyrange) == 0 && diff(ndxrange) ~= 0
-                            name{i} = ['d_[' num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
-                        elseif diff(ndxrange) == 0 && diff(ndyrange) ~= 0
-                            name{i} = ['d_[' num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
-                        elseif diff(ndyrange) == 0 && diff(ndxrange) == 0
-                            name{i} = ['s_[' num2str(x) ','  num2str(y) ']'];
-                        else
-                            if (get(c.autoTaskRows, 'Value') == 1)
-                                name{i} = ['d_[' num2str(dx) ']_r_['  num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
-                            else
-                                name{i} = ['d_[' num2str(dy) ']_c_['  num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                        if ~(length(white) == 1 && white == 0)
+                            for w = 1:length(white)
+                                match = (white{w} == [dx, dy, x, y]) && ~isnan(white{w});
+                                
+                                if sum(match) == 4
+                                    isWhite = 2;
+                                elseif sum(match) == sum(~isnan(white{w}))
+                                    isWhite = 1;
+                                else
+                                    isWhite = 0;
+                                end
                             end
                         end
+                        if ~(length(black) == 1 && black == 0)
+                            for b = 1:length(black)
+                                match = (black{b} == [dx, dy, x, y]) && ~isnan(black{b});
+                                
+                                if sum(match) == 4
+                                    isBlack = 2;
+                                elseif sum(match) == sum(~isnan(black{b}))
+                                    isBlack = 1;
+                                else
+                                    isBlack = 0;
+                                end
+                            end
+                        end
+                        
+                        if (get(c.autoTaskWB, 'Value') == 1) && ((isWhite == 0) || (isBlack > 0 && isWhite ~= 2))   % Disable device if it is not whitelisted, or if it is blacklisted and not specifically enabled by the whitelist.
+                            isGood = false;
+                        end
+                        
+                        if onlyGoodListed || ~isGood
+                            p(:,i) = V*([x y]') + v*([dx dy]') + V0;
 
-                        i = i + 1;
+                            color(i,:) = [0 0 1];
+
+                            if ((dx == nd123(1) && dy == nd123(2)) && (sum(n1 == [x y]') == 2 || sum(n2 == [x y]') == 2 || sum(n3 == [x y]') == 2))
+                                color(i,:) = [0 1 0];
+                            end
+                            if ((dx == nd4(1) && dy == nd4(2)) && sum(n4 == [x y]') == 2)
+                                color(i,:) = [1 .5 0];
+                            end
+                            if ((dx == nd5(1) && dy == nd5(2)) && sum(n5 == [x y]') == 2)
+                                color(i,:) = [1 .5 0];
+                            end
+                            if (p(3,i) < c.piezoMin(3))
+                                p(3,i) = c.piezoMin(3);
+                                color(i,:) = [1 0 0];
+                            end
+                            if (p(3,i) > c.piezoMax(3))
+                                p(3,i) = c.piezoMax(3);
+                                color(i,:) = [1 0 0];
+                            end
+                            if ~isGood
+                                color(i,:) = [.7 0 0];
+                            end
+
+        %                     name{i} = ['Device ' num2str(d) ' in set [' num2str(x) ', '  num2str(y) ']'];
+                            name{i} = '';
+
+                            if diff(ndyrange) == 0 && diff(ndxrange) ~= 0
+                                name{i} = ['d_[' num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                            elseif diff(ndxrange) == 0 && diff(ndyrange) ~= 0
+                                name{i} = ['d_[' num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                            elseif diff(ndyrange) == 0 && diff(ndxrange) == 0
+                                name{i} = ['s_[' num2str(x) ','  num2str(y) ']'];
+                            else
+                                if (get(c.autoTaskRows, 'Value') == 1)
+                                    name{i} = ['d_[' num2str(dx) ']_r_['  num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                                else
+                                    name{i} = ['d_[' num2str(dy) ']_c_['  num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
+                                end
+                            end
+
+                            i = i + 1;
+                        end
                     end
                 end
             end
@@ -2451,7 +2615,7 @@ function varargout = diamondControl(varargin)
         ndyrange =  getStoredR('dy');
         
         % Get the grid...
-        [p, color, name, len] = generateGrid();
+        [p, color, name, len] = generateGrid(true);
         
         c.results = false;
         
