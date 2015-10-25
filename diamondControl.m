@@ -23,8 +23,12 @@ function varargout = diamondControl(varargin)
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
     % CALLBACKS ===========================================================
-    set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprects keypresses e.g. up/down arrow.
+    set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprets keypresses e.g. up/down arrow.
+%     set(c.parent, 'WindowKeyReleaseFcn', @figure_WindowKeyReleaseFcn);
+    
     set(c.parent, 'CloseRequestFcn', @closeRequest);                % Handles the closing of the figure.
+    
+    set(c.joyMode, 'SelectionChangedFcn', @joyModeColor);
     
 %     set(c.boxTL, 'Callback', @box_Callback);
 %     set(c.boxTR, 'Callback', @box_Callback);
@@ -203,13 +207,13 @@ function varargout = diamondControl(varargin)
         while c.running     % c.running is currently unused, but likely will be used.
             if ~c.pleScanning
                 if ~c.focusing && ~c.autoScanning && ~c.doing
-                    [outputXY, outputZ] = readJoystick();
+                    [microChanged, daqChanged] = readJoystick();
 
-                    if outputXY && c.microInitiated % If X or Y have been changed
+                    if microChanged && c.microInitiated % If X or Y have been changed
                         setPos();
                     end
 
-                    if outputZ && c.daqInitiated  % If Z has been changed
+                    if daqChanged && c.daqInitiated  % If Z has been changed
                         daqOut();
                     end
 
@@ -231,7 +235,7 @@ function varargout = diamondControl(varargin)
         % Reads the joystick. Outputs are true if the corresponding axes were changed.
         outputXY = 0;
         outputZ = 0;
-        if c.joystickEnabled == 1 && get(c.joyEnabled, 'Value') == 1   % If the joystick is enabled...
+        if c.joystickEnabled == 1 % && get(c.joyEnabled, 'Value') == 1   % If the joystick is enabled...
             [a, b, p] = read(c.joy);
             % a - axes (vector of values -1 to 1),
             % b - buttons (vector of 0s or 1s)
@@ -239,14 +243,46 @@ function varargout = diamondControl(varargin)
             %     element, of angles \in { -1, 0, 45, 90, ... } where -1 is 
             %     unset and any other value is the direction the pov is facing.
 
-            prevX = c.micro(1); % For comparison later
-            prevY = c.micro(2);
-            prevZ = c.piezo(3);
+%             prevX = c.micro(1); % For comparison later
+%             prevY = c.micro(2);
+%             prevZ = c.piezo(3);
 
-            % Add the joystick offset to the target vector. The microscope
-            % attempts to go to the target vector.
-            c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep*(1+a(4))*10;
-            c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep*(1+a(4))*10;
+            prevMicro = c.micro;
+            prevPiezo = c.piezo;
+            prevGlavo = c.galvo;
+
+            % Logic for whether a button has changed since last time and is on.
+            buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
+            if buttonDown(1)
+                focus_Callback(0,0);
+            end
+            
+            if b(11)
+                set(c.joyMode, 'SelectedObject', c.joyGalvo);
+            elseif b(9)
+                set(c.joyMode, 'SelectedObject', c.joyPiezo);
+            elseif b(7)
+                set(c.joyMode, 'SelectedObject', c.joyMicro);
+            end
+            
+            if b(7) || b(9) || b(11)
+                joyModeColor(0,0);
+            end
+            
+            mode = get(c.joyMode, 'SelectedObject');
+            
+            switch mode
+                case c.joyMicro
+                    % Add the joystick offset to the target vector. The microscope attempts to go to the target vector.
+                    c.micro(1) = c.micro(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.microStep*(1+a(4))*10;
+                    c.micro(2) = c.micro(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.microStep*(1+a(4))*10;
+                case c.joyPiezo
+                    c.piezo(1) = c.piezo(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.piezoStep*(1+a(4))*10;
+                    c.piezo(2) = c.piezo(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.piezoStep*(1+a(4))*10;
+                case c.joyGalvo
+                    c.galvo(1) = c.galvo(1) + c.joyXDir*joystickAxesFunc(a(1), c.joyXYPadding)*c.galvoStep*(1+a(4))*10;
+                    c.galvo(2) = c.galvo(2) + c.joyYDir*joystickAxesFunc(a(2), c.joyXYPadding)*c.galvoStep*(1+a(4))*10;
+            end
             
             % Same for Z; the third axis is the twisting axis
             if max(abs([joystickAxesFunc(a(1), c.joyXYPadding) joystickAxesFunc(a(2), c.joyXYPadding)])) == 0
@@ -254,24 +290,18 @@ function varargout = diamondControl(varargin)
             end
 
             % Plot the XY offset on the graph in the Joystick tab
-            scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
-    %         set(c.joyAxes, 'xtick', []);
-    %         set(c.joyAxes, 'xticklabel', []);
-    %         set(c.joyAxes, 'ytick', []);
-    %         set(c.joyAxes, 'yticklabel', []);
-            xlim(c.joyAxes, [-1 1]);
-            ylim(c.joyAxes, [-1 1]);
+%             scatter(c.joyAxes, c.joyXDir*a(1), c.joyYDir*a(2));
+%     %         set(c.joyAxes, 'xtick', []);
+%     %         set(c.joyAxes, 'xticklabel', []);
+%     %         set(c.joyAxes, 'ytick', []);
+%     %         set(c.joyAxes, 'yticklabel', []);
+%             xlim(c.joyAxes, [-1 1]);
+%             ylim(c.joyAxes, [-1 1]);
 
-            % Logic for whether a button has changed since last time and is on.
-            buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
-            if buttonDown(1)
-                focus_Callback(0,0);
-            end
-
-            if b(6)
+            if b(6) % Up next to the pov
                 c.piezo(3) = c.piezo(3) + c.joyZDir*c.piezoStep;
             end
-            if b(4)
+            if b(4) % Down next to the pov
                 c.piezo(3) = c.piezo(3) - c.joyZDir*c.piezoStep;
             end
 
@@ -281,15 +311,17 @@ function varargout = diamondControl(varargin)
             else
                 pov = [0 0];
             end
-
-            % Logic for whether a pov axis has changed since last time and is on.
-    %         povDown = (pov ~= 0 & pov ~= c.joyPovPrev);
-
-            if pov(1) ~= 0
-                c.micro(1) = c.micro(1) + c.joyXDir*pov(1)*c.microStep;
-            end
-            if pov(2) ~= 0
-                c.micro(2) = c.micro(2) + c.joyYDir*pov(2)*c.microStep;
+            
+            switch mode
+                case c.joyMicro
+                    c.micro(1) = c.micro(1) + c.joyXDir*pov(1)*c.microStep;
+                    c.micro(2) = c.micro(2) + c.joyYDir*pov(2)*c.microStep;
+                case c.joyPiezo
+                    c.piezo(1) = c.piezo(1) + c.joyXDir*pov(1)*c.piezoStep;
+                    c.piezo(2) = c.piezo(2) + c.joyYDir*pov(2)*c.piezoStep;
+                case c.joyGalvo
+                    c.galvo(1) = c.galvo(1) + c.joyXDir*pov(1)*c.galvoStep;
+                    c.galvo(2) = c.galvo(2) + c.joyYDir*pov(2)*c.galvoStep;
             end
 
             % Save for next time
@@ -300,8 +332,9 @@ function varargout = diamondControl(varargin)
             limit();
 
             % Decide whether things have changed
-            outputXY =  (prevX ~= c.micro(1) || prevY ~= c.micro(2));
-            outputZ =   (prevZ ~= c.piezo(3));
+
+            outputXY = sum(prevMicro ~= c.micro) ~= 0;
+            outputZ = (sum(prevPiezo ~= c.piezo) + sum(prevGlavo ~= c.galvo))  ~= 0;
         end
     end
     function speed = joystickAxesFunc(num, ignore)
@@ -311,6 +344,27 @@ function varargout = diamondControl(varargin)
         else
 %             speed = (num - .1*(num/abs(num)))*(num - .1*(num/abs(num))); % Continuous
             speed = num*num/(ignore*ignore*4)*direction(num);
+        end
+    end
+    function joyModeColor(~,~)
+        mode = get(c.joyMode, 'SelectedObject');
+
+        switch mode
+            case c.joyMicro
+                display('Micro mode...');
+                set(c.microText, 'ForegroundColor', 'green');
+                set(c.piezoText, 'ForegroundColor', 'black');
+                set(c.galvoText, 'ForegroundColor', 'black');
+            case c.joyPiezo
+                display('Piezo mode...');
+                set(c.microText, 'ForegroundColor', 'black');
+                set(c.piezoText, 'ForegroundColor', 'green');
+                set(c.galvoText, 'ForegroundColor', 'black');
+            case c.joyGalvo
+                display('Galvo mode...');
+                set(c.microText, 'ForegroundColor', 'black');
+                set(c.piezoText, 'ForegroundColor', 'black');
+                set(c.galvoText, 'ForegroundColor', 'green');
         end
     end
     function out = direction(num)
@@ -368,34 +422,77 @@ function varargout = diamondControl(varargin)
         end
     end
     function figure_WindowKeyPressFcn(~, eventdata)
-        if get(c.keyEnabled, 'Value') == 1 && c.microInitiated && c.daqInitiated && c.outputEnabled && ~c.galvoScanning
-            changed = true;
+%         if get(c.keyEnabled, 'Value') == 1 && c.microInitiated && c.daqInitiated && c.outputEnabled && ~c.galvoScanning && false
+%             changed = true;
+%             
+%             switch eventdata.Key
+%                 case {'uparrow', 'w'}
+%                     c.micro(2) = c.micro(2) + c.microStep;
+%                 case {'downarrow', 's'}
+%                     c.micro(2) = c.micro(2) - c.microStep;
+%                 case {'leftarrow', 'a'}
+%                     c.micro(1) = c.micro(1) - c.microStep;
+%                 case {'rightarrow', 'd'}
+%                     c.micro(1) = c.micro(1) + c.microStep;
+%                 case {'pageup', 'add', 'equal', 'q'}
+%                     c.piezo(3) = c.piezo(3) + c.piezoStep;
+%                 case {'pagedown', 'subtract', 'hyphen', 'e'}
+%                     c.piezo(3) = c.piezo(3) - c.piezoStep;
+%                 otherwise
+%                     changed = false;
+%             end   
+%             
+%             if changed
+%                 limit();    % Make sure we do not overstep...
+% 
+%                 daqOut();   % (piezos, galvos)
+%                 setPos();   % (micrometers)
+%             end
+%         end
+%         if get(c.keyEnabled, 'Value') == 1 && c.microInitiated && c.daqInitiated && c.outputEnabled && ~c.galvoScanning
+%             changed = true;
             
             switch eventdata.Key
                 case {'uparrow', 'w'}
-                    c.micro(2) = c.micro(2) + c.microStep;
+                    c.keyFwd = 1;
                 case {'downarrow', 's'}
-                    c.micro(2) = c.micro(2) - c.microStep;
+                    c.keyBck = 1;
                 case {'leftarrow', 'a'}
-                    c.micro(1) = c.micro(1) - c.microStep;
+                    c.keyLft = 1;
                 case {'rightarrow', 'd'}
-                    c.micro(1) = c.micro(1) + c.microStep;
+                    c.keyRgt = 1;
                 case {'pageup', 'add', 'equal', 'q'}
-                    c.piezo(3) = c.piezo(3) + c.piezoStep;
+                    c.keyUpp = 1;
                 case {'pagedown', 'subtract', 'hyphen', 'e'}
-                    c.piezo(3) = c.piezo(3) - c.piezoStep;
-                otherwise
-                    changed = false;
+                    c.keyDwn = 1;
+%                 otherwise
+%                     changed = false;
             end   
             
-            if changed
-                limit();    % Make sure we do not overstep...
-
-                daqOut();   % (piezos, galvos)
-                setPos();   % (micrometers)
-            end
-        end
+%             if changed
+%                 limit();    % Make sure we do not overstep...
+% 
+%                 daqOut();   % (piezos, galvos)
+%                 setPos();   % (micrometers)
+%             end
+%         end
     end
+%     function figure_WindowKeyReleaseFcn(~, eventdata)
+%         switch eventdata.Key
+%             case {'uparrow', 'w'}
+%                 c.keyFwd = 0;
+%             case {'downarrow', 's'}
+%                 c.keyBck = 0;
+%             case {'leftarrow', 'a'}
+%                 c.keyLft = 0;
+%             case {'rightarrow', 'd'}
+%                 c.keyRgt = 0;
+%             case {'pageup', 'add', 'equal', 'q'}
+%                 c.keyUpp = 0;
+%             case {'pagedown', 'subtract', 'hyphen', 'e'}
+%                 c.keyDwn = 0;
+%         end
+%     end
     function saveState()
         piezoZ =    c.piezo(3);
         
@@ -824,6 +921,8 @@ function varargout = diamondControl(varargin)
             videoInit();
             microInit_Callback(0,0);
             normInit();
+            
+            joyModeColor(0,0);
 
 %             focus_Callback(0,0);
             
@@ -1336,7 +1435,7 @@ function varargout = diamondControl(varargin)
 
                 my = min(data);
                 My = max(data);
-                dy = My - my;
+                dy = My - my + 1;
 
                 plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, Mx + dy/10], 'r--', [center, center], [my - dy/10, My + dy/10], 'r:');
                 xlim(c.lowerAxes, [mx Mx]);

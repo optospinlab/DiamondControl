@@ -63,6 +63,13 @@ c.saveX = 0;
 c.saveY = 0;
 c.doing = false;    % Variable for when the program is doing something that should not be disturbed.
 
+c.keyUpp =  0;
+c.keyDwn =  0;
+c.keyFwd =  0;
+c.keyBck =  0;
+c.keyLft =  0;
+c.keyRgt =  0;
+
 % IO ======================================================================
 c.vid = 0;              % Empty variable for video input
 
@@ -270,7 +277,7 @@ c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMin
 c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Image Figure', 'Name', 'Blue Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Disk Detection Figure', 'Name', 'Blue Disk Detection Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-minfig(c.pleFigure, 1); % ple figure starts minimized
+% minfig(c.pleFigure, 1); % ple figure starts minimized
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
 c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
@@ -379,9 +386,15 @@ c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
 %     c.piezoText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Peizos (nothing to see):', 'Position', [bp puh-bp-6*bh 2*bw bh]);
 
 c.joyTab =          uitab(c.ioPanel, 'Title', 'Joystick!');
-    c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh bw bh]); 
-    c.joyAxes =     axes('Parent', c.joyTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [bp+bw bp bw bw-bp]);
-    
+    c.joyModeText =   uicontrol('Parent', c.joyTab, 'Style', 'text', 'String', 'Joystick Mode:', 'Position',[bp puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
+%     c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh bw bh]); 
+%     c.joyAxes =     axes('Parent', c.joyTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [bp+bw bp bw bw-bp]);
+    c.joyMode =     uibuttongroup('Parent', c.joyTab, 'Units', 'pixels', 'Position', [bp puh-bp-7*bh bw 4*bh]);
+    c.joyMicro =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Micro', 'Position', [bp bp+2.5*bh bw bh]);
+    c.joyPiezo =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Piezo', 'Position', [bp bp+1.5*bh bw bh]);
+    c.joyGalvo =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Galvo', 'Position', [bp bp+0.5*bh bw bh]);
+
+
 c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
     c.mouseEnabled =    uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
     c.keyEnabled =      uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable Arrow Keys?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
@@ -724,7 +737,7 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoTaskListT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Whitelist:',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-15*bh bw bh]);
             c.autoTaskListBrowse = uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Browse', 'Position', [2*bp+bw plhi-bp-16*bh bw bh], 'Callback', @autoTaskListBrowse_Callback);
             c.autoTaskWB =      uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Enabled?',  'HorizontalAlignment', 'left', 'Value', 0, 'Position', [bp plhi-bp-16*bh bw bh]); 
-            c.autoTaskList =    uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', '', 'Position', [bw plhi-bp-17*bh bw bh]);
+            c.autoTaskList =    uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', '', 'Position', [bw plhi-bp-17*bh 2*bw bh]);
             
     function autoTaskListBrowse_Callback(~,~)
         [filename,pathname,~] = uigetfile('*.txt;*.xls;*.xlsx', 'Select the White/Black listing file');
