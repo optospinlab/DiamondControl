@@ -1,0 +1,5 @@
+white
+s 1 1
+
+black
+d 3

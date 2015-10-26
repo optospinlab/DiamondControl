@@ -19,6 +19,8 @@ function varargout = diamondControl(varargin)
 
     c = diamondControlGUI();
     
+    javax.swing.UIManager.setLookAndFeel('com.sun.java.swing.plaf.windows.WindowsLookAndFeel');
+    
     % Helper Global variables for UI construction
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
@@ -138,6 +140,9 @@ function varargout = diamondControl(varargin)
     set(c.autoV3Get, 'Callback', @setCurrent_Callback);
     set(c.autoV4Get, 'Callback', @setCurrent_Callback);
     set(c.autoV5Get, 'Callback', @setCurrent_Callback);
+    
+    set(c.autoTaskG2S, 'Callback', @setCurrent_Callback);
+    set(c.autoTaskG3S, 'Callback', @setCurrent_Callback);
     
     set(c.autoDiskDet, 'Callback', @diskdetect_Callback);
     set(c.autoDiskClr, 'Callback', @diskclear_Callback);
@@ -1008,6 +1013,8 @@ function varargout = diamondControl(varargin)
         end
     end
     function setPos()
+        display('setting to: ');
+        display(c.micro);
         % Sets the position of the micrometers if the micrometers are
         % initiated and output is enabled.
         if c.outputEnabled && c.microInitiated
@@ -1228,16 +1235,18 @@ function varargout = diamondControl(varargin)
         final = daqOutQueueCleverFull(array(1:2), 0);
     end
     function gotoMicro(pos)
-        c.micro = pos;
-        setPos();
+        if ~c.globalStop
+            c.micro = pos;
+            setPos();
 
-        j = 0;
+            j = 0;
 
-        while norm(c.microActual - c.micro) > .2 && j < 600
-            pause(.1);
-            getPos();
-            renderUpper();
-            j = j + 1;
+            while norm(c.microActual - c.micro) > .2 && j < 600 && ~c.globalStop
+                pause(.1);
+                getPos();
+                renderUpper();
+                j = j + 1;
+            end
         end
     end
     % --- RESETS ----------------------------------------------------------
@@ -1262,7 +1271,7 @@ function varargout = diamondControl(varargin)
         display('    begin focusing');
         
         c.focusing = 1;
-        prevContrast = 0;
+%         prevContrast = 0;
         direction = 1;
         
         prev10 = [0 0 0 0 0 0 0 0 0 0];
@@ -1426,7 +1435,7 @@ function varargout = diamondControl(varargin)
                 final = data;
 
 
-                [fz, ~] = myMeanAdvanced(data, up(1:pixels), [0]);
+                [fz, ~] = myMeanAdvanced(data, up(1:pixels), 0);
 
                 display('      plot');
 
@@ -1480,78 +1489,6 @@ function varargout = diamondControl(varargin)
             end
             
             c.doing = false;
-        end
-    end
-    function piezoOptimizeAxis(axis)    % decrepatated.
-        
-        % Method 1
-        range = 10;
-        pixels = 500;
-        
-        prev = c.piezo(axis);
-        
-        c.s.Rate = 500; 
-        
-        u = pixels+1;
-        d = round(pixels/8);
-            
-%         up =    [c.piezo(1)*ones(u,1) c.piezo(2)*ones(u,1) linspace(0, range, u)' c.galvo(1)*ones(u,1) c.galvo(2)*ones(u,1)];
-%         down =  [c.piezo(1)*ones(d,1) c.piezo(2)*ones(d,1) linspace(range, 0, d)' c.galvo(1)*ones(d,1) c.galvo(2)*ones(d,1)];
-        up =    linspace(0, range, u);
-        down =  linspace(range, 0, d);
-        
-        switch axis
-            case 1
-                piezoOutSmooth([0 c.piezo(2) c.piezo(3)]);
-                daqOutQueueClever({[up down], NaN, NaN, NaN, NaN, NaN, NaN});
-            case 2
-                piezoOutSmooth([c.piezo(1) 0 c.piezo(3)]);
-                daqOutQueueClever({NaN, [up down], NaN, NaN, NaN, NaN, NaN});
-            case 3
-                piezoOutSmooth([c.piezo(1) c.piezo(2) 0]);
-                daqOutQueueClever({NaN, NaN, [up down], NaN, NaN, NaN, NaN});
-                display('z axis');
-        end
-
-        [out, times] = c.s.startForeground();
-        out = out(:,1);
-
-        data = diff(double(out))/diff(double(times));
-        data = data(1:pixels);
-        
-        display('plot');
-        plot(c.lowerAxes, up(1:pixels), data);
-
-        m = min(min(data)); M = max(max(data));
-
-        if m ~= M
-            data = (data - m)/(M - m);
-            data = data.*((((up(1:pixels) > (prev - 1)) + ((up(1:pixels) < (prev + 1)))) == 2)');
-            
-            m = min(min(data)); M = max(max(data));
-            
-            if m ~= M
-                data = (data - m)/(M - m);
-                data = data.*(data > .5);
-            end
-            
-            total = sum(sum(data));
-            fz = sum((data).*(up(1:pixels)'))/total;
-
-            if fz > 10 || fz > (prev + .5) || fz < 0 || fz < (prev - .5) || isnan(fz)
-                fz = prev;
-            end
-            
-            prev = fz;
-        end
-            
-        switch axis
-            case 1
-                piezoOutSmooth([prev c.piezo(2) c.piezo(3)]);
-            case 2
-                piezoOutSmooth([c.piezo(1) prev c.piezo(3)]);
-            case 3
-                piezoOutSmooth([c.piezo(1) c.piezo(2) prev]);
         end
     end
     function galvoOpt_Callback(~, ~)
@@ -1703,13 +1640,6 @@ function varargout = diamondControl(varargin)
             y = (y1 + y2)/2;
         end
     end
-    function data = displayImage() %Unused
-%         start(c.vid);
-%         data = getdata(c.vid)
-%         
-%         axes(c.imageAxes);
-%         image(flipdim(data,1));
-     end
 
     % NORMALIZATION =======================================================
     function initNormalization(useAnalog) % Unused
@@ -2175,12 +2105,12 @@ function varargout = diamondControl(varargin)
         end
     end
     function spectrum = waitForSpectrum(filename, t)
-        file = '';
+%         file = '';
         spectrum = -1;
         
         i = 0;
         
-        while c.running && i < 120 && sum(spectrum == -1) == 1
+        while c.running && i < 120 && sum(spectrum == -1) == 1 && ~c.globalStop && ~c.autoSkipping
             try
                 disp(['    waiting ' num2str(i)])
                 d = dir('Z:\WinSpec_Scan\spec.SPE');
@@ -2237,7 +2167,7 @@ function varargout = diamondControl(varargin)
             end
         elseif spectrum ~=-1
             display('Failed to get data; proceeding');
-            k = waitforbuttonpress 
+            k = waitforbuttonpress;
         end
         set(c.spectrumButton, 'Enable', 'on');
         
@@ -2269,10 +2199,16 @@ function varargout = diamondControl(varargin)
 
     % AUTOMATION! =========================================================
     function [white, black] = loadWhitelist()
-%         path = 'C:\Users\phys\Desktop\whitelist.txt'
+        % Loads the file pointed at by the path in the Automation Task settings and returns whitelist
+        % and blacklist cell arrays populated by lists of the form [dx, dy, x, y]. e.g. the list
+        % [NaN, NaN, 1, 1] would mean Set 1 1. The NaNs denote that those values are not specified.
+        % As another example, [1, NaN, NaN, NaN] would mean device or column 1, depending upon one's
+        % choice of how the devices are arranged (i.e. in rows or columns)
         
-        path = get(c.autoTaskList, 'String')
-        if exist(path) ~= 0
+%         path = 'C:\Users\phys\Desktop\whitelist.txt'
+        path = get(c.autoTaskList, 'String');
+        
+        if exist(path) ~= 0     % If the whitelist path exists
             switch path(end-3:end)
                 case '.txt'
                     file = fopen(path);
@@ -2285,26 +2221,25 @@ function varargout = diamondControl(varargin)
             white = cell(1);    w = 1;
             black = cell(1);    b = 1;
             
-            isBlack = false;
+            isBlack = false;    % Variable used to determine whether a line is part of the white or black list.
             
-%             white = array;
-%             return
-            
-            for x = 1:max(size(array{1}))
+            for x = 1:max(size(array{1}))   % Scan through the lines in the file
 %                 array{1}{x}
 %                 array{1}{x}(1)
-                if ~isempty(array{1}{x})
+                if ~isempty(array{1}{x})    % If the line isn't empty:
                     switch array{1}{x}(1)
-                        case {'w', 'W'}
+                        case {'#', '%', '\', '/', '!'}  % If line is commented out
+                            % Nothing.
+                        case {'w', 'W'}                 % Interprets subsequent lines as part of the whitelist
                             isBlack = false;
-                        case {'b', 'B'}
+                        case {'b', 'B'}                 % Interprets subsequent lines as part of the blacklist
                             isBlack = true;
-                        otherwise
+                        otherwise                       % Interpret line
     %                         array{1}{x}
-                            list = interpretWhiteString([array{1}{x}, ' ']);
+                            list = interpretWhiteString([array{1}{x}, ' ']);    % Returns line in the form: [dx, dy, x, y]
 
-                            if length(list) ~= 1
-                                if isBlack
+                            if length(list) ~= 1    % If the list is nonempty (i.e. if the line made sense)
+                                if isBlack          % Add line to the blacklist if it should be.
                                     black{b,1} = list; b = b + 1;
                                 else
                                     white{w,1} = list; w = w + 1;
@@ -2314,15 +2249,16 @@ function varargout = diamondControl(varargin)
                 end
             end
         else 
-            white = 0;
-            black = 0;
+            white = {0};
+            black = {0};
+            return;
         end
         
-        if w == 1
-            white = 0;
+        if w == 1   % If nothing was added...
+            white = {0};
         end
         if b == 1
-            black = 0;
+            black = {0};
         end
     end
     function list = interpretWhiteString(str)
@@ -2339,19 +2275,19 @@ function varargout = diamondControl(varargin)
                     [list(1), ii] = getNum(str, list(1), ii);
                 case {'y'}
                     [list(2), ii] = getNum(str, list(2), ii);
-                case {'d', 'c', 'r'}
-                    if true     %(get(c.autoTaskRows, 'Value') == 1)
-                        if str(ii) == 'd'
+                case {'d', 'c', 'r', 'D', 'C', 'R'}
+                    if (get(c.autoTaskRow, 'Value') == 1)
+                        if str(ii) == 'd' || str(ii) == 'D'
                             [list(1), ii] = getNum(str, list(1), ii);
-                        elseif str(ii) == 'r'
+                        elseif str(ii) == 'r' || str(ii) == 'R'
                             [list(2), ii] = getNum(str, list(2), ii);
                         else
                             disp([str ' not understood - expected rows, not columns']);
                         end
                     else
-                        if str(ii) == 'c'
+                        if str(ii) == 'c' || str(ii) == 'C'
                             [list(1), ii] = getNum(str, list(1), ii);
-                        elseif str(ii) == 'd'
+                        elseif str(ii) == 'd' || str(ii) == 'D'
                             [list(2), ii] = getNum(str, list(2), ii);
                         else
                             disp([str ' not understood - expected columns, not rows']);
@@ -2361,9 +2297,20 @@ function varargout = diamondControl(varargin)
                     [list(3), ii] = getNum(str, list(3), ii);
                 case {'Y'}
                     [list(4), ii] = getNum(str, list(4), ii);
-                case {'s'}
-                    [list(3), ii] = getNum(str, list(3), ii);
-                    [list(4), ii] = getNum(str, list(4), ii);
+                case {'s', 'S'}
+                    if ii+1 <= length(str)
+                        if str(ii+1) == 'x' || str(ii+1) == 'X'
+                            [list(3), ii] = getNum(str, list(3), ii);
+                        elseif str(ii+1) == 'y' || str(ii+1) == 'Y'
+                            [list(4), ii] = getNum(str, list(4), ii);
+                        else
+                            [list(3), ii] = getNum(str, list(3), ii);
+                            [list(4), ii] = getNum(str, list(4), ii);
+                        end
+                    else
+                        [list(3), ii] = getNum(str, list(3), ii);
+                        [list(4), ii] = getNum(str, list(4), ii);
+                    end
             end
             
             if isnan(ii) == 1
@@ -2409,6 +2356,8 @@ function varargout = diamondControl(varargin)
         end
     end
     function setCurrent_Callback(hObject, ~)
+        disableWarning = false;
+                
         switch hObject
             case c.autoV1Get
                 set(c.autoV1X, 'String', c.microActual(1));
@@ -2454,14 +2403,26 @@ function varargout = diamondControl(varargin)
                 set(c.autoV5NY, 'String', c.Sy);
                 % c.autoV4DX = c.selcircle(1);
                 % c.autoV4DY = c.selcircle(2);
+            case c.autoTaskG2S
+                set(c.autoTaskG2X, 'String', c.galvo(1)*1000);
+                set(c.autoTaskG2Y, 'String', c.galvo(2)*1000);
+                
+                disableWarning = true;
+            case c.autoTaskG3S
+                set(c.autoTaskG3X, 'String', c.galvo(1)*1000);
+                set(c.autoTaskG3Y, 'String', c.galvo(2)*1000);
+                
+                disableWarning = true;
         end
         
-        if (c.piezo(1) ~= 5 || c.piezo(2) ~= 5) && (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
-            questdlg('The piezos are not set to [5,5] and the galvos are not set to [0,0]!', 'Warning!', 'Okay');
-        elseif (c.piezo(1) ~= 5 || c.piezo(2) ~= 5)
-            questdlg('The piezos are not set to [5,5]!', 'Warning!', 'Okay');
-        elseif (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
-            questdlg('The galvos are not set to [0,0]!', 'Warning!', 'Okay');
+        if ~disableWarning
+            if (c.piezo(1) ~= 5 || c.piezo(2) ~= 5) && (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
+                questdlg('The piezos are not set to [5,5] and the galvos are not set to [0,0]!', 'Warning!', 'Okay', 'Okay', 'Okay');
+            elseif (c.piezo(1) ~= 5 || c.piezo(2) ~= 5)
+                questdlg('The piezos are not set to [5,5]!', 'Warning!', 'Okay', 'Okay', 'Okay');
+            elseif (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
+                questdlg('The galvos are not set to [0,0]!', 'Warning!', 'Okay', 'Okay', 'Okay');
+            end
         end
     end
     function V = getStoredV(d)
@@ -2495,13 +2456,13 @@ function varargout = diamondControl(varargin)
     function R = getStoredR(d)
         switch d
             case 'x'
-                R = [str2num(get(c.autoNXRm, 'String')) str2num(get(c.autoNXRM, 'String'))]';
+                R = [str2double(get(c.autoNXRm, 'String')) str2double(get(c.autoNXRM, 'String'))]';
             case 'y'
-                R = [str2num(get(c.autoNYRm, 'String')) str2num(get(c.autoNYRM, 'String'))]';
+                R = [str2double(get(c.autoNYRm, 'String')) str2double(get(c.autoNYRM, 'String'))]';
             case 'dx'
-                R = [str2num(get(c.autonRm, 'String'))  str2num(get(c.autonRM, 'String'))]';
+                R = [str2double(get(c.autonRm, 'String'))  str2double(get(c.autonRM, 'String'))]';
             case 'dy'
-                R = [str2num(get(c.autonyRm, 'String'))  str2num(get(c.autonyRM, 'String'))]';
+                R = [str2double(get(c.autonyRm, 'String')) str2double(get(c.autonyRM, 'String'))]';
         end
     end
     function autoPreview_Callback(~, ~)
@@ -2524,9 +2485,9 @@ function varargout = diamondControl(varargin)
         V4 = getStoredV(4);    n4 = getStoredN(4);
         V5 = getStoredV(5);    n5 = getStoredN(5);
 
-        nd123 = [str2num(get(c.autoV123n, 'String')) str2num(get(c.autoV123ny, 'String'))]';  % The number of the device in the minor grid for 1,2,3
-        nd4 =   [str2num(get(c.autoV4n, 'String')) str2num(get(c.autoV4ny, 'String'))]';      % The number of the device in the minor grid for 4
-        nd5 =   [str2num(get(c.autoV5n, 'String')) str2num(get(c.autoV5ny, 'String'))]';      % The number of the device in the minor grid for 4
+        nd123 = [str2double(get(c.autoV123n, 'String')) str2double(get(c.autoV123ny, 'String'))]';  % The number of the device in the minor grid for 1,2,3
+        nd4 =   [str2double(get(c.autoV4n, 'String'))   str2double(get(c.autoV4ny, 'String'))]';    % The number of the device in the minor grid for 4
+        nd5 =   [str2double(get(c.autoV5n, 'String'))   str2double(get(c.autoV5ny, 'String'))]';    % The number of the device in the minor grid for 4
 
         % Major Grid
         m =    [n1(1)   n1(2)   1;
@@ -2582,13 +2543,13 @@ function varargout = diamondControl(varargin)
             for y = nyrange(1):nyrange(2)
                 for dx = ndxrange(1):ndxrange(2)
                     for dy = ndyrange(1):ndyrange(2)
-                        isWhite = 0;    % -1 = no list; 0 = not on list; 1 = on list; 2 = specific;
-                        isBlack = 0;    % -1 = no list; 0 = not on list; 1 = on list; 2 = specific;
+                        isWhite = -1;    % -1 = no list; 0 = not on list; 1 = on list; 2 = specific;
+                        isBlack = -1;    % -1 = no list; 0 = not on list; 1 = on list; 2 = specific;
                         isGood = true;
                         
-                        if ~(length(white) == 1 && white == 0)
+                        if ~(length(white{1}) == 1)
                             for w = 1:length(white)
-                                match = (white{w} == [dx, dy, x, y]) && ~isnan(white{w});
+                                match = (white{w} == [dx, dy, x, y]) & ~isnan(white{w});
                                 
                                 if sum(match) == 4
                                     isWhite = 2;
@@ -2599,9 +2560,9 @@ function varargout = diamondControl(varargin)
                                 end
                             end
                         end
-                        if ~(length(black) == 1 && black == 0)
+                        if ~(length(black{1}) == 1)
                             for b = 1:length(black)
-                                match = (black{b} == [dx, dy, x, y]) && ~isnan(black{b});
+                                match = (black{b} == [dx, dy, x, y]) & ~isnan(black{b});
                                 
                                 if sum(match) == 4
                                     isBlack = 2;
@@ -2617,8 +2578,8 @@ function varargout = diamondControl(varargin)
                             isGood = false;
                         end
                         
-                        if onlyGoodListed || ~isGood
-                            p(:,i) = V*([x y]') + v*([dx dy]') + V0;
+                        if ~onlyGoodListed || (onlyGoodListed && isGood)
+                            c.p(:,i) = V*([x y]') + v*([dx dy]') + V0;
 
                             color(i,:) = [0 0 1];
 
@@ -2631,11 +2592,11 @@ function varargout = diamondControl(varargin)
                             if ((dx == nd5(1) && dy == nd5(2)) && sum(n5 == [x y]') == 2)
                                 color(i,:) = [1 .5 0];
                             end
-                            if (p(3,i) < c.piezoMin(3))
+                            if (c.p(3,i) < c.piezoMin(3))
                                 p(3,i) = c.piezoMin(3);
                                 color(i,:) = [1 0 0];
                             end
-                            if (p(3,i) > c.piezoMax(3))
+                            if (c.p(3,i) > c.piezoMax(3))
                                 p(3,i) = c.piezoMax(3);
                                 color(i,:) = [1 0 0];
                             end
@@ -2669,7 +2630,8 @@ function varargout = diamondControl(varargin)
         
         len = i-1;
         
-        c.pv = p;           % Transportation variables
+        c.pv = c.p;           % Transportation variables
+        p = c.p;
         c.pc = color;
         c.len = len;
 
@@ -2748,7 +2710,7 @@ function varargout = diamondControl(varargin)
 %                 Xi=mean([c.autoV1DX c.autoV2DX c.autoV3DX])
 %                 Yi=mean([c.autoV1DY c.autoV2DY c.autoV3DY])
 %             end
-            if get(c.autoAutoProceed,'Value')==1 && checkTask(c.autoTaskDiskI)
+            if get(c.autoAutoProceed,'Value') == 1 && checkTask(c.autoTaskDiskI) && exist('c.autoV3DX') && exist('c.autoV3DY')
                 c.autoDX=c.autoV3DX;
                 c.autoDY=c.autoV3DY;
 
@@ -2771,17 +2733,21 @@ function varargout = diamondControl(varargin)
                 fh =  fopen([prefix 'results.txt'],         'w');  c.fh = fh;
                 fhv = fopen([prefix 'results_verbose.txt'], 'w');  c.fhv = fhv;
                 fhb = fopen([prefix 'results_brief.txt'],   'w');  c.fhb = fhb;
+                fhp = fopen([prefix 'results_power.txt'],   'w');  c.fhp = fhp;
 
                 if (fh == -1 || fhv == -1 || fhb == -1) 
                     error('oops, file cannot be written'); 
                 end 
             
-                fprintf(fhb,  '  Set  \t Info \r\n');
-                fprintf(fhb, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndxrange(1), ndxrange(2), ndxrange(2)-ndxrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
+                fprintf(fh,  '  Set  \t Info \r\n');
+                fprintf(fh, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndrange(1), ndrange(2), ndrange(2)-ndrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
                 % The above is incomplete, as it does not include dy
 
                 fprintf(fhb,  '  Set  \t Counts \r\n');
-                fprintf(fhb, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndxrange(1), ndxrange(2), ndxrange(2)-ndxrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
+                fprintf(fhb, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndrange(1), ndrange(2), ndrange(2)-ndrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
+
+                fprintf(fhp,  '  Set  \t Powers \r\n');
+                fprintf(fhp, [' [x,y] ' strjoin(arrayfun(@(num)(['\t',num2str(num)]), linspace(ndrange(1), ndrange(2), ndrange(2)-ndrange(1)+1), 'UniformOutput', 0), '') '\r\n']);
 
                 fprintf(fhv, 'Welcome to the verbose version of the results summary...\r\n\r\n');
             catch err
@@ -2928,51 +2894,79 @@ function varargout = diamondControl(varargin)
 
                                     if checkTask(c.autoTaskSpectrum)
                                         display('  Taking Spectrum...');
-
-                                        spectrum = -1;
-
-                                        k = 0;
-
-                                        while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop && c.autoScanning
-                                            try
-                                                trig = sendSpectrumTrigger();
+                                        
+                                        G = {[0, 0],...
+                                             [str2double(get(c.autoTaskG2X, 'String')), str2double(get(c.autoTaskG2Y, 'String'))],...
+                                             [str2double(get(c.autoTaskG3X, 'String')), str2double(get(c.autoTaskG3Y, 'String'))]};
+                                         
+                                         numG = 1 + (sum(G{1} == 0) ~= 2) + (sum(G{2} == 0) ~= 2);
+                                        
+                                        for g = 1:3
+                                            if g == 1 || sum(G{g} == 0) ~= 2
+                                                galvoOutSmooth([.2 .2]);
+                                                galvoOutSmooth(G{g}/1000);
                                                 
-                                                if checkTask(c.autoTaskPower)
-                                                    % getPower()    % Where to put!?
+                                                spectrum = -1;
+
+                                                k = 0;
+                                                
+                                                if g == 1 && numG == 1
+                                                    fname = [prefix name{i} '_spectrum'];
+                                                else
+                                                    fname = [prefix name{i} '_g_' num2str(g) '_spectrum'];
                                                 end
-                                                
-                                                spectrum = waitForSpectrum([prefix name{i} '_spectrum'], trig);
-                                            catch err
-                                                display(err.message);
-                                            end
-                                            k = k + 1;
-                                        end
 
-                                        if sum(size(spectrum)) ~= 2 && ~c.globalStop && c.autoScanning
-                                            try
-                                                savePlotPng(1:512, spectrum, [prefix name{i} '_spectrum' '.png']);
-                                            catch err
-                                                display(err.message);
-                                            end
-                                        else
-                                            fprintf(fhv, '    Unfortunately, spectrum acquisition failed for this device.\r\n');
-                                        end
+                                                while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop && c.autoScanning
+                                                    try
+                                                        trig = sendSpectrumTrigger();
 
-    %                                     if spectrumNorm ~= 0 && spectrum ~= 0
-    %                                         spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
-    %                                         save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
-    % 
-    %                                         savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
-    % 
-    % 
-    %     %                                     tempP = plot(1, 'Visible', 'off');
-    %     %                                     tempA = get(tempP, 'Parent');
-    %     %                                     png = plot(tempA, 1:512, spectrumNorm);
-    %     %                                     xlim(tempA, [1 512]);
-    %     %     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
-    %     %     %                                 xlim(c.lowerAxes, [1 512]);
-    %     %                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
-    %                                     end
+                                                        if g == 1 && checkTask(c.autoTaskPower)
+                                                            try
+                                                                fprintf(fh, ['\t' num2str(getPower())]);
+                                                            catch err
+                                                                display(['Power aquisition failed with message: ' err.message]);
+                                                            end
+                                                        end
+
+                                                        spectrum = waitForSpectrum(fname, trig);
+                                                    catch err
+                                                        display(err.message);
+                                                    end
+                                                    k = k + 1;
+                                                end
+
+                                                if sum(size(spectrum)) ~= 2 && ~c.globalStop && c.autoScanning
+                                                    try
+                                                        savePlotPng(1:512, spectrum, [fname '.png']);
+                                                        savePlotPng(1:512, spectrum, [fname '.png']);
+                                                    catch err
+                                                        display(err.message);
+                                                    end
+                                                else
+                                                    fprintf(fhv, ['    Unfortunately, spectrum acquisition failed for this device (g=' num2str(g) ').\r\n']);
+                                                end
+
+            %                                     if spectrumNorm ~= 0 && spectrum ~= 0
+            %                                         spectrumFinal = double(spectrum - min(spectrum))./double(spectrumNorm - min(spectrumNorm) + 50);
+            %                                         save([prefix name{i} '_spectrumFinal' '.mat'], 'spectrumFinal');
+            % 
+            %                                         savePlotPng(1:512, spectrumFinal, [prefix name{i} '_spectrumFinal' '.png']);
+            % 
+            % 
+            %     %                                     tempP = plot(1, 'Visible', 'off');
+            %     %                                     tempA = get(tempP, 'Parent');
+            %     %                                     png = plot(tempA, 1:512, spectrumNorm);
+            %     %                                     xlim(tempA, [1 512]);
+            %     %     %                                 png = plot(c.lowerAxes, 1:512, spectrumFinal);
+            %     %     %                                 xlim(c.lowerAxes, [1 512]);
+            %     %                                     saveas(png, [prefix name{i} '_spectrumFinal' '.png']);
+            %                                     end
+                                            end
+                                        end
+                                        
+                                        if numG ~= 1
+                                            resetGalvo_Callback(0,0)
+                                        end
                                     end
 
                                     display('  Saving...');
@@ -3041,6 +3035,7 @@ function varargout = diamondControl(varargin)
                                         if d == ndrange(1)
                                             fprintf(fhb, ['\r\n [' num2str(x) ',' num2str(y) '] ']);
                                             fprintf(fh,  ['\r\n [' num2str(x) ',' num2str(y) '] ']);
+                                            fprintf(fhp, ['\r\n [' num2str(x) ',' num2str(y) '] ']);
                                         end
 
 %                                         if works
@@ -3106,6 +3101,7 @@ function varargout = diamondControl(varargin)
             fclose(fhb);
             fclose(fh);
             fclose(fhv);
+            fclose(fhp);
         end
         
         if c.running
@@ -3176,91 +3172,6 @@ function varargout = diamondControl(varargin)
 %             xlim(c.upperAxes, [0 25000]);
 %             ylim(c.upperAxes, [0 25000]);
         end
-    end
-    function resizeUI_Callback(~, ~)
-        p = get(c.parent, 'Position');
-        w = p(3); h = p(4);
-        
-        % 640x480
-
-        % Axes Position =====
-%         S = w-pw-2*gp;
-%         set(c.imageAxes,    'Position', [gp (h-gp-S*(480/640)) S S*(480/640)]);
-        
-        if ((w-pw-2*gp) > (640/480)*(h-2*gp)) % If Width is unlimiting
-            S = (640/480)*(h-2*gp);   % Error here is known; too lazy to fix
-            set(c.imageAxes,    'Position', [gp (h-gp-S*(480/640)) S S*(480/640)]);
-        
-%             if ((w-pw-3*gp)/2 < (h-S*(480/640)-3*gp)) % If Width is limiting
-                s = (w-pw-3*gp-S);
-                set(c.upperAxes,    'Position', [2*gp+S h-gp-s      s s]);
-                set(c.lowerAxes,    'Position', [2*gp+S h-2*(gp+s)  s s]);
-                set(c.counterAxes,  'Position', [2*gp+S gp          s h-2*(2*gp+s)]);
-%             else                        % If Height is limiting
-%                 s = (h-S*(480/640)-3*gp);
-%                 set(c.lowerAxes,    'Position', [(w-pw)/4 - s/2 gp s s]);
-%                 set(c.upperAxes,    'Position', [3*(w-pw)/4 - s/2 gp s s]);
-%             end
-        elseif ((w-pw-2*gp) < (640/480)*(3*h/4)) % If Width is limiting
-            S = w-pw-2*gp;
-            set(c.imageAxes,    'Position', [gp (h-gp-S*(480/640)) S S*(480/640)]);
-        
-            if ((w-pw-3*gp)/2 < (h-S*(480/640)-3*gp)) % If Width is limiting
-                s = (w-pw-3*gp)/2;
-                set(c.lowerAxes,    'Position', [2*gp+w     gp + (h - (h-S*(480/640)-3*gp) + s)/2 s s]);
-                set(c.upperAxes,    'Position', [gp         gp + (h - (h-S*(480/640)-3*gp) + s)/2 s s]);
-            else                        % If Height is limiting
-                s = (h-S*(480/640)-3*gp);
-                set(c.lowerAxes,    'Position', [(w-pw)/4 - s/2 gp s s]);
-                set(c.upperAxes,    'Position', [3*(w-pw)/4 - s/2 gp s s]);
-            end
-        else                        % If Height is limiting
-            S = (640/480)*3*h/4;
-            set(c.imageAxes,    'Position', [gp+(w-pw-S)/2 (h-gp-S*(480/640)) S S*(480/640)]);
-        
-%             if ((w-pw-3*gp)/2 < (h-S*(480/640)-3*gp)) % If Width is limiting
-%                 s = (w-pw-3*gp)/2;
-%                 set(c.lowerAxes,    'Position', [2*gp+w     gp + (h - (h-S*(480/640)-3*gp) + s)/2 s s]);
-%                 set(c.upperAxes,    'Position', [gp         gp + (h - (h-S*(480/640)-3*gp) + s)/2 s s]);
-%             else                        % If Height is limiting
-                s = (h-S*(480/640)-3*gp);
-                set(c.lowerAxes,    'Position', [(w-pw)/4 - s/2 gp s s]);
-                set(c.upperAxes,    'Position', [3*(w-pw)/4 - s/2 gp s s]);
-%             end
-        end
-        
-        % PLE Axes Position =====
-        set(c.pleAxesOne,    'Position', [0      2*gp    w-pw   .3*h-2*gp]);
-        set(c.pleAxesAll,    'Position', [0      .3*h    w-pw   .7*h]);
-
-        % (old) Axes Position =====
-%         if c.axesMode == 0 % Both
-%             if (w-pw-2*gp < (h-3*gp)/2) % If Width is limiting
-%                 S = w-pw-2*gp;
-%                 set(c.lowerAxes,    'Position', [gp ((h/4)-(S/2)) S S]);
-%                 set(c.upperAxes,    'Position', [gp ((3*h/4)-(S/2)) S S]);
-%             else                        % If Height is limiting
-%                 S = (h-3*gp)/2;
-%                 set(c.lowerAxes,    'Position', [(w-pw-S)/2 gp S S]);
-%                 set(c.upperAxes,    'Position', [(w-pw-S)/2 2*gp+S S S]);
-%             end
-%         else
-%             if (w-pw-2*gp < h-2*gp)     % If Width is limiting
-%                 S = w-pw-2*gp;
-%             else                        % If Height is limiting
-%                 S = h-2*gp;
-%             end
-% 
-%             if c.axesMode == 1  % Upper only
-%                 set(c.upperAxes,    'Position', [(w-pw-S)/2 (h-S)/2 S S]);
-%             else                % Lower only
-%                 set(c.lowerAxes,    'Position', [(w-pw-S)/2 (h-S)/2 S S]);
-%             end
-%         end
-
-        % Panel Position =====
-        set(c.ioPanel,      'Position', [w-pw h-puh pw puh]);
-        set(c.automationPanel,  'Position', [w-pw h-puh-plh pw plh]);
     end
     function limit_Callback(hObject, ~)
         val = str2double(get(hObject, 'String'));

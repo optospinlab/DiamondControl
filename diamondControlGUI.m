@@ -266,11 +266,11 @@ c.videoEnabled = 0;
 c.hImage = 0;
 
 % Add popout figures here.
-c.upperFigure =     0;
-c.lowerFigure =     0;
-c.imageFigure =     0;
-c.pleFigure =       0;
-c.bluefbFigure=0;
+% c.upperFigure =     0;
+% c.lowerFigure =     0;
+% c.imageFigure =     0;
+% c.pleFigure =       0;
+% c.bluefbFigure =    0;
 
 c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Grid Figure', 'Name', 'Grid Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Data Figure', 'Name', 'Data Figure', 'Toolbar', 'figure', 'Menubar', 'none');
@@ -730,14 +730,27 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.autoTaskSpectrum = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Spectrum',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-10*bh bw bh]); 
             c.autoTaskPower = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Record Powers',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [2*bp+bw plhi-bp-10*bh bw bh]); 
                         
+            c.autoTaskTaskT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Spectra at Different Galvo Positions:', 'Position', [bp plhi-bp-12*bh 2*bw bh],         'HorizontalAlignment', 'left');
             
-            c.autoTaskNameT =     uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Setup:', 'Position', [bp        plhi-bp-12*bh 2*bw bh],         'HorizontalAlignment', 'left');
-            c.autoTaskRow = uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Devices in Rows',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-13*bh bw bh]);
+            c.autoTaskG2XT =    uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'G2X (mV): ',   'Position', [bp         plhi-bp-13*bh bw/2 bh], 'HorizontalAlignment', 'right');
+            c.autoTaskG2X =     uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 0,              'Position', [bp+bw/2    plhi-bp-13*bh bw/2 bh]);
+            c.autoTaskG2YT =    uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'G2Y (mV): ',   'Position', [bp         plhi-bp-14*bh bw/2 bh], 'HorizontalAlignment', 'right');
+            c.autoTaskG2Y =     uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 0,              'Position', [bp+bw/2    plhi-bp-14*bh bw/2 bh]);
+            c.autoTaskG2S =     uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [bp plhi-bp-15*bh bw bh]);
             
-            c.autoTaskListT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Whitelist:',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-15*bh bw bh]);
-            c.autoTaskListBrowse = uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Browse', 'Position', [2*bp+bw plhi-bp-16*bh bw bh], 'Callback', @autoTaskListBrowse_Callback);
-            c.autoTaskWB =      uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Enabled?',  'HorizontalAlignment', 'left', 'Value', 0, 'Position', [bp plhi-bp-16*bh bw bh]); 
-            c.autoTaskList =    uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', '', 'Position', [bw plhi-bp-17*bh 2*bw bh]);
+            c.autoTaskG3XT =    uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'G3X (mV): ',   'Position', [2*bp+bw         plhi-bp-13*bh bw/2 bh], 'HorizontalAlignment', 'right');
+            c.autoTaskG3X =     uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 0,              'Position', [2*bp+3*bw/2     plhi-bp-13*bh bw/2 bh]);
+            c.autoTaskG3YT =    uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'G3Y (mV): ',   'Position', [2*bp+bw         plhi-bp-14*bh bw/2 bh], 'HorizontalAlignment', 'right');
+            c.autoTaskG3Y =     uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', 0,              'Position', [2*bp+3*bw/2     plhi-bp-14*bh bw/2 bh]);
+            c.autoTaskG3S =     uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Set As Current', 'Position', [2*bp+bw plhi-bp-15*bh bw bh]);
+            
+            c.autoTaskNameT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Setup:', 'Position', [bp        plhi-bp-17*bh 2*bw bh],         'HorizontalAlignment', 'left');
+            c.autoTaskRow =     uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Devices in Rows',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-18*bh bw bh]);
+            
+            c.autoTaskListT =   uicontrol('Parent', c.autoTabT, 'Style', 'text', 'String', 'Whitelist:',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp plhi-bp-20*bh bw bh]);
+            c.autoTaskListBrowse = uicontrol('Parent', c.autoTabT, 'Style', 'pushbutton', 'String', 'Browse', 'Position', [2*bp+bw plhi-bp-21*bh bw bh], 'Callback', @autoTaskListBrowse_Callback);
+            c.autoTaskWB =      uicontrol('Parent', c.autoTabT, 'Style', 'checkbox', 'String', 'Enabled?',  'HorizontalAlignment', 'left', 'Value', 0, 'Position', [bp plhi-bp-21*bh bw bh]); 
+            c.autoTaskList =    uicontrol('Parent', c.autoTabT, 'Style', 'edit', 'String', '', 'Position', [bp plhi-bp-22*bh 2*bw+bp bh]);
             
     function autoTaskListBrowse_Callback(~,~)
         [filename,pathname,~] = uigetfile('*.txt;*.xls;*.xlsx', 'Select the White/Black listing file');
@@ -799,20 +812,20 @@ c.trackTab =           uitab(c.automationPanel, 'Title', 'Tracking');
 %     c.trk_gain_txt =   uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Gain:', 'Position',[bp/2 plhi-bp-18*bh bw/2 bh]);  
 %     c.trk_gain =       uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.8,     'Position', [bp/2+bw/2 plhi-bp-18*bh bw/3 bh]);
 
-     c.trk_min_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-4*bh 2*bw/3 bh]);  
-     c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 2,     'Position', [bp/2+bw+2*bw/3 plhi-bp-4*bh bw/3 bh]);
+     c.trk_min_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text', 'String', 'MinAdj (Pix):', 'Position',[bp/2+bw plhi-bp-4*bh 2*bw/3 bh]);  
+     c.trk_min =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 2,               'Position', [bp/2+bw+2*bw/3 plhi-bp-4*bh bw/3 bh]);
      
          
-     c.ratevid_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Rate(/sec):', 'Position',[bp/2+bw plhi-bp-5*bh 2*bw/3 bh]);  
-     c.ratevid =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.2,     'Position', [bp/2+bw+2*bw/3 plhi-bp-5*bh bw/3 bh]);
+     c.ratevid_txt =    uicontrol('Parent', c.trackTab, 'Style', 'text', 'String', 'Rate(/sec):', 'Position',[bp/2+bw plhi-bp-5*bh 2*bw/3 bh]);  
+     c.ratevid =        uicontrol('Parent', c.trackTab, 'Style', 'edit', 'String', 0.2,           'Position', [bp/2+bw+2*bw/3 plhi-bp-5*bh bw/3 bh]);
 %     
 %     c.track_clear =    uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Clear',                    'Position',[2*bp plhi-bp-20*bh bw bh]);
 %     c.track_set =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', 'Stabilize Disk',           'Position',[2*bp+bw plhi-bp-20*bh bw bh]);
     
 %     c.start_vid =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Start',                   'Position',[2*bp plhi-bp-2*bh bw bh]);  
 
-c.start_newTrack =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Start',                   'Position',[2*bp plhi-bp-2*bh bw bh]);  
-c.stop_newTrack =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Stop',                   'Position',[2*bp+bw plhi-bp-2*bh bw bh]);  
+c.start_newTrack =      uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Start', 'Position',[2*bp plhi-bp-2*bh bw bh]);  
+c.stop_newTrack =       uicontrol('Parent', c.trackTab, 'Style', 'pushbutton', 'String', ' Stop',  'Position',[2*bp+bw plhi-bp-2*bh bw bh]);  
 %c.track_stat =     uicontrol('Parent', c.trackTab, 'Style', 'text',       'String', 'Status: Nothing selected', 'Position',[bp plhi-bp-4*bh 2*bw bh]);  
      
 %     c.track_Axes =     axes('Parent', c.trackTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position',[bp plhi-bp-14*bh bp+2*bw 2*bw]);
