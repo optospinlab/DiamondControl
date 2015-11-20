@@ -1,5 +1,6 @@
-white
-s 1 1
+%white
+%s 1 1
 
 black
 d 3
+d_1_c_4_s_[0,1]

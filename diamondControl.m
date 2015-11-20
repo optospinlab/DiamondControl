@@ -2903,8 +2903,10 @@ function varargout = diamondControl(varargin)
                                         
                                         for g = 1:3
                                             if g == 1 || sum(G{g} == 0) ~= 2
-                                                galvoOutSmooth([.2 .2]);
-                                                galvoOutSmooth(G{g}/1000);
+                                                if numG > 1
+                                                    galvoOutSmooth([.2 .2]);
+                                                    galvoOutSmooth(G{g}/1000);
+                                                end
                                                 
                                                 spectrum = -1;
 
@@ -2913,7 +2915,7 @@ function varargout = diamondControl(varargin)
                                                 if g == 1 && numG == 1
                                                     fname = [prefix name{i} '_spectrum'];
                                                 else
-                                                    fname = [prefix name{i} '_g_' num2str(g) '_spectrum'];
+                                                    fname = [prefix name{i} '_g_[' num2str(g) ']_spectrum'];
                                                 end
 
                                                 while sum(size(spectrum)) == 2 && k < 3 && ~c.globalStop && c.autoScanning
@@ -2964,7 +2966,7 @@ function varargout = diamondControl(varargin)
                                             end
                                         end
                                         
-                                        if numG ~= 1
+                                        if numG > 1
                                             resetGalvo_Callback(0,0)
                                         end
                                     end
@@ -4567,6 +4569,10 @@ function varargout = diamondControl(varargin)
                 c.tktime = timer;
                 c.tktime.TasksToExecute = Inf;
                 rate=str2num(get(c.ratevid,'String'));
+                
+                %debug
+                rate
+                
                 c.tktime.Period = 1/rate;
                 c.tktime.TimerFcn = @(~,~)newtkListener;
                 c.tktime.ExecutionMode = 'fixedSpacing';
@@ -4615,7 +4621,7 @@ function varargout = diamondControl(varargin)
                         count=count+1;
                     end
                 end    
-                count
+                %count
  %a=2.5              
                 %Debug
                 % deltaa=(filtered_Points2-filtered_Points1);
@@ -4623,16 +4629,20 @@ function varargout = diamondControl(varargin)
                 %delta1=round(mean(matchedPoints2.Location-matchedPoints1.Location));
                 if exist('filtered_Points1', 'var')
                     % Calculate the delta
-                    del=round(mean(filtered_Points2 - filtered_Points1))
+                    del=mean(filtered_Points2 - filtered_Points1)
 %a=3
                     trk_min=str2num(get(c.trk_min,'String'));
+                    gain=str2num(get(c.trk_gain,'String'));
+                    %Debug
+                    trk_min
+                    gain
                     
                     minAdjustmentpx = trk_min;
                     c.mindelVx = minAdjustmentpx*c.calib.pX;
                     c.mindelVy = minAdjustmentpx*c.calib.pY;
 %a=4
-                    delVx = del(1)*c.calib.pX;
-                    delVy = del(2)*c.calib.pY;
+                    delVx = gain*del(1)*c.calib.pX;
+                    delVy = gain*del(2)*c.calib.pY;
 
                     if (abs(delVx) > c.mindelVx) && (abs(delVy) > c.mindelVy)
                         disp('corrected')

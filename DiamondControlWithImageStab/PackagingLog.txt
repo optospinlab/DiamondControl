@@ -1,0 +1,130 @@
+mcc -C -o DiamondControlWithImageStab -W WinMain:DiamondControlWithImageStab -T link:exe -d C:\Users\Tomasz\Desktop\DiamondControl\DiamondControlWithImageStab\for_testing -v C:\Users\Tomasz\Desktop\DiamondControl\diamondControl.m 
+Compiler version: 6.1 (R2015b)
+
+Dependency analysis by REQUIREMENTS.
+
+[Warning: Adding path "C:\Users\Tomasz\Desktop\DiamondControl" to Compiler path
+instance.] 
+[] 
+Parsing file "C:\Users\Tomasz\Desktop\DiamondControl\diamondControl.m"
+	(Referenced from: "Compiler Command Line").
+[Warning: Requirements cannot analyze
+C:\Users\Tomasz\Desktop\DiamondControl\figstate.p unless the user provides a
+corresponding M-code along with it in the same folder. Its dependencies may not
+be included in the completion, because its corresponding M-code found by
+REQUIREMENTS either is empty or contains nothing but comments.] 
+[> In matlab.depfun.internal.MatlabSymbol/findCorrespondentMCode (line 1090)
+  In matlab.depfun.internal.Completion/recordDependency (line 797)
+  In matlab.depfun.internal.Completion>@(client,symbol)recordDependency(obj,client,symbol)
+  In matlab.depfun.internal.MatlabInspector/recordDependency (line 241)
+  In matlab.depfun.internal.MatlabInspector/evaluateSymbols (line 419)
+  In matlab.depfun.internal.MatlabInspector/analyzeSymbols (line 191)
+  In matlab.depfun.internal.Completion/findDependentFiles (line 1260)
+  In matlab.depfun.internal.Completion/computeDependencies (line 241)
+  In matlab.depfun.internal.Completion/calltree (line 2182)
+  In matlab.depfun.internal.Manifest (line 28)
+  In matlab.depfun.internal.genmanifest (line 8)] 
+Deleting 94 temporary MEX authorization files.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154013781_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023915_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154017339_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154013291_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154017334_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154010737_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015403804_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154020465_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154022816_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154017531_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154026914_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015405303_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015407244_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015408640_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154012833_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015409245_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154029459_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154016930_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154024854_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154017088_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154024577_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154028725_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015403926_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154032459_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154029446_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023990_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023025_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154014609_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154017966_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154028044_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154024767_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015402801_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01540489_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154031114_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015401408_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154012223_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015404747_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015408637_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154030938_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015408985_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154031910_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015407308_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154029392_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015409365_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154025072_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154029590_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154026098_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154019368_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154026269_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154011290_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015403098_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154015925_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154010985_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154013563_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154013079_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154013423_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015405267_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154027357_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154014155_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154010447_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_01540531_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015408316_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015407795_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015407367_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154012077_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154016515_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023182_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015402776_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015401905_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023718_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154020120_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154021630_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154024137_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154011759_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015408804_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154021968_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015405721_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015404033_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015404343_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154011006_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023888_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154019157_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154027914_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154024270_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154018494_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154023659_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154018522_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154032088_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154019265_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015409035_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154011465_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154013788_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_015408249_5440.auth'.
+Removing: 'C:\Users\Tomasz\AppData\Local\Temp\mathworks_tmp_0154020339_5440.auth'.
+Generating file "C:\Users\Tomasz\Desktop\DiamondControl\DiamondControlWithImageStab\for_testing\readme.txt".
+Packaging...
+Adding custom icon C:\Program Files\MATLAB\R2015b\toolbox\compiler\Resources\default_icon.ico to C:\Users\Tomasz\Desktop\DiamondControl\DiamondControlWithImageStab\for_testing\DiamondControlWithImageStab.exe.
+Attempting to embed the CTF archive into the application C:\Users\Tomasz\Desktop\DiamondControl\DiamondControlWithImageStab\for_testing\DiamondControlWithImageStab.exe.
+Finished embedding CTF archive. Deleting the external CTF archive.
+Creating the bundle...
+Web based installer created at C:\Users\Tomasz\Desktop\DiamondControl\DiamondControlWithImageStab\for_redistribution\MyAppInstaller_web.exe.
+Packaging complete.
+Elapsed packaging time was: 3 minutes and 18 seconds.
