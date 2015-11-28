@@ -71,10 +71,33 @@ c.keyLft =  0;
 c.keyRgt =  0;
 
 % IO ======================================================================
+% Counter
+c.lhCA = 0;      % Empty variable for counter listener;
+c.lhCR = 0;
+
+c.counting = false;
+c.countPrev = -1;
+c.countPrevTime = -1;
+
+c.counterData = 0;
+c.counterMean = 0;
+c.counterStdP = 0;
+c.counterStdM = 0;
+
+c.counterDataH = 0;
+c.counterMeanH = 0;
+c.counterStdPH = 0;
+c.counterStdMH = 0;
+
+c.counterLength = 10;
+
+% Video
 c.vid = 0;              % Empty variable for video input
 
+% Joystick
 c.joy = 0;              % Empty variable for the joystick
-c.joystickEnabled = 0;
+c.joystickInitiated = 0;
+% c.keyboardEnabled = 1;
 
 c.focusing = false;
 
@@ -133,7 +156,7 @@ c.galvoMax =    [ 5000  5000];  % mV
 c.galvoStep =   .001;           % V
 
 % Z Peizo DEVice and CHaNnels
-c.devPiezo =    'Dev1';        
+c.devPiezo =    'Dev1';
 c.chnPiezoX =   'ao0';
 c.chnPiezoY =   'ao1';
 c.chnPiezoZ =   'ao2';
@@ -153,7 +176,7 @@ c.chnGrateOut = 'ao3';
 c.devPleDigitOut = 'Dev1';
 c.chnPleDigitOut = 'Port0/Line0';
 
-c.devPleIn =   'Dev1';    
+c.devPleIn =   'Dev1';
 c.chnPerotIn = 'ai2';
 c.chnSPCMPle = 'ctr1';
 c.chnNormIn =  'ai1';
@@ -274,6 +297,7 @@ c.hImage = 0;
 
 c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Grid Figure', 'Name', 'Grid Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Data Figure', 'Name', 'Data Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Data Figure', 'Name', 'Counter Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Image Figure', 'Name', 'Blue Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Disk Detection Figure', 'Name', 'Blue Disk Detection Figure', 'Toolbar', 'figure', 'Menubar', 'none');
@@ -282,12 +306,17 @@ c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMin
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
 c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 c.lowerAxes =   axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [.05 .05 .9 .9]); %, 'PickableParts', 'all');
-c.globalSaveButton =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'Save','Position', [bp bp 2*bw+1 bh]);
+c.globalSaveButton =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'Save','Position', [bp bp bw bh]);
 
-c.imageAxes =   axes('Parent', c.imageFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
-% c.counterAxes = axes('Parent', c.parent, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual'); %, 'PickableParts', 'all');
-c.bluefbAxes = axes('Parent', c.bluefbFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
+c.imageAxes =   axes('Parent', c.imageFigure,  'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
+c.bluefbAxes =  axes('Parent', c.bluefbFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 
+c.counterAxes = axes('Parent', c.counterFigure,'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [.1 0 .9 .95]); %, 'PickableParts', 'all');
+c.counterButton = uicontrol('Parent', c.counterFigure, 'Style', 'pushbutton', 'String', 'Start','Position', [bp bp bw bh]);
+c.counterScaleMode = uicontrol('Parent', c.counterFigure, 'Style', 'checkbox', 'String', 'Keep zero in view', 'Value', 1, 'Position', [bp bp+bh bw bh]);
+set(c.counterAxes, 'FontSize', 24);
+ylabel(c.counterAxes, 'Counts (cts/sec)', 'FontSize', 24);
+            
 c.pleAxesSum =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 0 1 .2]);
 c.pleAxesOne =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .2 1 .2]);
 c.pleAxesAll =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .4 1 .6]);
@@ -323,7 +352,7 @@ function resizeUISmall_Callback(hObject, ~)
     
     % pleFigure does not care at the moment;
     
-    if hObject ~= c.pleFigure
+    if hObject ~= c.pleFigure && hObject ~= c.counterFigure
         if w < h*ratio(1)/ratio(2)  % Make the figure larger to fit the ratio
             w = h*ratio(1)/ratio(2);
         else
@@ -385,19 +414,21 @@ c.outputTab =       uitab(c.ioPanel, 'Title', 'Outputs');
 %     c.galvoText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Galvometers (nothing to see):', 'Position', [bp puh-bp-5*bh 2*bw bh]);
 %     c.piezoText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Peizos (nothing to see):', 'Position', [bp puh-bp-6*bh 2*bw bh]);
 
-c.joyTab =          uitab(c.ioPanel, 'Title', 'Joystick!');
-    c.joyModeText =   uicontrol('Parent', c.joyTab, 'Style', 'text', 'String', 'Joystick Mode:', 'Position',[bp puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
+c.joyTab =          uitab(c.ioPanel, 'Title', 'Inputs');    % This tab is called 'joyTab' for legacy reasons.
+    c.joyModeText = uicontrol('Parent', c.joyTab, 'Style', 'text', 'String', 'Mode:', 'Position',[bp puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
 %     c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enabled?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh bw bh]); 
 %     c.joyAxes =     axes('Parent', c.joyTab, 'Units', 'pixels', 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [bp+bw bp bw bw-bp]);
     c.joyMode =     uibuttongroup('Parent', c.joyTab, 'Units', 'pixels', 'Position', [bp puh-bp-7*bh bw 4*bh]);
     c.joyMicro =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Micro', 'Position', [bp bp+2.5*bh bw bh]);
     c.joyPiezo =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Piezo', 'Position', [bp bp+1.5*bh bw bh]);
     c.joyGalvo =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Galvo', 'Position', [bp bp+0.5*bh bw bh]);
-
+    
+    c.joyModeText2= uicontrol('Parent', c.joyTab, 'Style', 'text', 'String', 'Inputs:', 'Position',[bp+bw+bp puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
+    c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enable?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-3*bh 2*bw bh]); 
+    c.keyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-4*bh 2*bw bh]); 
+    c.mouseEnabled= uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-5*bh 2*bw bh]); 
 
 c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
-    c.mouseEnabled =    uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-3*bh 2*bw bh]); 
-    c.keyEnabled =      uicontrol('Parent', c.mouseKeyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable Arrow Keys?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp puh-bp-4*bh 2*bw bh]); 
 
 % c.saveTab =         uitab(c.ioPanel, 'Title', 'Save');
 %     c.saveBlue =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
@@ -425,9 +456,30 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoMReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset','Position', [bp      plh-bp-6*bh bw bh]);
     c.gotoMActual = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Actual','Position', [bp plh-bp-7*bh bw bh]);
     c.gotoMTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position', [bp plh-bp-8*bh bw bh]);
-    c.gotoMButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
+    c.gotoMButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto! (um)','Position', [bp      plh-bp-9*bh bw bh]);
   
     c.gotoM = [c.gotoMX c.gotoMY c.gotoMActual c.gotoMTarget c.gotoMButton];
+     
+%     c.gotoSet_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Move to Set: (micro)',   'Position', [bp         plh-bp-18*bh bw bh], 'HorizontalAlignment', 'left');
+    c.gotoSXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (set): ',   'Position', [bp         plh-bp-10*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoSX =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-10*bh bw/2 bh]);
+    c.gotoSYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (set): ',   'Position', [bp         plh-bp-11*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoSY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-11*bh bw/2 bh]);
+    c.gotoSButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto! (set)','Position', [bp         plh-bp-12*bh bw bh]);
+
+    c.rsttoset0 = uicontrol('Parent', c.gotoTab, 'Style', 'checkbox', 'String', 'Goto [0 0] on Exit','Position', [bp         plh-bp-13*bh 2*bw bh],'Value', 0);
+    
+    c.gotoGLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Galvos: ',   'Position', [bp         plh-bp-15*bh bw bh],         'HorizontalAlignment', 'left');
+    c.gotoGXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (mV): ',   'Position', [bp         plh-bp-16*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoGX =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-16*bh bw/2 bh]);
+    c.gotoGYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (mV): ',   'Position', [bp         plh-bp-17*bh bw/2 bh],         'HorizontalAlignment', 'right');
+    c.gotoGY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-17*bh bw/2 bh]);
+    c.gotoGReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset','Position', [bp	plh-bp-20*bh bw bh]);
+    c.gotoGOpt =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp	plh-bp-21*bh bw bh]);
+    c.gotoGTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position', [bp	plh-bp-18*bh bw bh]);
+    c.gotoGButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-19*bh bw bh]);
+  
+    c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
     
     c.gotoPLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Piezos: ',   'Position', [2*bp+2*bw/2 plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
     c.gotoPZLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Z (V): ',   'Position',  [2*bp+2*bw/2 plh-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -446,27 +498,6 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoPOptAll = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize All','Position',    [2*bp+bw    plh-bp-13*bh bw bh]);
   
     c.gotoP = [c.gotoPX c.gotoPY c.gotoPZ c.gotoPFocus c.gotoPReset c.gotoPMaximize c.gotoPTarget c.gotoPButton];
-    
-    c.gotoGLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Galvos: ',   'Position', [bp         plh-bp-11*bh bw bh],         'HorizontalAlignment', 'left');
-    c.gotoGXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (mV): ',   'Position', [bp         plh-bp-12*bh bw/2 bh],         'HorizontalAlignment', 'right');
-    c.gotoGX =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-12*bh bw/2 bh]);
-    c.gotoGYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y (mV): ',   'Position', [bp         plh-bp-13*bh bw/2 bh],         'HorizontalAlignment', 'right');
-    c.gotoGY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-13*bh bw/2 bh]);
-    c.gotoGReset =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Reset','Position', [bp	plh-bp-16*bh bw bh]);
-    c.gotoGOpt =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp	plh-bp-17*bh bw bh]);
-    c.gotoGTarget = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Get Target','Position', [bp	plh-bp-14*bh bw bh]);
-    c.gotoGButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-15*bh bw bh]);
-  
-    c.gotoM = [c.gotoGX c.gotoGY c.gotoGReset c.gotoGTarget c.gotoGButton];
-     
-    c.gotoSet_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Move to Set: (micro)',   'Position', [bp         plh-bp-18*bh bw bh], 'HorizontalAlignment', 'left');
-    c.gotoSXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X: ',   'Position', [bp         plh-bp-19*bh bw/2 bh],         'HorizontalAlignment', 'right');
-    c.gotoSX =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-19*bh bw/2 bh]);
-    c.gotoSYLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Y: ',   'Position', [bp         plh-bp-20*bh bw/2 bh],         'HorizontalAlignment', 'right');
-    c.gotoSY =      uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plh-bp-20*bh bw/2 bh]);
-    c.gotoSButton = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp         plh-bp-21*bh bw bh]);
-
-    c.rsttoset0 = uicontrol('Parent', c.gotoTab, 'Style', 'checkbox', 'String', 'Go to Set [0 0] on Exit','Position', [bp         plh-bp-22*bh 2*bw bh],'Value', 0);
            
     c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-24*bh 2*bw bh],'HorizontalAlignment', 'center');
     c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-25*bh 2*bw bh]);
@@ -527,16 +558,16 @@ c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
             c.galvoAligning = false;
             c.galvoScanning = false;
 
-        c.counterTab =  uitab('Parent', c.scanningPanel, 'Title', 'Counter');
-            c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plhi-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left', 'Enable', 'off');
-            c.sC = 0;       % Empty variable for the counter channel;
-            c.lhC = 0;      % Empty variable for counter listener;
-            c.dataC = [];   % Empty variable for counter data;
-            c.rateC = 4;    % rate: scans/sec
-            c.lenC = 100;  % len:  scans/graph
-            c.iC = 0;
-            c.prevCount = 0;
-            c.isCounting = 0;
+%         c.counterTab =  uitab('Parent', c.scanningPanel, 'Title', 'Counter');
+%             c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plhi-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left', 'Enable', 'off');
+%             c.sC = 0;       % Empty variable for the counter channel;
+%             c.lhC = 0;      % Empty variable for counter listener;
+%             c.dataC = [];   % Empty variable for counter data;
+%             c.rateC = 4;    % rate: scans/sec
+%             c.lenC = 100;  % len:  scans/graph
+%             c.iC = 0;
+%             c.prevCount = 0;
+%             c.isCounting = 0;
 
         c.spectraTab =  uitab('Parent', c.scanningPanel, 'Title', 'Spectra');
             c.spectrumButton = uicontrol('Parent', c.spectraTab, 'Style', 'pushbutton', 'String', 'Take Spectrum', 'Position', [bp plhi-bp-3*bh bp+2*bw bh]);

@@ -24,8 +24,8 @@ function varargout = diamondControl(varargin)
     % Helper Global variables for UI construction
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
-    % CALLBACKS ===========================================================
-    set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprets keypresses e.g. up/down arrow.
+    % UI CALLBACKS ===========================================================
+%     set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprets keypresses e.g. up/down arrow.
 %     set(c.parent, 'WindowKeyReleaseFcn', @figure_WindowKeyReleaseFcn);
     
     set(c.parent, 'CloseRequestFcn', @closeRequest);                % Handles the closing of the figure.
@@ -155,8 +155,8 @@ function varargout = diamondControl(varargin)
     set(c.autoSkip, 'Callback',  @autoSkip_Callback);
     
     % Counter Fields -----------------------------------------
-    set(c.counterButton, 'Callback',  @counter_Callback);           
-                                       % to autoproceed using a checkbox.
+    set(c.counterButton, 'Callback',  @counterToggle);           
+    
     % Spectra Fields (unfinished) -----------------------------------------
     set(c.spectrumButton, 'Callback',  @takeSpectrum_Callback);      
     
@@ -187,10 +187,10 @@ function varargout = diamondControl(varargin)
     % Create the joystick object =====
     try
         c.joy = vrjoystick(1);
-        c.joystickEnabled = 1;
+        c.joystickInitiated = 1;
     catch err
         display(err.message);
-        c.joystickEnabled = 0;
+        c.joystickInitiated = 0;
     end
     
     % Initial rendering
@@ -212,20 +212,20 @@ function varargout = diamondControl(varargin)
         while c.running     % c.running is currently unused, but likely will be used.
             if ~c.pleScanning
                 if ~c.focusing && ~c.autoScanning && ~c.doing
-                    [microChanged, daqChanged] = readJoystick();
+                    [microChanged, daqChanged] = readKeyJoy();
 
                     if microChanged && c.microInitiated % If X or Y have been changed
-                        setPos();
+                        setPos();   % Change position of micrometers
                     end
 
                     if daqChanged && c.daqInitiated  % If Z has been changed
-                        daqOut();
+                        daqOut();   % Change position of DAQ devices
                     end
 
-                    getCurrent();
+                    getCurrent();   % Get the current position of the micrometers.
                 end
 
-                renderUpper();
+                renderUpper();      % Updates the grid figure.
             end
             
 %             takeSpectrum_Callback(0, 0);
@@ -236,11 +236,34 @@ function varargout = diamondControl(varargin)
     end
 
     % INPUTS ==============================================================
-    function [outputXY, outputZ] = readJoystick()
+    function [outputXY, outputZ] = readKeyJoy()
         % Reads the joystick. Outputs are true if the corresponding axes were changed.
         outputXY = 0;
         outputZ = 0;
-        if c.joystickEnabled == 1 % && get(c.joyEnabled, 'Value') == 1   % If the joystick is enabled...
+
+        prevMicro = c.micro;
+        prevPiezo = c.piezo;
+        prevGalvo = c.galvo;
+        
+        if get(c.keyEnabled, 'Value') == 1
+            mode = get(c.joyMode, 'SelectedObject');
+            
+            switch mode
+                case c.joyMicro
+                    % Add the joystick offset to the target vector. The microscope attempts to go to the target vector.
+                    c.micro(1) = c.micro(1) + (c.keyRgt - c.keyLft)*c.joyXDir*c.microStep;
+                    c.micro(2) = c.micro(2) + (c.keyFwd - c.keyBck)*c.joyYDir*c.microStep;
+                case c.joyPiezo
+                    c.piezo(1) = c.piezo(1) + (c.keyRgt - c.keyLft)*c.joyXDir*c.piezoStep;
+                    c.piezo(2) = c.piezo(2) + (c.keyFwd - c.keyBck)*c.joyYDir*c.piezoStep;
+                case c.joyGalvo
+                    c.galvo(1) = c.galvo(1) + (c.keyRgt - c.keyLft)*c.joyXDir*c.galvoStep;
+                    c.galvo(2) = c.galvo(2) + (c.keyFwd - c.keyBck)*c.joyYDir*c.galvoStep;
+            end
+            
+            c.piezo(3) = c.piezo(3) + (c.keyUpp - c.keyDwn)*c.piezoStep;
+        end
+        if (c.joystickInitiated == 1 && get(c.joyEnabled, 'Value') == 1) % && get(c.joyEnabled, 'Value') == 1   % If the joystick is enabled...
             [a, b, p] = read(c.joy);
             % a - axes (vector of values -1 to 1),
             % b - buttons (vector of 0s or 1s)
@@ -251,10 +274,6 @@ function varargout = diamondControl(varargin)
 %             prevX = c.micro(1); % For comparison later
 %             prevY = c.micro(2);
 %             prevZ = c.piezo(3);
-
-            prevMicro = c.micro;
-            prevPiezo = c.piezo;
-            prevGlavo = c.galvo;
 
             % Logic for whether a button has changed since last time and is on.
             buttonDown = (b ~= 0 & b ~= c.joyButtonPrev);
@@ -332,14 +351,21 @@ function varargout = diamondControl(varargin)
             % Save for next time
             c.joyButtonPrev = b;
             c.joyPovPrev = pov;
+        end
 
+        if (c.joystickInitiated == 1 && get(c.joyEnabled, 'Value') == 1) || get(c.keyEnabled, 'Value') == 1
             % Limit values
             limit();
 
             % Decide whether things have changed
-
             outputXY = sum(prevMicro ~= c.micro) ~= 0;
-            outputZ = (sum(prevPiezo ~= c.piezo) + sum(prevGlavo ~= c.galvo))  ~= 0;
+            outputZ = (sum(prevPiezo ~= c.piezo) + sum(prevGalvo ~= c.galvo))  ~= 0;
+        end
+        
+        if outputZ && c.counting
+            c.piezo = prevPiezo;
+            c.galvo = prevGalvo;
+            outputZ = false;
         end
     end
     function speed = joystickAxesFunc(num, ignore)
@@ -459,17 +485,17 @@ function varargout = diamondControl(varargin)
             
             switch eventdata.Key
                 case {'uparrow', 'w'}
-                    c.keyFwd = 1;
+                    c.keyFwd = c.keyFwd + 1;
                 case {'downarrow', 's'}
-                    c.keyBck = 1;
+                    c.keyBck = c.keyBck + 1;
                 case {'leftarrow', 'a'}
-                    c.keyLft = 1;
+                    c.keyLft = c.keyLft + 1;
                 case {'rightarrow', 'd'}
-                    c.keyRgt = 1;
+                    c.keyRgt = c.keyRgt + 1;
                 case {'pageup', 'add', 'equal', 'q'}
-                    c.keyUpp = 1;
+                    c.keyUpp = c.keyUpp + 1;
                 case {'pagedown', 'subtract', 'hyphen', 'e'}
-                    c.keyDwn = 1;
+                    c.keyDwn = c.keyDwn + 1;
 %                 otherwise
 %                     changed = false;
             end   
@@ -482,22 +508,22 @@ function varargout = diamondControl(varargin)
 %             end
 %         end
     end
-%     function figure_WindowKeyReleaseFcn(~, eventdata)
-%         switch eventdata.Key
-%             case {'uparrow', 'w'}
-%                 c.keyFwd = 0;
-%             case {'downarrow', 's'}
-%                 c.keyBck = 0;
-%             case {'leftarrow', 'a'}
-%                 c.keyLft = 0;
-%             case {'rightarrow', 'd'}
-%                 c.keyRgt = 0;
-%             case {'pageup', 'add', 'equal', 'q'}
-%                 c.keyUpp = 0;
-%             case {'pagedown', 'subtract', 'hyphen', 'e'}
-%                 c.keyDwn = 0;
-%         end
-%     end
+    function figure_WindowKeyReleaseFcn(~, eventdata)
+        switch eventdata.Key
+            case {'uparrow', 'w'}
+                c.keyFwd = c.keyFwd - 1;
+            case {'downarrow', 's'}
+                c.keyBck = c.keyBck - 1;
+            case {'leftarrow', 'a'}
+                c.keyLft = c.keyLft - 1;
+            case {'rightarrow', 'd'}
+                c.keyRgt = c.keyRgt - 1;
+            case {'pageup', 'add', 'equal', 'q'}
+                c.keyUpp = c.keyUpp - 1;
+            case {'pagedown', 'subtract', 'hyphen', 'e'}
+                c.keyDwn = c.keyDwn - 1;
+        end
+    end
     function saveState()
         piezoZ =    c.piezo(3);
         
@@ -525,6 +551,15 @@ function varargout = diamondControl(varargin)
             data = load([c.directory 'state.mat']);
             piezoZ = data.piezoZ;
             prev = get(c.parent, 'Position');
+            
+            screenSize = get(0,'screensize');
+            
+            if data.parentP(1) < 0 || data.parentP(1) > screenSize(3)
+                data.parentP(1) = 100;
+            end
+            if data.parentP(2) < 0 || data.parentP(2) > screenSize(4)
+                data.parentP(2) = 100;
+            end
             
             set(c.parent,       'Position', [data.parentP(1) data.parentP(2) prev(3) prev(4)]);
             set(c.upperFigure,  'Position', data.upperP);
@@ -671,7 +706,7 @@ function varargout = diamondControl(varargin)
         delete(c.upperAxes);
         delete(c.lowerAxes);
         delete(c.bluefbAxes);
-        %delete(c.counterAxes);
+        delete(c.counterAxes);
         %delete(c.upperAxes2);
         %delete(c.lowerAxes2);
         %delete(c.counterAxes2);
@@ -681,6 +716,7 @@ function varargout = diamondControl(varargin)
         delete(c.imageFigure);
         delete(c.pleFigure);
         delete(c.bluefbFigure);
+        delete(c.counterFigure);
         delete(c.parent);
     end
     function globalStop_Callback(~,~)
@@ -839,6 +875,10 @@ function varargout = diamondControl(varargin)
             c.sp.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');
             c.sp.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
             c.sp.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
+            
+            
+%             % Counter       i 1
+%             c.sc.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');
 
             
             % PLE digital
@@ -921,6 +961,7 @@ function varargout = diamondControl(varargin)
             set(c.imageFigure, 'Visible', 'On');
             set(c.pleFigure, 'Visible', 'On');
             set(c.bluefbFigure,'Visible', 'On');
+            set(c.counterFigure, 'Visible', 'On');
             set(c.parent, 'Visible', 'On');
             
             videoInit();
@@ -1013,8 +1054,8 @@ function varargout = diamondControl(varargin)
         end
     end
     function setPos()
-        display('setting to: ');
-        display(c.micro);
+%         display('setting to: ');
+%         display(c.micro);
         % Sets the position of the micrometers if the micrometers are
         % initiated and output is enabled.
         if c.outputEnabled && c.microInitiated
@@ -1135,7 +1176,7 @@ function varargout = diamondControl(varargin)
     end
     function daqOutSmooth(to)
         % Smoothly sends all the DAQ devices to the location defined by 'to'.
-        if c.outputEnabled && c.daqInitiated && ~c.isCounting
+        if c.outputEnabled && c.daqInitiated && ~c.counting
             prev = [c.piezo c.galvo]; % c.ple];   % Get the previous location.
             c.piezo = to(1:3);          % Set the new location.
             c.galvo = to(4:5);
@@ -1175,7 +1216,7 @@ function varargout = diamondControl(varargin)
     end
     function daqOut()
         % Abruptly sends all the DAQ devices to the location defined by c.piezo and c.galvo.
-        if c.outputEnabled && c.daqInitiated && ~c.isCounting
+        if c.outputEnabled && c.daqInitiated && ~c.counting
             c.s.outputSingleScan([c.piezo c.galvo]); % c.ple]);
         end
         getCurrent();       % Sets the UI to the current location.
@@ -3279,66 +3320,168 @@ function varargout = diamondControl(varargin)
     end
 
     % COUNTER =============================================================
-    function counter_Callback(hObject, ~)
-        display('Counting started.');
-        if hObject ~= 0 && get(hObject, 'Value') == 1
-            c.lhC = timer;
-            c.lhC.TasksToExecute = Inf;
-            c.lhC.Period = 1/c.rateC;
-            c.lhC.TimerFcn = @(~,~)counterListener;
-            c.lhC.ExecutionMode = 'fixedSpacing';
-%           c.lhC.StartDelay = 0;
-%           c.lhC.StartFcn = [];
-%         	c.lhC.StopFcn = [];
-%         	c.lhC.ErrorFcn = [];
+    function counterToggle(src,~)
+        if ~c.counting
+            set(src, 'String', 'Stop');
+            c.counting = true;
+            
+            c.counterLength = 10;
+    %         c.sp.DurationInSeconds = 1;
+            c.sp.Rate = 10;
+            c.sp.IsContinuous = true;
 
-            c.dataC = zeros(1, c.lenC);
-            c.iC = 0;
-            c.isCounting = 1;
-            c.prevCount = 0;
+            c.sp.resetCounters();
+
+            c.sp.IsNotifyWhenScansQueuedBelowAuto = false;
+            c.sp.NotifyWhenScansQueuedBelow = 5;
+
+            c.lhCA = c.sp.addlistener('DataAvailable', @counterPlot);
+            c.lhCR = c.sp.addlistener('DataRequired', @counterSustain);
+
+            c.sp.queueOutputData([linspace(0,0,10)' linspace(0,0,10)']);
             
-            start(c.lhC);
-        elseif (hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0)
-            stop(c.lhC);
-            delete(c.lhC);
-            c.isCounting = 0;
+            cla(c.counterAxes);
+            hold(c.counterAxes, 'on');
+            set(c.counterAxes, 'FontSize', 24);
+            ylabel(c.counterAxes, 'Counts (cts/sec)', 'FontSize', 24);
+            set(c.counterFigure, 'GraphicsSmoothing', 'on');
+
+            c.counterTime = linspace(0, 1, c.counterLength*c.sp.Rate);
+
+            c.counterData = linspace(-1, -1, c.counterLength*c.sp.Rate);
+            c.counterMean = linspace(-1, -1, c.counterLength*c.sp.Rate);
+            c.counterStdP = linspace(-1, -1, c.counterLength*c.sp.Rate);
+            c.counterStdM = linspace(-1, -1, c.counterLength*c.sp.Rate);
+
+            c.counterMeanH = plot(c.counterTime, c.counterMean, 'r-', 'LineWidth', 2);
+            c.counterStdPH = plot(c.counterTime, c.counterStdP, 'r:', 'LineWidth', 2);
+            c.counterStdMH = plot(c.counterTime, c.counterStdM, 'r:', 'LineWidth', 2);
+            c.counterDataH = plot(c.counterTime, c.counterData, 'b-', 'LineWidth', 2);
+
+            plot([0 1], [1e6 1e6], 'r-', 'LineWidth', 2);
+            plot([0 1], [1e7 1e7], 'r-', 'LineWidth', 4);
+            plot([0 1], [1e8 1e8], 'r-', 'LineWidth', 8);
+
+            set(c.counterAxes, 'Xlim', [0, 1]);
+
+            c.countPrev = -1;
+
+            c.sp.startBackground();
+        else
+            pause(1)
+%             c.sp.wait();
+            c.sp.stop();
+            delete(c.lhCA);
+            delete(c.lhCR);
+            
+            c.counting = false;
+            set(src, 'String', 'Start');
         end
     end
-    function counterListener(~, ~)
-%         display('  Counting...');
-%         c.sC.NumberOfScans = 8;
-        
-        c.dataC = circshift(c.dataC, [0 1]);
-        
-        try
-            out = c.s.inputSingleScan();
-        catch err
-            out = 0;
-            display(err);
-            display('counter aquisiton failed');
-        end
-        
-        c.dataC(1) = c.rateC*out - c.prevCount;
-        
-        c.prevCount = c.rateC*out;
-        
-        if c.iC < c.lenC
-            c.iC = c.iC + 1;
-        end
-        
-        cm = min(c.dataC(1:c.iC)); cM = max(c.dataC(1:c.iC)); cA = (cm + cM)/2; cO = .55*(cM - cm) + 1;
-        
-        if c.iC > 2
-            plot(c.counterAxes, 1:c.iC, c.dataC(1:c.iC));
-            set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-            xlim(c.counterAxes, [1 c.lenC]);
-            ylim(c.counterAxes, [cA - cO cA + cO]);
+    function counterPlot(~,event)
+        if c.countPrev == -1;
+            c.countPrev = event.Data(1);
+            c.countPrevTime = event.TimeStamps(1);
+        else
+            c.counterData(1) = (event.Data(1) - c.countPrev)/(event.TimeStamps(1) - c.countPrevTime);
+%             (event.Data(1) - c.countPrev)/(event.TimeStamps(1) - c.countPrevTime)
+            c.countPrev = event.Data(1);
+            c.countPrevTime = event.TimeStamps(1);
             
+            c.counterMean(1) = mean(c.counterData(c.counterData(1:20) ~= -1));
+
+            s = std( c.counterData(c.counterData(1:20) ~= -1));
+            c.counterStdP(1) = c.counterMean(1) + s;
+            c.counterStdM(1) = c.counterMean(1) - s;
+
+            set(c.counterDataH, 'YData', c.counterData);
+            set(c.counterMeanH, 'YData', c.counterMean);
+            set(c.counterStdPH, 'YData', c.counterStdP);
+            set(c.counterStdMH, 'YData', c.counterStdM);
+            
+            c.counterData = circshift(c.counterData, [0,1]);
+            c.counterMean = circshift(c.counterMean, [0,1]);
+            c.counterStdP = circshift(c.counterStdP, [0,1]);
+            c.counterStdM = circshift(c.counterStdM, [0,1]);
+            
+            m = min(c.counterStdM(c.counterStdM ~= -1));
+            M = max(c.counterStdP);
+            d = .5*(M - m + 1);
+            
+            m = m - d;
+            M = M + d;
+            
+            if m < 0 || get(c.counterScaleMode, 'Value') == 1
+                m = 0;
+            end
+            
+            set(c.counterAxes, 'Ylim', [m, M]);
         end
-        
-%         c.iC = c.iC + 1;
-    
     end
+    function counterSustain(~,~)
+%         display('here');
+        if c.counting
+            c.sp.queueOutputData([linspace(0,0,10)' linspace(0,0,10)']);
+        end
+    end
+%     function counter_Callback(hObject, ~)
+%         display('Counting started.');
+%         if hObject ~= 0 && get(hObject, 'Value') == 1
+%             c.lhC = timer;
+%             c.lhC.TasksToExecute = Inf;
+%             c.lhC.Period = 1/c.rateC;
+%             c.lhC.TimerFcn = @(~,~)counterListener;
+%             c.lhC.ExecutionMode = 'fixedSpacing';
+% %           c.lhC.StartDelay = 0;
+% %           c.lhC.StartFcn = [];
+% %         	c.lhC.StopFcn = [];
+% %         	c.lhC.ErrorFcn = [];
+% 
+%             c.dataC = zeros(1, c.lenC);
+%             c.iC = 0;
+%             c.isCounting = 1;
+%             c.prevCount = 0;
+%             
+%             start(c.lhC);
+%         elseif (hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0)
+%             stop(c.lhC);
+%             delete(c.lhC);
+%             c.isCounting = 0;
+%         end
+%     end
+%     function counterListener(~, ~)
+% %         display('  Counting...');
+% %         c.sC.NumberOfScans = 8;
+%         
+%         c.dataC = circshift(c.dataC, [0 1]);
+%         
+%         try
+%             out = c.s.inputSingleScan();
+%         catch err
+%             out = 0;
+%             display(err);
+%             display('counter aquisiton failed');
+%         end
+%         
+%         c.dataC(1) = c.rateC*out - c.prevCount;
+%         
+%         c.prevCount = c.rateC*out;
+%         
+%         if c.iC < c.lenC
+%             c.iC = c.iC + 1;
+%         end
+%         
+%         cm = min(c.dataC(1:c.iC)); cM = max(c.dataC(1:c.iC)); cA = (cm + cM)/2; cO = .55*(cM - cm) + 1;
+%         
+%         if c.iC > 2
+%             plot(c.counterAxes, 1:c.iC, c.dataC(1:c.iC));
+%             set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
+%             xlim(c.counterAxes, [1 c.lenC]);
+%             ylim(c.counterAxes, [cA - cO cA + cO]);
+%         end
+%         
+% %         c.iC = c.iC + 1;
+%     end
 
     % PLE! ================================================================
     function initPle()  % Unused
