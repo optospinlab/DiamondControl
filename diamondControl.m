@@ -1522,9 +1522,6 @@ function varargout = diamondControl(varargin)
                 My = max(data);
                 dy = My - my + 1;
                 
-                fz
-                center
-
                 plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, My + dy/10], 'r', [center, center], [my - dy/10, My + dy/10], 'r:');
                 xlim(c.lowerAxes, [mx Mx]);
                 ylim(c.lowerAxes, [my - dy/10, My + dy/10]);
