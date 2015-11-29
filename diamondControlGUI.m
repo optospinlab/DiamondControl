@@ -301,7 +301,7 @@ c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMin
 c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Image Figure', 'Name', 'Blue Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Disk Detection Figure', 'Name', 'Blue Disk Detection Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-% minfig(c.pleFigure, 1); % ple figure starts minimized
+minfig(c.pleFigure, 1); % ple figure starts minimized
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
 c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
@@ -424,11 +424,11 @@ c.joyTab =          uitab(c.ioPanel, 'Title', 'Inputs');    % This tab is called
     c.joyGalvo =    uicontrol('Parent', c.joyMode, 'Style', 'radiobutton', 'String', 'Galvo', 'Position', [bp bp+0.5*bh bw bh]);
     
     c.joyModeText2= uicontrol('Parent', c.joyTab, 'Style', 'text', 'String', 'Inputs:', 'Position',[bp+bw+bp puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
-    c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick: Enable?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-3*bh 2*bw bh]); 
-    c.keyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Keyboard: Enable?',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-4*bh 2*bw bh]); 
-    c.mouseEnabled= uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Mouse: Enable Click on Graph?', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-5*bh 2*bw bh]); 
+    c.joyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Joystick',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-4*bh 2*bw bh]); 
+    c.keyEnabled =  uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Keyboard',  'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-5*bh 2*bw bh]); 
+    c.mouseEnabled= uicontrol('Parent', c.joyTab, 'Style', 'checkbox', 'String', 'Mouse', 'HorizontalAlignment', 'left', 'Value', 1, 'Position', [bp+bw+bp puh-bp-6*bh 2*bw bh]); 
 
-c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Settings');
+c.mouseKeyTab =     uitab(c.ioPanel, 'Title', 'Calibration');       % This naming is obscure for legacy reasons.
 
 % c.saveTab =         uitab(c.ioPanel, 'Title', 'Save');
 %     c.saveBlue =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto!','Position', [bp      plh-bp-9*bh bw bh]);
@@ -516,47 +516,85 @@ c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
     c.scanningPanel = uitabgroup('Parent', c.scanningTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
 
         c.piezoTab =  uitab('Parent', c.scanningPanel, 'Title', 'Piezo');
-            c.piezoRLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp        plhi-bp-3*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoR =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoRange,     'Position', [bp+bw   plhi-bp-3*bh bw/2 bh]);
-            c.piezoSLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plhi-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoS =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoSpeed,     'Position', [bp+bw   plhi-bp-4*bh bw/2 bh]);
-            c.piezoPLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plhi-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoP =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoPixels,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);
+            c.piezo3DLabel= uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', '2D Confocal:',            'Position', [bp plhi-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
+            c.piezoRLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp      plhi-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoR =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoRange,     'Position', [bp+bw   plhi-bp-4*bh bw/2 bh]);
+            c.piezoSLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp      plhi-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoS =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoSpeed,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);
+            c.piezoPLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoP =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', c.piezoPixels,     'Position', [bp+bw  plhi-bp-6*bh bw/2 bh]);
             
-            c.piezoZStartLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z begin (um): ', 'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoZStart =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 10,     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
-            c.piezoZStopLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z end (um): ', 'Position', [bp        plhi-bp-8*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoZStop =       uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 20,     'Position', [bp+bw   plhi-bp-8*bh bw/2 bh]);
-            c.piezoZStepLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z steps (num): ', 'Position', [bp        plhi-bp-9*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoZStep =       uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-9*bh bw/2 bh]);
+            c.piezoZStartLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z begin (um): ', 'Position', [bp plhi-bp-8*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZStart =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 10,     'Position', [bp+bw        plhi-bp-8*bh bw/2 bh]);
+            c.piezoZStopLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z end (um): ', 'Position', [bp   plhi-bp-9*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZStop =       uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 20,     'Position', [bp+bw        plhi-bp-9*bh bw/2 bh]);
+            c.piezoZStepLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z steps (num): ', 'Position',[bp plhi-bp-10*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZStep =       uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw         plhi-bp-10*bh bw/2 bh]);
             
-            c.piezoCLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plhi-bp-11*bh bw bh],         'HorizontalAlignment', 'right');
-            c.piezoC =      uicontrol('Parent', c.piezoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plhi-bp-11*bh bw/2 bh]);
+            c.piezoCLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp          plhi-bp-12*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoC =      uicontrol('Parent', c.piezoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'}, 'Position', [bp+bw   plhi-bp-12*bh bw/2 bh]);
             
-            c.piezoButton = uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plhi-bp-13*bh bp+2*bw bh]);
+            c.piezoButton = uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plhi-bp-14*bh bp+2*bw bh]);
 
-            c.piezoOptimize =uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-14*bh bp+2*bw bh]);
+            c.piezoOptimize =uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-15*bh bp+2*bw bh]);
 
             c.piezoScanning = false;
             
+            c.piezo1DLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', '1D Linear Optimization:', 'Position', [bp plhi-bp-17*bh bw bh],	'HorizontalAlignment', 'left');
+            
+            c.piezoXYLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'XY Settings:',            'Position', [bp plhi-bp-18*bh bw bh],	'HorizontalAlignment', 'left');
+            c.piezoXYRLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp      plhi-bp-19*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoXYR =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', .5,     'Position', [bp+bw   plhi-bp-19*bh bw/2 bh]);
+            c.piezoXYSLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Scan Length (s): ', 'Position', [bp      plhi-bp-20*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoXYS =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 1,     'Position', [bp+bw   plhi-bp-20*bh bw/2 bh]);
+            c.piezoXYPLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Pixels (num): ', 'Position', [bp plhi-bp-21*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoXYP =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 500,     'Position', [bp+bw  plhi-bp-21*bh bw/2 bh]);
+            
+            c.piezoZLabel =  uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Z Settings:',        'Position', [bp      plhi-bp-22*bh bw bh],	'HorizontalAlignment', 'left');
+            c.piezoZRLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Range (um): ',       'Position', [bp     plhi-bp-23*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZR =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 2,                    'Position', [bp+bw  plhi-bp-23*bh bw/2 bh]);
+            c.piezoZSLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String', 'Scan Length (s): ',  'Position', [bp     plhi-bp-24*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZS =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 1,                    'Position', [bp+bw  plhi-bp-24*bh bw/2 bh]);
+            c.piezoZPLabel = uicontrol('Parent', c.piezoTab, 'Style', 'text', 'String','Pixels (num): ',      'Position', [bp     plhi-bp-25*bh bw bh],         'HorizontalAlignment', 'right');
+            c.piezoZP =      uicontrol('Parent', c.piezoTab, 'Style', 'edit', 'String', 500,                  'Position', [bp+bw  plhi-bp-25*bh bw/2 bh]);
+            
+            c.piezoOptimizeX = uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize X','Position', [bp plhi-bp-27*bh bp+2*bw bh]);
+            c.piezoOptimizeY = uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize Y','Position', [bp plhi-bp-28*bh bp+2*bw bh]);
+            c.piezoOptimizeZ = uicontrol('Parent', c.piezoTab, 'Style', 'pushbutton', 'String', 'Optimize Z','Position', [bp plhi-bp-29*bh bp+2*bw bh]);
+
+            
         c.galvoTab =  uitab('Parent', c.scanningPanel, 'Title', 'Galvo');
-            c.galvoRLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp        plhi-bp-3*bh bw bh],         'HorizontalAlignment', 'right');
-            c.galvoR =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoRange,     'Position', [bp+bw   plhi-bp-3*bh bw/2 bh]);
-            c.galvoSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plhi-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
-            c.galvoS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plhi-bp-4*bh bw/2 bh]);
-            c.galvoPLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plhi-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
-            c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoPixels,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);    
-            c.galvoCLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
-            c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);
-            c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plhi-bp-8*bh bp+2*bw bh]);
+            c.galvo3DLabel= uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', '2D Confocal:',            'Position', [bp plhi-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
+            c.galvoRLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Range (um): ',   'Position', [bp        plhi-bp-4*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoR =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoRange,     'Position', [bp+bw   plhi-bp-4*bh bw/2 bh]);
+            c.galvoSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Speed (um/s): ', 'Position', [bp        plhi-bp-5*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoSpeed,     'Position', [bp+bw   plhi-bp-5*bh bw/2 bh]);
+            c.galvoPLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Pixels (num/side): ', 'Position', [bp        plhi-bp-6*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', c.galvoPixels,     'Position', [bp+bw   plhi-bp-6*bh bw/2 bh]);    
+            c.galvoCLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Colormap: ', 'Position', [bp        plhi-bp-7*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoC =      uicontrol('Parent', c.galvoTab, 'Style', 'popupmenu', 'String', {'gray', 'jet'},     'Position', [bp+bw   plhi-bp-7*bh bw/2 bh]);
+            c.galvoButton = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Scan!','Position', [bp        plhi-bp-9*bh bp+2*bw bh]);
 
-            c.galvoOptimize =uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-9*bh bp+2*bw bh]);
+            c.galvoOptimize =uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Optimize','Position', [bp        plhi-bp-10*bh bp+2*bw bh]);
 
-            c.galvoAlignX = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep X','Position', [bp        plhi-bp-10*bh bw bh]);
-            c.galvoAlignY = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep Y','Position', [2*bp+bw   plhi-bp-10*bh bw bh]);
+            c.galvoAlignX = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep X','Position', [bp        plhi-bp-11*bh bw bh]);
+            c.galvoAlignY = uicontrol('Parent', c.galvoTab, 'Style', 'togglebutton', 'String', 'Sweep Y','Position', [2*bp+bw   plhi-bp-11*bh bw bh]);
 
             c.galvoAligning = false;
             c.galvoScanning = false;
+            
+            c.galvo1DLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', '1D Linear Optimization:', 'Position', [bp plhi-bp-13*bh bw bh],	'HorizontalAlignment', 'left');
+            
+            c.galvoXYLabel =  uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'XY Settings:',      'Position', [bp plhi-bp-14*bh bw bh],	'HorizontalAlignment', 'left');
+            c.galvoXYRLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Range (mV): ',      'Position', [bp      plhi-bp-15*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoXYR =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', 50,                  'Position', [bp+bw   plhi-bp-15*bh bw/2 bh]);
+            c.galvoXYSLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Scan Length (s): ', 'Position', [bp      plhi-bp-16*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoXYS =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', 1,                   'Position', [bp+bw   plhi-bp-16*bh bw/2 bh]);
+            c.galvoXYPLabel = uicontrol('Parent', c.galvoTab, 'Style', 'text', 'String', 'Pixels (num): ',    'Position', [bp plhi-bp-17*bh bw bh],         'HorizontalAlignment', 'right');
+            c.galvoXYP =      uicontrol('Parent', c.galvoTab, 'Style', 'edit', 'String', 500,                 'Position', [bp+bw  plhi-bp-17*bh bw/2 bh]);
+            
+            c.galvoOptimizeX = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Optimize X','Position', [bp plhi-bp-19*bh bp+2*bw bh]);
+            c.galvoOptimizeY = uicontrol('Parent', c.galvoTab, 'Style', 'pushbutton', 'String', 'Optimize Y','Position', [bp plhi-bp-20*bh bp+2*bw bh]);
 
 %         c.counterTab =  uitab('Parent', c.scanningPanel, 'Title', 'Counter');
 %             c.counterButton = uicontrol('Parent', c.counterTab, 'Style', 'checkbox', 'String', 'Count?', 'Position', [bp plhi-bp-3*bh bp+2*bw bh], 'HorizontalAlignment', 'left', 'Enable', 'off');

@@ -89,7 +89,10 @@ function varargout = diamondControl(varargin)
     set(c.galvoAlignX, 'Callback', @galvoAlign_Callback);
     set(c.galvoAlignY, 'Callback', @galvoAlign_Callback);
     
-    set(c.galvoOptimize, 'Callback', @galvoOpt_Callback);    
+    set(c.galvoOptimize, 'Callback', @galvoOpt_Callback);  
+    
+    set(c.galvoOptimizeX,  'Callback', @optGalvoX_Callback);
+    set(c.galvoOptimizeY,  'Callback', @optGalvoY_Callback);
     
     % Piezo Fields --------------------------------------------------------
     set(c.piezoButton, 'Callback', @piezoScan_Callback);            % Starts a Piezo scan. Below are parameters defining that scan.
@@ -98,6 +101,10 @@ function varargout = diamondControl(varargin)
     set(c.piezoP, 'Callback', @piezoVar_Callback);                  %  - P for Pixels in pixels/side
     
     set(c.piezoOptimize, 'Callback', @piezoOpt_Callback);
+    
+    set(c.piezoOptimizeX,  'Callback', @optX_Callback);
+    set(c.piezoOptimizeY,  'Callback', @optY_Callback);
+    set(c.piezoOptimizeZ,  'Callback', @optZ_Callback);
     
     % Automation Fields ---------------------------------------------------
     set(c.autoV1X, 'Callback', @limit_Callback);                    % Same as the limit callbacks above
@@ -1380,35 +1387,63 @@ function varargout = diamondControl(varargin)
         piezoOutSmooth([x       y       c.piezo(3)]);
     end
     function optZ_Callback(~, ~)
-%         piezoOptimizeAxis(3);
-        optimizeAxis(3, 2, 500, 500);
+        r = str2double(get(c.piezoZR, 'String'))/5;
+        s = str2double(get(c.piezoZP, 'String'))/str2double(get(c.piezoZS, 'String'));
+        p = str2double(get(c.piezoZP, 'String'));
+        
+        optimizeAxis(3, r, p, s);
+    end
+    function optX_Callback(~, ~)
+        r = str2double(get(c.piezoXYR, 'String'))/5;
+        s = str2double(get(c.piezoXYP, 'String'))/str2double(get(c.piezoXYS, 'String'));
+        p = str2double(get(c.piezoXYP, 'String'));
+        
+        optimizeAxis(1, r, p, s);
+    end
+    function optY_Callback(~, ~)
+        r = str2double(get(c.piezoXYR, 'String'))/5;
+        s = str2double(get(c.piezoXYP, 'String'))/str2double(get(c.piezoXYS, 'String'));
+        p = str2double(get(c.piezoXYP, 'String'));
+        
+        optimizeAxis(2, r, p, s);
     end
     function optXY_Callback(~, ~)
-%         piezoOptimizeAxis(1);
-%         piezoOptimizeAxis(2);
-        optimizeAxis(1, .5, 500, 500);
-        optimizeAxis(2, .5, 500, 500);
+        optX_Callback(0, 0)
+        optY_Callback(0, 0)
     end
     function optAll_Callback(~, ~)
 %         piezoOptimizeAxis(1);
 %         piezoOptimizeAxis(2);
 %         piezoOptimizeAxis(3);
-        optimizeAxis(1, .5, 500, 500);
-        optimizeAxis(2, .5, 500, 500);
-        optimizeAxis(3, 1, 500, 500);
+        optXY_Callback(0, 0);
+        optZ_Callback(0, 0);
+    end
+    function optGalvoX_Callback(~, ~)
+        r = str2double(get(c.galvoXYR, 'String'))/1000;
+        s = str2double(get(c.galvoXYP, 'String'))/str2double(get(c.galvoXYS, 'String'));
+        p = str2double(get(c.galvoXYP, 'String'));
+        
+        optimizeAxis(4, r, p, s);
+    end
+    function optGalvoY_Callback(~, ~)
+        r = str2double(get(c.galvoXYR, 'String'))/1000;
+        s = str2double(get(c.galvoXYP, 'String'))/str2double(get(c.galvoXYS, 'String'));
+        p = str2double(get(c.galvoXYP, 'String'));
+        
+        optimizeAxis(5, r, p, s);
     end
     function optGalvo_Callback(~, ~)
-        optimizeAxis(4, .05, 500, 500);
-        optimizeAxis(5, .05, 500, 500);
+        optGalvoX_Callback(0, 0);
+        optGalvoY_Callback(0, 0);
     end
-    function final = optimizeAxis(axis, range, pixels, rate)     % 1,2,3,4,5 = piezo x,y,z, galvo x,y
+    function final = optimizeAxis(axis, range, pixels, rate)     % 1,2,3,4,5 = piezo x,y,z, galvo x,y... Range in Volts.
         if ~c.doing
             c.doing = true;
             
             center = -1;
 
             prevRate = c.s.Rate;
-            c.s.Rate = rate; 
+            c.s.Rate = rate;
 
             if axis >= 1 && axis <= 3
                 center = c.piezo(axis);
@@ -1486,10 +1521,26 @@ function varargout = diamondControl(varargin)
                 my = min(data);
                 My = max(data);
                 dy = My - my + 1;
+                
+                fz
+                center
 
-                plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, Mx + dy/10], 'r--', [center, center], [my - dy/10, My + dy/10], 'r:');
+                plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, My + dy/10], 'r', [center, center], [my - dy/10, My + dy/10], 'r:');
                 xlim(c.lowerAxes, [mx Mx]);
                 ylim(c.lowerAxes, [my - dy/10, My + dy/10]);
+                
+                switch axis
+                    case 1
+                        title(c.lowerAxes, 'Piezo X');
+                    case 2
+                        title(c.lowerAxes, 'Piezo Y');
+                    case 3
+                        title(c.lowerAxes, 'Piezo Z');
+                    case 4
+                        title(c.lowerAxes, 'Galvo X');
+                    case 5
+                        title(c.lowerAxes, 'Galvo Y');
+                end
 
     %             m = min(min(data)); M = max(max(data));
     % 
