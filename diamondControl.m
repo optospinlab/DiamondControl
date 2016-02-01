@@ -870,8 +870,8 @@ function varargout = diamondControl(varargin)
             set(c.galvoText, 'ForegroundColor', 'black');
 
             % Counter   i 1
-            c.s.addCounterInputChannel( c.devSPCM,    c.chnSPCM,      'EdgeCount');
-            
+            c.s.addCounterInputChannel( c.devSPCM,    c.chnSPCM,      'EdgeCount')
+%             c.s.Channels(6)
             
             % PLE       o 1:2
             c.sp = daq.createSession(   'ni');
@@ -879,7 +879,8 @@ function varargout = diamondControl(varargin)
             c.sp.addAnalogOutputChannel(c.devPleOut,  c.chnGrateOut,  'Voltage');     % Grating Angle Out
             
             % PLE       i 1:3
-            c.sp.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount');
+            c.sp.addCounterInputChannel(c.devPleIn,   c.chnSPCMPle,   'EdgeCount')
+            c.sp.Channels(3)
             c.sp.addAnalogInputChannel( c.devPleIn,   c.chnPerotIn,   'Voltage');     % Perot In
             c.sp.addAnalogInputChannel( c.devPleIn,   c.chnNormIn,    'Voltage');     % Normalization In
             
@@ -1513,7 +1514,7 @@ function varargout = diamondControl(varargin)
 
                 [fz, ~] = myMeanAdvanced(data, up(1:pixels), 0);
 
-                display('      plot');
+%                 display('      plot');
 
                 mx = min(up(1:pixels));
                 Mx = max(up(1:pixels));
@@ -1697,7 +1698,7 @@ function varargout = diamondControl(varargin)
 
                         X0(idx) = [];
 
-                        display('      outlier removed');
+%                         display('      outlier removed');
                     end
                 else
                     while std(X0) > abs(X(1) - X(2)) || std(Y0) > abs(Y(1) - Y(2))
