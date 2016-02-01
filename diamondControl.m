@@ -4756,7 +4756,10 @@ function varargout = diamondControl(varargin)
 %New code using MSER Features
     function newTrack_Callback(hObject,~)
          if hObject ~= 0
-            %set(c.track_stat,'String','Status: Started tracking');
+             if c.newtrack_on==1
+                 disp('Already running')
+             else
+                %set(c.track_stat,'String','Status: Started tracking');
 
                 c.tktime = timer;
                 c.tktime.TasksToExecute = Inf;
@@ -4783,6 +4786,7 @@ function varargout = diamondControl(varargin)
                 end
             
                 start(c.tktime);
+             end
          end
     end
     function newtkListener(~,~)
