@@ -73,7 +73,8 @@ function varargout = diamondControl(varargin)
     
     set(c.go_mouse, 'Callback', @go_mouse_Callback); 
     set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
-    set(c.go_mouse_fbk, 'Callback', @go_mouse_fbk_Callback);
+%    set(c.go_mouse_fbk, 'Callback', @go_mouse_fbk_Callback);
+    set(c.laser_offset, 'Callback', @laser_offset_Callback);
     
     set(c.micro_rst_x, 'Callback', @rstx_Callback);
     set(c.micro_rst_y, 'Callback', @rsty_Callback);
@@ -4869,19 +4870,34 @@ function varargout = diamondControl(varargin)
 end
 
     % Mouse Control =======================================================
+    function laser_offset_Callback(~,~)
+        if isfield(c, 'LO_pt')
+            disp('Setting new Laser offset!!')
+            delete(c.LO_pt);
+        end
+        c.LO_pt=impoint(c.imageAxes);
+        setColor(pt,'m');
+        pos=getPosition(c.LO_pt);
+        c.laser_offset_x=pos(1); c.laser_offset_y=pos(2);
+        set(c.laser_offset_x_disp,'String',['OX(pix):' num2str(c.laser_offset_x)]);
+        set(c.laser_offset_y_disp,'String',['OY(pix):' num2str(c.laser_offset_y)]);
+    end
+        
+        
     function go_mouse_Callback(~,~)
         pt=impoint(c.imageAxes);
         setColor(pt,'r');
         
         %Laser spot is not the center of the image
-        laser_offset_x=19;
-        laser_offset_y=-79;
+        %laser_offset_x=19;
+        %laser_offset_y=-79;
+        
         
         pos=getPosition(pt);
         X=pos(1); Y=pos(2);
         
-       deltaX = X - (640/2 + laser_offset_x);
-       deltaY = -(Y - (480/2+ laser_offset_y));
+       deltaX = X - (640/2 + c.laser_offset_x);
+       deltaY = -(Y - (480/2+ c.laser_offset_y));
 
        %Always approach from same direction (from bottom left)
        offset=5; % in um
@@ -4920,7 +4936,7 @@ end
 
        setPosition(pt,[(640/2+laser_offset_x) (480/2+ laser_offset_y)]);
        setColor(pt,'g');
-       pause(1);
+       pause(2);
        delete(pt);
     end
     function go_mouse_fine_Callback(~,~)

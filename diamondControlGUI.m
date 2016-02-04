@@ -500,10 +500,16 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.gotoP = [c.gotoPX c.gotoPY c.gotoPZ c.gotoPFocus c.gotoPReset c.gotoPMaximize c.gotoPTarget c.gotoPButton];
            
     c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-24*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-25*bh 2*bw bh]);
-    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-26*bh 2*bw bh]);
-    c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-28*bh 2*bw bh],'HorizontalAlignment', 'center');
-    c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-29*bh 2*bw bh]);
+   
+    c.laser_offset = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Set Laser Offset','Position', [bp	plh-bp-25*bh bw bh]);
+    c.laser_offset_x_disp = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'OX(pix): - ',   'Position',  [bp+bw*3/2	plh-bp-25*bh 2*bw bh],         'HorizontalAlignment', 'right');
+    c.laser_offset_y_disp = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'OY(pix): - ',   'Position',  [bp+bw*3	plh-bp-25*bh 2*bw bh],         'HorizontalAlignment', 'right');
+    
+    c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-27*bh 2*bw bh]);
+    c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-28*bh 2*bw bh]);
+   
+    % c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-28*bh 2*bw bh],'HorizontalAlignment', 'center');
+   % c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-29*bh 2*bw bh]);
     
     %Micro abort and reset
     c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-33*bh 2*bw bh],         'HorizontalAlignment', 'center');
