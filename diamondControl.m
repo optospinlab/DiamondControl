@@ -73,7 +73,6 @@ function varargout = diamondControl(varargin)
     
     set(c.go_mouse, 'Callback', @go_mouse_Callback); 
     set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
-%    set(c.go_mouse_fbk, 'Callback', @go_mouse_fbk_Callback);
     set(c.laser_offset, 'Callback', @laser_offset_Callback);
     
     set(c.micro_rst_x, 'Callback', @rstx_Callback);
@@ -183,14 +182,8 @@ function varargout = diamondControl(varargin)
     set(c.pleScans, 'Callback',  @updateScanGraph_Callback);
     
     % Tracking Fields
-%     set(c.start_vid, 'Callback',  @startvid_Callback);
-%     set(c.stop_vid, 'Callback',  @stopvid_Callback);
-%     set(c.track_clear, 'Callback',  @cleartrack_Callback);
-%     set(c.track_set, 'Callback',  @settrack_Callback);
-%     set(c.bluefbFigure,'WindowButtonDownFcn', @diskclick_Callback);
     set(c.start_newTrack,'Callback', @newTrack_Callback)
     set(c.stop_newTrack,'Callback', @stopnewTrack_Callback)
-    %set(c.track_Axes,'WindowButtonDownFcn', @click_trackCallback);
     
     % Create the joystick object =====
     try
@@ -4546,216 +4539,8 @@ function varargout = diamondControl(varargin)
          catch
          end
     end
-
-    % TRACKING ============================================================ 
-%     function startvid_Callback(hObject,~)
-%          if hObject ~= 0 && ~c.newtrack_on
-%             set(c.track_stat,'String','Status: Started vid');
-% 
-%                 c.tktime = timer;
-%                 c.tktime.TasksToExecute = Inf;
-%                 c.tktime.Period = 1/c.ratevid;
-%                 c.tktime.TimerFcn = @(~,~)tkListener;
-%                 c.tktime.ExecutionMode = 'fixedSpacing';
-%                 
-%                 c.centroidtime = timer;
-%                 c.centroidtime.TasksToExecute = Inf;
-%                 c.centroidtime.Period = 1/c.ratetrack;
-%                 c.centroidtime.TimerFcn = @(~,~)centroidListener;
-%                 c.centroidtime.ExecutionMode = 'fixedSpacing';
-%                     
-%                 
-%                 c.vid_on=1;
-%                 c.seldisk=0;
-%                 start(c.tktime);
-%          end
-%     end
-%     function tkListener(~, ~)
-%          frame = flipdim(getsnapshot(c.vid),1);        
-%         if c.vid_on 
-%             I3 = img_enhance(frame);          
-%             set(c.track_Axes,'CData',I3); 
-%             
-%             
-%             IBW=im2bw(I3,0.7); %Convert to BW and Threshold
-%             [c.circles, c.radii] = imfindcircles(IBW,[14 26]); %Track Full image
-%             
-%              try
-%                  delete(c.hg1);
-%              catch
-%              end
-%              if ~isempty(c.radii)
-%                 axes(c.track_Axes);
-%                 c.hg1=viscircles(c.circles, c.radii,'EdgeColor','g','LineWidth',1.5);  
-%              end
-%              
-%        end
-%     end
-%     function centroidListener(~,~)
-%        
-%          frame = flipdim(getsnapshot(c.vid),1);
-%         %frame= rgb2gray(imread('C:\Users\Tomasz\Desktop\DiamondControl\test_image.png'));
-% 
-%         
-%         IBW=im2bw(frame,0.6);
-%         %c.roi_image=imcrop(IBW,c.roi);
-%         roi = round(c.roi);
-%         c.roi_image = IBW(roi(2):roi(2)+roi(4),roi(1):roi(1)+roi(3));
-%         
-%         
-%             if c.centroid_init
-%                 axes(c.roi_Axes); 
-%                 c.hroi=imshow(c.roi_image);
-% 
-%                 [c.centroidXi,c.centroidYi]=centroid_fun();
-%                 set(c.track_stat,'String',['Got Initial Centroid']);
-%                 c.centroid_init=0;
-%                 
-%                 try
-%                     c.S=load('piezo_calib.mat');
-%                 catch err
-%                     disp(err.message)
-%                 end
-%                 
-%                 c.gain = str2double(get(c.trk_gain, 'String'));
-%                 minAdjustmentpx = str2double(get(c.trk_min, 'String'));
-%                 
-%                 c.mindelVx = minAdjustmentpx*c.S.pX;
-%                 c.mindelVy = minAdjustmentpx*c.S.pY;
-%                 %zfocuscounter = 0;
-%                 
-%             else 
-% 
-%                  [c.centroidX,c.centroidY, R]=centroid_fun();
-%                  %set(c.track_stat,'String',['Centroid X:' num2str(c.centroidX) 'Y:'  num2str(c.centroidY)]);
-%                  set(c.hroi,'CData',c.roi_image);
-%                  try
-%                     delete(c.hg2);
-%                     delete(c.hg3);
-%                  catch
-%                  end
-% 
-%                 try
-%                  c.hg2=viscircles([c.centroidX c.centroidY] ,R,'EdgeColor','r','LineWidth',1.5); hold on;
-%                  c.hg3=scatter(c.centroidX, c.centroidY,50,'g','LineWidth',4);    hold off;    
-%                 catch err
-%                     disp(err.message)
-%                 end
-% 
-%                 delX = c.centroidX-c.centroidXi;
-%                 delY = c.centroidY-c.centroidYi;
-% 
-%                 delVx = delX*c.S.pX*c.gain;
-%                 delVy = delY*c.S.pY*c.gain;
-%                 
-%                 %only move if voltage stays positive
-%                 %Vxnew = max([0, Vxold - delVx])
-%                 %Vynew = max([0, Vyold - delVy])
-% 
-%                 
-%                 if (abs(delVx)>c.mindelVx) && (abs(delVy) > c.mindelVy)
-%                     disp('corrected')
-%                      c.s.outputSingleScan([(c.piezo + [-delVx delVy 0]) c.galvo]);
-%                 elseif (abs(delVx)>c.mindelVx)
-%                     disp('corrected')
-%                      c.s.outputSingleScan([(c.piezo + [-delVx 0 0]) c.galvo]);
-%                 elseif (abs(delVy) > c.mindelVy)
-%                     disp('corrected')
-%                      c.s.outputSingleScan([(c.piezo + [0 delVy 0]) c.galvo]);
-%                 end
-%                 
-%                 %getPiezo();
-%                 
-%             end
-%            
-%     end
-%     function click_trackCallback(~,~)
-%         %disp('click')
-%         c.trackpt = get (c.imageAxes, 'CurrentPoint');
-%         w=strcat('%0','3.1f');
-%         if (c.trackpt(1,1) >= 0 && c.trackpt(1,1) <= 640) && (c.trackpt(1,2) >= 0 && c.trackpt(1,2) <= 480) && c.seldisk==0 && c.vid_on
-%              set(c.track_stat,'String',['Status: clicked' ' ' 'x:' num2str(c.trackpt(1,1),w) ' ' 'y:' num2str(c.trackpt(1,2),w)]);
-%              axes(c.track_Axes);
-%              for i=1:length(c.radii)
-%                 if (c.trackpt(1,1)>= (c.circles(i,1)-c.radii(i)) && c.trackpt(1,1)<= (c.circles(i,1)+ c.radii(i))) ...
-%                         && (c.trackpt(1,2)>= (c.circles(i,2)-c.radii(i)) && c.trackpt(1,2)<= (c.circles(i,2)+ c.radii(i)))
-%                     c.selcircle(1)=c.circles(i,1); 
-%                     c.selcircle(2)=c.circles(i,2);
-%                     c.selradii=c.radii(i);
-%                     c.hg2=viscircles(c.selcircle ,c.selradii,'EdgeColor','r','LineWidth',1.5); 
-%                     c.seldisk=1;
-%                     stop(c.tktime);
-%                 end
-%              end
-%         end
-%     end
-%     function stopvid_Callback(~,~)
-%         if c.vid_on
-%             set(c.track_stat,'String','Status: Stopped Everything');
-% 
-%             try
-%             stop(c.tktime);
-%             delete(c.tktime);
-%             catch err
-%                 disp(err.message)
-%             end
-% 
-%             try
-%                 stop(c.centroidtime);
-%                 delete(c.centroidtime);
-%             catch err
-%                 disp(err.message)
-%             end
-% 
-%             c.vid_on = 0;
-%         end
-%     end
-%     function cleartrack_Callback(~,~)
-%         if c.vid_on && c.seldisk
-%             c.seldisk=0;
-%             start(c.tktime);
-%             
-%             try
-%                 stop(c.centroidtime);
-%             catch err
-%                 disp(err.message)
-%             end
-%              
-%              c.roi='';
-%              axes(c.roi_Axes); cla;
-%              try
-%                  delete(c.hg1);
-%              catch
-%              end
-%              try
-%                     delete(c.hg2);
-%                     delete(c.hg3);
-%              catch
-%              end
-%              set(c.track_stat,'String','Status: ROI cleared');
-%         end
-%     end
-%     function settrack_Callback(~,~)
-%       if isempty(c.roi) && c.seldisk 
-%        %Set the ROI for tracking
-%        c.roi=[c.selcircle(1)-c.selradii-c.roi_pad c.selcircle(2)-c.selradii-c.roi_pad 2*(c.selradii+c.roi_pad) 2*(c.selradii+c.roi_pad)];   
-%        set(c.track_stat,'String','Status: New ROI Selected');
-%        
-%        %Get Initial Centroid Position  
-%        c.centroid_init=1;   
-%        start(c.centroidtime);
-%       end
-%     end
-%     function [X,Y,R] = centroid_fun()
-%          st = regionprops( c.roi_image, 'Area', 'Centroid','MajorAxisLength','MinorAxisLength');
-%          sel = [st.Area] > pi*15*15;
-%          st = st(sel);
-%          X=st.Centroid(1); Y=st.Centroid(2);
-%          diameters = mean([st.MajorAxisLength st.MinorAxisLength],2);
-%          R = diameters/2;
-%     end
-
-%New code using MSER Features
+ 
+    %New code using MSER Features
     function newTrack_Callback(hObject,~)
          if hObject ~= 0
              if c.newtrack_on==1
@@ -4881,9 +4666,7 @@ end
         c.laser_offset_x=pos(1); c.laser_offset_y=pos(2);
         set(c.laser_offset_x_disp,'String',['OX(pix):' num2str(c.laser_offset_x)]);
         set(c.laser_offset_y_disp,'String',['OY(pix):' num2str(c.laser_offset_y)]);
-    end
-        
-        
+    end     
     function go_mouse_Callback(~,~)
         pt=impoint(c.imageAxes);
         setColor(pt,'r');
@@ -4943,11 +4726,11 @@ end
         %Allow only small change
         
         %Laser spot is not the center of the image
-        laser_offset_x=19;
-        laser_offset_y=-79;
+        %laser_offset_x=19;
+        %laser_offset_y=-79;
             
         axes(c.imageAxes);
-        mask=rectangle('Position',[(640/2+laser_offset_x)-50,(480/2+ laser_offset_y)-50,100,100],'EdgeColor','r');
+        mask=rectangle('Position',[(640/2+c.laser_offset_x)-50,(480/2+ c.laser_offset_y)-50,100,100],'EdgeColor','r');
 
         pt=impoint(c.imageAxes);
         setColor(pt,'m');
@@ -4958,12 +4741,12 @@ end
          
             
             
-        if (X>(640/2+laser_offset_x)-50 && X<(640/2+laser_offset_x)+50) && (Y>(480/2+ laser_offset_y)-50 && Y<(480/2+ laser_offset_y)+50)
+        if (X>(640/2+c.laser_offset_x)-50 && X<(640/2+c.laser_offset_x)+50) && (Y>(480/2+ c.laser_offset_y)-50 && Y<(480/2+ c.laser_offset_y)+50)
           
             
             disp('inside mask')
-            deltaX = -(X - (640/2+laser_offset_x));
-            deltaY = (Y - (480/2+ laser_offset_y));
+            deltaX = -(X - (640/2+c.laser_offset_x));
+            deltaY = (Y - (480/2+ c.laser_offset_y));
             
             %calibration constant between pixels and voltage
             try
@@ -4991,7 +4774,7 @@ end
             renderUpper();
             %disp('m2')
             
-            setPosition(pt,[(640/2+laser_offset_x) (480/2+ laser_offset_y)]);
+            setPosition(pt,[(640/2+c.laser_offset_x) (480/2+ c.laser_offset_y)]);
             setColor(pt,'g');
             pause(1);
         else
@@ -4999,114 +4782,6 @@ end
         end
         delete(pt);
         delete(mask);
-    end
-    function go_mouse_fbk_Callback(~,~)  % Unused For Now
-%         axes(c.imageAxes);
-%         mask=rectangle('Position',[640/2-200,480/2-150,400,300],'EdgeColor','r');
-%         
-%         pt=impoint(c.imageAxes);
-%         setColor(pt,'r');
-%         
-%         pos=getPosition(pt);
-%         X=pos(1); Y=pos(2);
-%         if (X>640/2-200 && X<640/2+200) && (Y>480/2-150 && Y<480/2+150)
-%             
-%             disp('inside mask')
-%             
-%            
-%            
-%            deltaX = X - 640/2;
-%            deltaY = -(Y - 480/2);
-% 
-%            % Feedback for backlash and hysteresis compensation
-%            
-%            % Parameters
-%            min_delta=5;  % Threshold deviation (Pix)
-%            max_tries=5;  % Maximum Iterations
-%            %Always approach from same direction (from bottom left)
-%            offset=5; % in um
-%            min_offset=1;  % in um
-% 
-%            count=1;
-%            while (deltaX>min_delta || deltaY>min_delta) && count<max_tries+1
-% 
-%                deltaXm = deltaX*78/640;
-%                deltaYm = deltaY*62/480;
-%                deltaXmo= deltaXm - offset;
-%                deltaYmo= deltaYm - offset;
-% 
-%                %img_before=flipdim(getsnapshot(c.vid),1);
-%                old = c.microActual;
-%                c.micro = c.micro + [deltaXmo deltaYmo];
-%                setPos();
-% 
-%                %Wait to complete the initial move
-%                while sum(abs(c.microActual - c.micro)) > .1
-%                     pause(.1);
-%                     getPos();
-%                     renderUpper();
-%                 end
-% 
-%                %Approach from bottom left
-%                c.micro = c.micro + [offset offset];
-%                setPos(); 
-%                renderUpper();
-% 
-%                while sum(abs(c.microActual - c.micro)) > .1
-%                     pause(.1);
-%                     getPos();
-%                     renderUpper();
-%                end
-%                
-%                new=c.microActual;
-%                %img_after=flipdim(getsnapshot(c.vid),1);
-% 
-%                %calculate actual distance moved
-%                
-%                %a_delta=actual_delta(img_before,img_after);
-%                a_delta=new-old;
-%                
-%                %get new delta
-%                deltaX=deltaX-a_delta(1);
-%                deltaY=deltaY-a_delta(2);
-% 
-%                %reduce offset for next iteration
-%                offset=offset-count;
-%                offset=max(min_offset,offset); % has to be >=min_ofset
-% 
-%                count=count+1;
-%            end
-%            
-%            setPosition(pt,[640/2 480/2]);
-%            setColor(pt,'g');
-%            pause(1);
-%         else
-%             disp('click outside mask!!')
-%         end
-%         delete(pt);
-%         delete(mask);
-    end
-    function a_delta=actual_delta(img_before,img_after)% Need to have a working computer vision toolbox!!
-%         I1 = img_before;
-%         I2 = img_after;
-%         
-%         %remove the image borders and detect 100 corner features
-%         roi1 = I1(20:460,20:620);
-%         C1 = corner(roi1,100);
-% 
-%         %remove the image borders and detect 100 corner features
-%         roi2 = I2(20:460,20:620);
-%         C2 = corner(roi2,100);
-% 
-%         [features1, valid_points1] = extractFeatures(roi1, C1);
-%         [features2, valid_points2] = extractFeatures(roi2, C2);
-% 
-%         indexPairs = matchFeatures(features1, features2);
-% 
-%         matchedPoints1 = valid_points1(indexPairs(:, 1), :);
-%         matchedPoints2 = valid_points2(indexPairs(:, 2), :);
-% 
-%         a_delta=mean(matchedPoints2-matchedPoints1);
     end
 
     % Calibration =========================================================
@@ -5281,7 +4956,6 @@ end
             end
         else
             disp('Set zero not marked!!!')
-        end
-            
+        end    
     end
 end
