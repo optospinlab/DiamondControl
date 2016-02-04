@@ -982,6 +982,7 @@ function varargout = diamondControl(varargin)
             
             getCurrent();
             c.running = 1;
+            c.newtrack_on = 0;
 %         catch err
 %             display(err.message);
 %         end
