@@ -507,9 +507,12 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     
     c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-27*bh 2*bw bh]);
     c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-28*bh 2*bw bh]);
-   
-    % c.go_mouse_fbk_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Mouse Control with Blue Image Feedback',   'Position', [bp plh-bp-28*bh 2*bw bh],'HorizontalAlignment', 'center');
-   % c.go_mouse_fbk =     uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick with FBK!!','Position', [2*bp	plh-bp-29*bh 2*bw bh]);
+    
+    %Capture blue image
+    c.capture_text = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Capture Blue Image','Position', [2*bp+bw	plh-bp-30*bh bw bh]);
+    c.capture_blue = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Start Capture','Position', [bp	plh-bp-31*bh bw bh]);
+    c.capture_interval_text = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Interval(s):','Position', [2*bp+bw	plh-bp-31*bh bw bh]);
+    c.capture_interval = uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 10,'Position', [3*bp+2*bw	plh-bp-31*bh bw bh]);
     
     %Micro abort and reset
     c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-33*bh 2*bw bh],         'HorizontalAlignment', 'center');
@@ -517,7 +520,8 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
     c.micro_rst_x =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'RST X','Position', [2*bp plh-bp-35*bh bw bh]);
     c.micro_rst_y =  uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'RST Y','Position', [2*bp+bw plh-bp-35*bh bw bh]);
     c.micro_rst_txt3 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Will RST to [22,22] mm',   'Position', [2*bp plh-bp-36*bh 2*bw bh],         'HorizontalAlignment', 'center');
-     
+    
+    
 c.scanningTab = uitab('Parent', c.automationPanel, 'Title', 'Scan');
     c.scanningPanel = uitabgroup('Parent', c.scanningTab, 'Units', 'pixels', 'Position', [0 0 pw plhi]);
 

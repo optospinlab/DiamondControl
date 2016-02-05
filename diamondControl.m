@@ -75,6 +75,8 @@ function varargout = diamondControl(varargin)
     set(c.go_mouse_fine, 'Callback', @go_mouse_fine_Callback); 
     set(c.laser_offset, 'Callback', @laser_offset_Callback);
     
+    set(c.capture_blue, 'Callback', @capture_blue_Callback);
+    
     set(c.micro_rst_x, 'Callback', @rstx_Callback);
     set(c.micro_rst_y, 'Callback', @rsty_Callback);
     
@@ -4957,5 +4959,40 @@ end
         else
             disp('Set zero not marked!!!')
         end    
+    end
+
+    % Blue Image Capture
+    function capture_blue_Callback(~,~)
+        if strcmp(get(c.capture_blue,'String'),'Start Capture')
+            c.cap_blue = timer;
+            c.cap_blue.TasksToExecute = Inf;
+
+            c.cap_blue.Period = str2num(get(c.capture_interval,'String'));
+            c.cap_blue.TimerFcn = @(~,~)cap_blue_Listener;
+            c.cap_blue.ExecutionMode = 'fixedSpacing';
+
+            set(c.capture_blue,'String','Stop Capture','Color','r');
+            format shortg; % Set clock format
+
+            start(c.cap_blue);
+        else 
+            try
+                stop(c.cap_blue);
+                delete(c.cap_blue);
+                clear c.cap_blue
+                set(c.capture_blue,'String','Start Capture','Color','g');
+            catch err
+                disp(err.message)
+            end
+
+        end
+    end
+
+    function cap_blue_Listener(~,~)
+        time=fix(clock);
+        folder='';
+        filename = ['blue' num2str(time(end-3)) '__' num2str(time(end-2)) '_' num2str(time(end-1)) '_' num2str(time(end)) '.png'];
+        frame = imadjust(flipdim(getsnapshot(c.vid),1));    %Capture Frame
+        imwrite(frame, [folder filename]);
     end
 end
