@@ -4661,127 +4661,127 @@ end
             delete(c.LO_pt);
         end
         c.LO_pt=impoint(c.imageAxes);
-        setColor(pt,'m');
+        setColor(c.LO_pt,'m');
         pos=getPosition(c.LO_pt);
         c.laser_offset_x=pos(1); c.laser_offset_y=pos(2);
         set(c.laser_offset_x_disp,'String',['OX(pix):' num2str(c.laser_offset_x)]);
         set(c.laser_offset_y_disp,'String',['OY(pix):' num2str(c.laser_offset_y)]);
+        disp(['LOX(pix):' num2str(c.laser_offset_x)]);
+        disp(['LOY(pix):' num2str(c.laser_offset_y)]);
     end     
     function go_mouse_Callback(~,~)
-        pt=impoint(c.imageAxes);
-        setColor(pt,'r');
-        
-        %Laser spot is not the center of the image
-        %laser_offset_x=19;
-        %laser_offset_y=-79;
-        
-        
-        pos=getPosition(pt);
-        X=pos(1); Y=pos(2);
-        
-       deltaX = X - (640/2 + c.laser_offset_x);
-       deltaY = -(Y - (480/2+ c.laser_offset_y));
+        if isfield(c, 'LO_pt')==0
+            disp('Laser offset not specified!!')
+        else
+            pt=impoint(c.imageAxes);
+            setColor(pt,'r');
 
-       %Always approach from same direction (from bottom left)
-       offset=5; % in um
-       try
-        S=load('micro_calib.mat');
-       catch err
-           disp(err.message)
-       end
-       
-      % disp([num2str(S.mX) num2str(S.mY)])
-       
-       deltaXm = deltaX*S.mX;
-       deltaYm = deltaY*S.mY;
-       deltaXmo= deltaXm - offset;
-       deltaYmo= deltaYm - offset;
+            pos=getPosition(pt);
+            X=pos(1); Y=pos(2);
 
-       c.micro = c.micro + [deltaXmo deltaYmo];
-       setPos();
+           deltaX = X - c.laser_offset_x;
+           deltaY = -(Y - c.laser_offset_y);
 
-       while sum(abs(c.microActual - c.micro)) > .1
-            pause(.1);
-            getPos();
-            renderUpper();
+           %Always approach from same direction (from bottom left)
+           offset=5; % in um
+           try
+            S=load('micro_calib.mat');
+           catch err
+               disp(err.message)
+           end
+
+          % disp([num2str(S.mX) num2str(S.mY)])
+
+           deltaXm = deltaX*S.mX;
+           deltaYm = deltaY*S.mY;
+           deltaXmo= deltaXm - offset;
+           deltaYmo= deltaYm - offset;
+
+           c.micro = c.micro + [deltaXmo deltaYmo];
+           setPos();
+
+           while sum(abs(c.microActual - c.micro)) > .1
+                pause(.1);
+                getPos();
+                renderUpper();
+            end
+
+           %Approach from bottom left
+           c.micro = c.micro + [offset offset];
+           setPos(); 
+           renderUpper();
+
+           while sum(abs(c.microActual - c.micro)) > .1
+                pause(.1);
+                getPos();
+                renderUpper();
+            end
+
+           setPosition(pt,[(c.laser_offset_x) (c.laser_offset_y)]);
+           setColor(pt,'g');
+           pause(2);
+           delete(pt);
         end
-
-       %Approach from bottom left
-       c.micro = c.micro + [offset offset];
-       setPos(); 
-       renderUpper();
-
-       while sum(abs(c.microActual - c.micro)) > .1
-            pause(.1);
-            getPos();
-            renderUpper();
-        end
-
-       setPosition(pt,[(640/2+laser_offset_x) (480/2+ laser_offset_y)]);
-       setColor(pt,'g');
-       pause(2);
-       delete(pt);
     end
     function go_mouse_fine_Callback(~,~)
         %Allow only small change
-        
-        %Laser spot is not the center of the image
-        %laser_offset_x=19;
-        %laser_offset_y=-79;
-            
-        axes(c.imageAxes);
-        mask=rectangle('Position',[(640/2+c.laser_offset_x)-50,(480/2+ c.laser_offset_y)-50,100,100],'EdgeColor','r');
+        if isfield(c, 'LO_pt')==0
+            disp('Laser offset not specified!!')
+        else    
+            axes(c.imageAxes);
+            mask=rectangle('Position',[c.laser_offset_x-50,c.laser_offset_y-50,100,100],'EdgeColor','r');
 
-        pt=impoint(c.imageAxes);
-        setColor(pt,'m');
-        
-        pos=getPosition(pt);
-        X=pos(1); Y=pos(2);
-        
-         
-            
-            
-        if (X>(640/2+c.laser_offset_x)-50 && X<(640/2+c.laser_offset_x)+50) && (Y>(480/2+ c.laser_offset_y)-50 && Y<(480/2+ c.laser_offset_y)+50)
-          
-            
-            disp('inside mask')
-            deltaX = -(X - (640/2+c.laser_offset_x));
-            deltaY = (Y - (480/2+ c.laser_offset_y));
-            
-            %calibration constant between pixels and voltage
-            try
-                S=load('piezo_calib.mat');
-            catch err
-                disp(err.message)
+            pt=impoint(c.imageAxes);
+            setColor(pt,'m');
+
+            pos=getPosition(pt);
+            X=pos(1); Y=pos(2);
+
+
+
+
+            if (X>(c.laser_offset_x-50) && X<(c.laser_offset_x+50)) && (Y>(c.laser_offset_y-50) && Y<(c.laser_offset_y+50))
+
+
+                disp('inside mask')
+                deltaX = -(X - c.laser_offset_x);
+                deltaY =  (Y - c.laser_offset_y);
+
+                %calibration constant between pixels and voltage
+                try
+                    S=load('piezo_calib.mat');
+                catch err
+                    disp(err.message)
+                end
+
+               % disp([num2str(S.pX) num2str(S.pY)])
+                %Always approach from same direction (from bottom left)
+                offset = 0.2; % in V
+
+                deltaXm = deltaX*S.pX;
+                deltaYm = deltaY*S.pY;
+                deltaXmo= deltaXm + offset;
+                deltaYmo= deltaYm + offset;
+
+                piezoOutSmooth(c.piezo + [deltaXmo deltaYmo 0]);
+                pause(0.2);
+                %disp('m1')
+
+                %Approach from bottom left
+                piezoOutSmooth(c.piezo + [-offset -offset 0]);
+                pause(0.2);
+                renderUpper();
+                %disp('m2')
+
+                setPosition(pt,[(c.laser_offset_x) (c.laser_offset_y)]);
+                setColor(pt,'g');
+                pause(1);
+            else
+                disp('click outside mask!!')
             end
-            
-           % disp([num2str(S.pX) num2str(S.pY)])
-            %Always approach from same direction (from bottom left)
-            offset = 0.2; % in V
-
-            deltaXm = deltaX*S.pX;
-            deltaYm = deltaY*S.pY;
-            deltaXmo= deltaXm + offset;
-            deltaYmo= deltaYm + offset;
-
-            piezoOutSmooth(c.piezo + [deltaXmo deltaYmo 0]);
-            pause(0.2);
-            %disp('m1')
-            
-            %Approach from bottom left
-            piezoOutSmooth(c.piezo + [-offset -offset 0]);
-            pause(0.2);
-            renderUpper();
-            %disp('m2')
-            
-            setPosition(pt,[(640/2+c.laser_offset_x) (480/2+ c.laser_offset_y)]);
-            setColor(pt,'g');
-            pause(1);
-        else
-            disp('click outside mask!!')
+            delete(pt);
+            delete(mask);
         end
-        delete(pt);
-        delete(mask);
     end
 
     % Calibration =========================================================
