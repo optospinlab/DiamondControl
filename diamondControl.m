@@ -2197,6 +2197,12 @@ function varargout = diamondControl(varargin)
         
         i = 0;
         
+        disp(c.running)
+        disp(i < 120)
+        disp(sum(spectrum == -1) == 1)
+        disp(~c.globalStop)
+        disp(~c.autoSkipping)
+        
         while c.running && i < 120 && sum(spectrum == -1) == 1 && ~c.globalStop && ~c.autoSkipping
             try
                 disp(['    waiting ' num2str(i)])
@@ -2701,7 +2707,7 @@ function varargout = diamondControl(varargin)
                             elseif diff(ndyrange) == 0 && diff(ndxrange) == 0
                                 name{i} = ['s_[' num2str(x) ','  num2str(y) ']'];
                             else
-                                if (get(c.autoTaskRows, 'Value') == 1)
+                                if (get(c.autoTaskRow, 'Value') == 1)
                                     name{i} = ['d_[' num2str(dx) ']_r_['  num2str(dy) ']_s_[' num2str(x) ','  num2str(y) ']'];
                                 else
                                     name{i} = ['d_[' num2str(dy) ']_c_['  num2str(dx) ']_s_[' num2str(x) ','  num2str(y) ']'];
@@ -4971,7 +4977,7 @@ end
             c.cap_blue.TimerFcn = @(~,~)cap_blue_Listener;
             c.cap_blue.ExecutionMode = 'fixedSpacing';
 
-            set(c.capture_blue,'String','Stop Capture','Color','r');
+            set(c.capture_blue,'String','Stop Capture');
             format shortg; % Set clock format
 
             start(c.cap_blue);
@@ -4980,18 +4986,17 @@ end
                 stop(c.cap_blue);
                 delete(c.cap_blue);
                 clear c.cap_blue
-                set(c.capture_blue,'String','Start Capture','Color','g');
+                set(c.capture_blue,'String','Start Capture');
             catch err
                 disp(err.message)
             end
 
         end
     end
-
     function cap_blue_Listener(~,~)
         time=fix(clock);
-        folder='';
-        filename = ['blue' num2str(time(end-3)) '__' num2str(time(end-2)) '_' num2str(time(end-1)) '_' num2str(time(end)) '.png'];
+        folder='C:\Users\Tomasz\Desktop\DiamondControl\blue_capture\';
+        filename = [num2str(time(end-3)) '__' num2str(time(end-2)) '_' num2str(time(end-1)) '_' num2str(time(end)) '.png'];
         frame = imadjust(flipdim(getsnapshot(c.vid),1));    %Capture Frame
         imwrite(frame, [folder filename]);
     end

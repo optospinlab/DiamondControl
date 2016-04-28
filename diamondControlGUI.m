@@ -144,6 +144,7 @@ c.norm = 0;
 c.devSPCM =     'Dev1';         
 c.chnSPCM =     'ctr2';
 
+
 % Galvo DEVice and CHaNnels
 c.devGalvo =    'cDAQ1Mod1';	
 c.chnGalvoX =   'ao0';
@@ -499,20 +500,20 @@ c.gotoTab =         uitab('Parent', c.automationPanel, 'Title', 'Goto');
   
     c.gotoP = [c.gotoPX c.gotoPY c.gotoPZ c.gotoPFocus c.gotoPReset c.gotoPMaximize c.gotoPTarget c.gotoPButton];
            
-    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-24*bh 2*bw bh],'HorizontalAlignment', 'center');
+    c.go_mouse_control_txt = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Use Mouse Control: ',   'Position', [bp plh-bp-23*bh 2*bw bh],'HorizontalAlignment', 'center');
    
-    c.laser_offset = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Set Laser Offset','Position', [bp	plh-bp-25*bh bw bh]);
-    c.laser_offset_x_disp = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'OX(pix): - ',   'Position',  [bp+bw*3/2	plh-bp-25*bh 2*bw bh],         'HorizontalAlignment', 'right');
-    c.laser_offset_y_disp = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'OY(pix): - ',   'Position',  [bp+bw*3	plh-bp-25*bh 2*bw bh],         'HorizontalAlignment', 'right');
+    c.laser_offset = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Set Laser Offset','Position', [bp	plh-bp-24*bh bw bh]);
+    c.laser_offset_x_disp = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'OX(pix): - ',   'Position',  [bp	plh-bp-25*bh bw bh],         'HorizontalAlignment', 'left');
+    c.laser_offset_y_disp = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'OY(pix): - ',   'Position',  [bp+bw	plh-bp-25*bh bw bh],         'HorizontalAlignment', 'left');
     
     c.go_mouse =         uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick!','Position', [2*bp	plh-bp-27*bh 2*bw bh]);
     c.go_mouse_fine =    uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Goto MouseClick Fine (Piezo)!','Position', [2*bp	plh-bp-28*bh 2*bw bh]);
     
     %Capture blue image
-    c.capture_text = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Capture Blue Image','Position', [2*bp+bw	plh-bp-30*bh bw bh]);
-    c.capture_blue = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Start Capture','Position', [bp	plh-bp-31*bh bw bh]);
-    c.capture_interval_text = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Interval(s):','Position', [2*bp+bw	plh-bp-31*bh bw bh]);
-    c.capture_interval = uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 10,'Position', [3*bp+2*bw	plh-bp-31*bh bw bh]);
+    c.capture_text = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Capture Blue Image','Position', [bp	plh-bp-30*bh bw bh],  'HorizontalAlignment', 'left');
+    c.capture_blue = uicontrol('Parent', c.gotoTab, 'Style', 'pushbutton', 'String', 'Start Capture','Position', [2*bp+bw	plh-bp-30*bh bw bh]);
+    c.capture_interval_text = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Interval(s):','Position', [bp	plh-bp-31*bh bw bh],'HorizontalAlignment', 'left');
+    c.capture_interval = uicontrol('Parent', c.gotoTab, 'Style', 'edit', 'String', 10,'Position', [2*bp+bw	plh-bp-31*bh bw bh]);
     
     %Micro abort and reset
     c.micro_rst_txt1 = uicontrol('Parent', c.gotoTab, 'Style', 'text','String', 'Use ONLY if Micrometers stop responding:',   'Position', [2*bp plh-bp-33*bh 2*bw bh],         'HorizontalAlignment', 'center');
@@ -635,7 +636,7 @@ c.automationTab = uitab('Parent', c.automationPanel, 'Title', 'Automation!');
             c.proceed = false;  % Variable for whether to proceed or not.
             c.autoSkip =    uicontrol('Parent', c.autoTabC, 'Style', 'pushbutton',   'String', 'Skip', 'Position', [bp	plhi-bp-9*bh 2*bw+bp bh]);
             c.autoScanning = false;
-            c.autoSkipping = true;
+            c.autoSkipping = false;
             % c.autoBlueEnable = uicontrol('Parent', c.autoTabC, 'Style', 'checkbox', 'String', 'Blue Feedback Enabled', 'Position', [bp	plhi-bp-12*bh 2*bw bh], 'Value', 1, 'HorizontalAlignment', 'left');
 
             
