@@ -2335,7 +2335,8 @@ function varargout = diamondControl(varargin)
                                 if isBlack          % Add line to the blacklist if it should be.
                                     black{b,1} = list; b = b + 1;
                                 else
-                                    white{w,1} = list; w = w + 1;
+                                    white{w,1} = list;
+                                    w = w + 1;
                                 end
                             end
                     end
@@ -2441,7 +2442,7 @@ function varargout = diamondControl(varargin)
                 case {'0','1','2','3','4','5','6','7','8','9'}
                     jj = jj + 1;
                 otherwise
-                    str(ii:(jj-1))
+%                     str(ii:(jj-1))
                     num = eval(str(ii:(jj-1)));
                     ii = jj;
                     return;
@@ -2559,7 +2560,11 @@ function varargout = diamondControl(varargin)
         end
     end
     function autoPreview_Callback(~, ~)
-        generateGrid(false);
+%         if (get(c.autoTaskWB, 'Value') == 1)
+%             generateGrid(true); 
+%         else
+            generateGrid(false);
+%         end
     end
     function [p, color, name, len] = generateGrid(onlyGoodListed)
         nxrange = getStoredR('x');    % Range of the major grid
@@ -2630,6 +2635,10 @@ function varargout = diamondControl(varargin)
         i = 1;
         
         [white, black] = loadWhitelist();
+        
+%         for w = 1:length(white)
+%             disp(white{w})
+%         end
         % [dx, dy, x, y]
 
         for x = nxrange(1):nxrange(2)
@@ -2646,9 +2655,9 @@ function varargout = diamondControl(varargin)
                                 
                                 if sum(match) == 4
                                     isWhite = 2;
-                                elseif sum(match) == sum(~isnan(white{w}))
+                                elseif sum(match) == sum(~isnan(white{w})) && isWhite ~= 2
                                     isWhite = 1;
-                                else
+                                elseif isWhite == -1
                                     isWhite = 0;
                                 end
                             end
@@ -2659,19 +2668,31 @@ function varargout = diamondControl(varargin)
                                 
                                 if sum(match) == 4
                                     isBlack = 2;
-                                elseif sum(match) == sum(~isnan(black{b}))
+                                elseif sum(match) == sum(~isnan(black{b})) && isBlack ~= 2
                                     isBlack = 1;
-                                else
+                                elseif isBlack == -1
                                     isBlack = 0;
                                 end
                             end
                         end
+                            
+                        %disp((get(c.autoTaskWB, 'Value') == 1))
+%                         disp('B, W:')
+%                         disp(isBlack)
+%                         disp(isWhite)
+%                         disp([dx, dy, x, y])
                         
                         if (get(c.autoTaskWB, 'Value') == 1) && ((isWhite == 0) || (isBlack > 0 && isWhite ~= 2))   % Disable device if it is not whitelisted, or if it is blacklisted and not specifically enabled by the whitelist.
                             isGood = false;
+%                         else
+%                             disp('True:')
+%                             disp(isBlack)
+%                             disp(isWhite)
+%                             [dx, dy, x, y]
                         end
                         
                         if ~onlyGoodListed || (onlyGoodListed && isGood)
+%                             [dx, dy, x, y]
                             c.p(:,i) = V*([x y]') + v*([dx dy]') + V0;
 
                             color(i,:) = [0 0 1];
