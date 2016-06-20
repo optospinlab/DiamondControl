@@ -144,7 +144,6 @@ c.norm = 0;
 c.devSPCM =     'Dev1';         
 c.chnSPCM =     'ctr2';
 
-
 % Galvo DEVice and CHaNnels
 c.devGalvo =    'cDAQ1Mod1';	
 c.chnGalvoX =   'ao0';

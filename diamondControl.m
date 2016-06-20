@@ -1806,72 +1806,75 @@ function varargout = diamondControl(varargin)
             down =  linspace( range/2 + c.piezo(1), -range/2 + c.piezo(1), stepsFast);
             up2 =   linspace(-range/2 + c.piezo(2),  range/2 + c.piezo(2), steps);
 
-            if sum(up < 0) ~= 0 || sum(down < 0) ~= 0 || sum(up2 < 0) ~= 0
-                error('Piezos might go negative!');
+            if sum(up < 0) ~= 0 || sum(down < 0) ~= 0 || sum(up2 < 0) ~= 0 || sum(up > 10) ~= 0 || sum(down > 10) ~= 0 || sum(up2 > 10) ~= 0
+                display('Error: Piezos might go out of range!');
+
+                final = zeros(steps);
+            else
+                X = up;
+                Y = up2;
+
+                final = zeros(steps);
+        %             prev = 0;
+                i = 1;
+
+        %         otherRows =     [c.piezo(3)*ones(steps,1)       c.galvo(1)*ones(steps,1)        c.galvo(2)*ones(steps,1)];
+        %         otherRowsFast = [c.piezo(3)*ones(stepsFast,1)   c.galvo(1)*ones(stepsFast,1)    c.galvo(2)*ones(stepsFast,1)];
+
+                prev = c.piezo;
+
+        %         resetPiezo_Callback(0, 0);
+                piezoOutSmooth([0       0       c.piezo(3)]);
+                piezoOutSmooth([up(1)   up2(1)  c.piezo(3)]);
+
+                set(c.piezoXX, 'String', '(scanning)');
+                set(c.piezoYY, 'String', '(scanning)');
+
+                yCopy = 0;
+
+                for y = up2
+                    yCopy = y;
+
+                    daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
+                    [out, times] = c.s.startForeground();
+                    out = out(:,1);
+
+                    if y ~= up2(end)
+                        daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
+                        c.s.startForeground();
+                    end
+
+                    final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
+
+                    if i > 1
+                        strings = get(c.piezoC, 'string');
+                        curval = get(c.piezoC, 'value');
+
+                        surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
+                        view(c.lowerAxes, 2);
+                        colormap(c.lowerAxes, strings{curval});
+                        set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
+                        xlim(c.lowerAxes, [up(1)       up(end)]);
+                        ylim(c.lowerAxes, [up2(1)      up2(end)]);
+
+                        c.saveD = final;
+                        c.saveX = up;
+                        c.saveY = up2;
+                        c.saveMode = 'piezo';
+                    end
+
+                    i = i + 1;
+
+                    if c.globalStop
+                        display('Stopped');
+                        c.globalStop = false;
+                        break;
+                    end
+
+                    c.s.wait();
+                end
             end
-            X = up;
-            Y = up2;
 
-            final = zeros(steps);
-    %             prev = 0;
-            i = 1;
-
-    %         otherRows =     [c.piezo(3)*ones(steps,1)       c.galvo(1)*ones(steps,1)        c.galvo(2)*ones(steps,1)];
-    %         otherRowsFast = [c.piezo(3)*ones(stepsFast,1)   c.galvo(1)*ones(stepsFast,1)    c.galvo(2)*ones(stepsFast,1)];
-
-            prev = c.piezo;
-
-    %         resetPiezo_Callback(0, 0);
-            piezoOutSmooth([0       0       c.piezo(3)]);
-            piezoOutSmooth([up(1)   up2(1)  c.piezo(3)]);
-
-            set(c.piezoXX, 'String', '(scanning)');
-            set(c.piezoYY, 'String', '(scanning)');
-
-            yCopy = 0;
-
-            for y = up2
-                yCopy = y;
-
-                daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
-                [out, times] = c.s.startForeground();
-                out = out(:,1);
-
-                if y ~= up2(end)
-                    daqOutQueueClever({down', linspace(y, y + up2(2) - up2(1), length(down))', NaN, NaN, NaN, NaN, NaN});
-                    c.s.startForeground();
-                end
-
-                final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
-
-                if i > 1
-                    strings = get(c.piezoC, 'string');
-                    curval = get(c.piezoC, 'value');
-
-                    surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
-                    view(c.lowerAxes, 2);
-                    colormap(c.lowerAxes, strings{curval});
-                    set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
-                    xlim(c.lowerAxes, [up(1)       up(end)]);
-                    ylim(c.lowerAxes, [up2(1)      up2(end)]);
-
-                    c.saveD = final;
-                    c.saveX = up;
-                    c.saveY = up2;
-                    c.saveMode = 'piezo';
-                end
-
-                i = i + 1;
-
-                if c.globalStop
-                    display('Stopped');
-                    c.globalStop = false;
-                    break;
-                end
-
-                c.s.wait();
-            end
-            
             c.doing = false;
         end
     end
@@ -1888,67 +1891,69 @@ function varargout = diamondControl(varargin)
         end
     end
     function piezoScan_Callback(~, ~)
-        display('Beginning 3D Confocal');
-        prev = c.piezo;
-        ledSet(1);
-        
-        start = (str2double(get(c.piezoZStart,   'String')) + 25)/5;
-        stop =  (str2double(get(c.piezoZStop,    'String')) + 25)/5;
-        step =  str2double(get(c.piezoZStep,    'String'));
-        
-        if start < 0
-            start = 0;
-        end
-        if start > 10
-            start = 10;
-        end
-        if stop < 0
-            stop = 0;
-        end
-        if stop > 10
-            stop = 10;
-        end
-        if step < 0
-            step = 1;
-        end
-        
-        
-        if step == 1
-            final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
-        else
-            final = zeros(c.piezoPixels, c.piezoPixels, step);
-            
-            i = 1;
-            Z = linspace(start, stop, step);
-            for z = Z;
-                display(['  Z = ' num2str(z)]);
-                piezoOutSmooth([prev(1) prev(2) z]);
-                [final(:,:,i), X, Y] = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
-                i = i + 1;
-            end
-            
-            % 3D GRAPH FINAL HERE!
-            % PLOT(final, X, Y, Z) (X Y Z are in volts)
-            
-            figure;
-                [x y z]=meshgrid(X,Y,Z);
-                xslice=[]; yslice=[];
-                zslice=Z;
-             
-                h=slice(x,y,z,final,xslice,yslice,zslice);
-                set(h,'FaceColor','interp');
-                %set(h,'FaceAlpha','0.5');
-                set(h,'EdgeColor','none');
+        if ~c.globalStop
+            display('Beginning 3D Confocal');
+            prev = c.piezo;
+            ledSet(1);
 
-                colormap('copper');
-                colorbar('vert');
-                view([-68 12]);
+            start = (str2double(get(c.piezoZStart,   'String')) + 25)/5;
+            stop =  (str2double(get(c.piezoZStop,    'String')) + 25)/5;
+            step =  str2double(get(c.piezoZStep,    'String'));
+
+            if start < 0
+                start = 0;
+            end
+            if start > 10
+                start = 10;
+            end
+            if stop < 0
+                stop = 0;
+            end
+            if stop > 10
+                stop = 10;
+            end
+            if step < 0
+                step = 1;
+            end
+
+
+            if step == 1
+                final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+            else
+                final = zeros(c.piezoPixels, c.piezoPixels, step);
+
+                i = 1;
+                Z = linspace(start, stop, step);
+                for z = Z;
+                    display(['  Z = ' num2str(z)]);
+                    piezoOutSmooth([prev(1) prev(2) z]);
+                    [final(:,:,i), X, Y] = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                    i = i + 1;
+                end
+
+                % 3D GRAPH FINAL HERE!
+                % PLOT(final, X, Y, Z) (X Y Z are in volts)
+
+                figure;
+                    [x y z]=meshgrid(X,Y,Z);
+                    xslice=[]; yslice=[];
+                    zslice=Z;
+
+                    h=slice(x,y,z,final,xslice,yslice,zslice);
+                    set(h,'FaceColor','interp');
+                    %set(h,'FaceAlpha','0.5');
+                    set(h,'EdgeColor','none');
+
+                    colormap('copper');
+                    colorbar('vert');
+                    view([-68 12]);
+            end
+
+            save('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\piezoScan.mat', 'final');
+
+            ledSet(0);
+            piezoOutSmooth(prev);
         end
-        
-        save('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\piezoScan.mat', 'final');
-        
-        ledSet(0);
-        piezoOutSmooth(prev);
     end
 
     % GALVOSCAN ===========================================================
@@ -1991,8 +1996,10 @@ function varargout = diamondControl(varargin)
             maxGalvoRange = 5; % This is a likely-incorrect assumption.
 
             if mvConv*range > maxGalvoRange
-                display('Galvo scanrange too large! Reducing to maximum.');
+                display('Error: Galvo scanrange too large! Reducing to maximum.');
                 range = maxGalvoRange/mvConv;
+
+                final = zeros(steps);
             end
 
             up =    linspace( (mvConv*range/2) + c.galvo(1), -(mvConv*range/2) + c.galvo(1), steps);
@@ -2475,11 +2482,11 @@ function varargout = diamondControl(varargin)
                 set(c.autoV3Z, 'String', c.piezo(3));
                 set(c.autoV3NX, 'String', c.Sx);
                 set(c.autoV3NY, 'String', c.Sy);
-                c.autoV3DX = c.selcircle(1);
-                c.autoV3DY = c.selcircle(2);
+                % c.autoV3DX = c.selcircle(1);
+                % c.autoV3DY = c.selcircle(2);
                  disp('Disk Centroid ...')
-                c.selcircle(1)
-                 c.selcircle(2)
+%                 c.selcircle(1)
+%                  c.selcircle(2)
                 diskclear_Callback();
             case c.autoV4Get
                 set(c.autoV4X, 'String', c.microActual(1));
@@ -2626,21 +2633,23 @@ function varargout = diamondControl(varargin)
         V0 = V0 + v0;
         
 %         v = (V4 - (V*n4 + V0))/(nd4 - nd123);   % Direction of the linear minor grid. Note that z might be off...
+        
+        [white, black] = loadWhitelist();
 
-        c.p = zeros(3, diff(nxrange)*diff(nyrange)*diff(ndxrange)*diff(ndyrange));
-        color = zeros(diff(nxrange)*diff(nyrange)*diff(ndxrange)*diff(ndyrange), 3);    % (silly matlab)
-        name = cell(diff(nxrange)*diff(nyrange)*diff(ndxrange)*diff(ndyrange),1);
+        if(get(c.autoTaskWB, 'Value') ~= 1)
+            
+            c.p = zeros(3, diff(nxrange)*diff(nyrange)*diff(ndxrange)*diff(ndyrange));
+            color = zeros(diff(nxrange)*diff(nyrange)*diff(ndxrange)*diff(ndyrange), 3);    % (silly matlab)
+            name = cell(diff(nxrange)*diff(nyrange)*diff(ndxrange)*diff(ndyrange),1);
+        else
+            
+            c.p = zeros(3, length(white));
+            color = zeros(length(white), 3);    % (silly matlab)
+            name = cell(length(white),1);
+        end
 %         l = cell(1, diff(nxrange)*diff(nyrange)*diff(ndrange));
 
         i = 1;
-        
-        [white, black] = loadWhitelist();
-        
-%         for w = 1:length(white)
-%             disp(white{w})
-%         end
-        % [dx, dy, x, y]
-
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
                 for dx = ndxrange(1):ndxrange(2)
@@ -2895,15 +2904,14 @@ function varargout = diamondControl(varargin)
         original = c.micro; % Record the original position of the micrometers so we can return to it later...
         
         i = 1;
-        resetGalvo_Callback(0,0);
-        
+        resetGalvo_Callback(0,0);      
         dZ = 0;     % Variable to account for significant drift in Z.
 
         for x = nxrange(1):nxrange(2)
             for y = nyrange(1):nyrange(2)
                 for d = ndrange(1):ndrange(2)
                     for dy = ndyrange(1):ndyrange(2)
-                        if c.autoScanning && c.running && ~c.globalStop
+                        if c.autoScanning && c.running && ~c.globalStop && (i <= size(p,2))
                             try
                                 gotoMicro(p(1:2,i)' - [10 10]);     % Goto the current device, approaching from the lower left.
                                 gotoMicro(p(1:2,i)');
@@ -2986,7 +2994,7 @@ function varargout = diamondControl(varargin)
                                         
                                         display('    XYZ...');   optAll_Callback(0,0);
                                         
-                                        display('    Galvo...'); optimizeAxis(4, .05, 500, 500);  scan = optimizeAxis(5, .05, 500, 500);
+                                        display('    Galvo...'); optimizeAxis(4, .025, 200, 50);  scan = optimizeAxis(5, .025, 200, 50);
 
                                         sayResult('XYZxy');
                                         
