@@ -13,8 +13,6 @@ bw = pw/2 - 2*bp;   % Button Width, the width of a button/object
 bh = 18;            % Button Height, the height of a button/object
 plhi = plh - 2*bh;  % Inner Lower Panel Height
 
-psh = 3.5*bh;         % Scale figure height
-
 gp = 25;            % Graph  Padding
 
 if ~isempty(varargin)
@@ -64,11 +62,10 @@ c.hImage = 0;
 
 c.upperFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Grid Figure', 'Name', 'Grid Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.lowerFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Data Figure', 'Name', 'Data Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Counter Figure', 'Name', 'Counter Figure', 'Toolbar', 'figure', 'Menubar', 'none');
+c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Data Figure', 'Name', 'Counter Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Image Figure', 'Name', 'Blue Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Disk Detection Figure', 'Name', 'Blue Disk Detection Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-c.scaleFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Scale Figure', 'Name', 'Scale Figure', 'Toolbar', 'figure', 'Menubar', 'none', 'Position', [screensize(1)-pw, 0, pw, puh+plh+2*bp+bh]);
 % minfig(c.pleFigure, 1); % ple figure starts minimized
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
@@ -99,7 +96,8 @@ function piezo3DPlus_Callback(src,~)
     set(c.piezo3DMenu, 'Value', v);
 end
 
-% AXES FOR VARIOUS FIGURES ==========
+% function
+
 c.imageAxes =   axes('Parent', c.imageFigure,  'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 c.bluefbAxes =  axes('Parent', c.bluefbFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
 
@@ -113,35 +111,11 @@ c.pleAxesSum =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'm
 c.pleAxesOne =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .2 1 .2]);
 c.pleAxesAll =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'On', 'Position', [0 .4 1 .6]);
 
-% SCALE FIGURE ==========
-defMin = '2.0e0';   % Default min and max values.
-defMax = '2.0e0';
-
-c.scaleFigure =     figure('Visible', 'On', 'tag', 'Scale Figure', 'Name', 'Scale Figure', 'Toolbar', 'none', 'Menubar', 'none', 'Resize', 'off', 'Position', [100, 100, pw, psh+2*bp+bh]);
-
-c.scaleMinText =    uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Min:', 'Units', 'pixels', 'Position', [bp,psh,bw/4,bh], 'HorizontalAlignment', 'right');
-c.scaleMinEdit =    uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMin, 'Units', 'pixels', 'Position', [2*bp+bw/4,psh+1,bw/2,bh]); %, 'Enable', 'Inactive');
-c.scaleMinSlid =    uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Value', str2double(defMin), 'Min', 0, 'Max', str2double(defMin), 'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh-1,5*bw/4,bh], 'SliderStep', [2/300, 2/30]); % Instert reasoning for 2/3
-
-c.scaleMaxText =    uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Max:', 'Units', 'pixels', 'Position', [bp,psh-bh,bw/4,bh], 'HorizontalAlignment', 'right');
-c.scaleMaxEdit =    uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMax, 'Units', 'pixels', 'Position', [2*bp+bw/4,psh-bh+1,bw/2,bh]); %, 'Enable', 'Inactive');
-c.scaleMaxSlid =    uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Value', str2double(defMax), 'Min', 0, 'Max', str2double(defMax), 'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh-bh-1,5*bw/4,bh], 'SliderStep', [2/300, 2/30]);
-% uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Units', 'pixels', 'Position', [bp,psh,bw,bh]);
-
-c.scaleDataMinText = uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Data Min:', 'Units', 'pixels', 'Position', [2*bp+bw,psh-2*bh,bw/2,bh], 'HorizontalAlignment', 'right');
-c.scaleDataMinEdit = uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMin, 'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-2*bh+1,bw/2,bh], 'Enable', 'Inactive');
-
-c.scaleDataMaxText = uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Data Max:', 'Units', 'pixels', 'Position', [2*bp+bw,psh-3*bh,bw/2,bh], 'HorizontalAlignment', 'right');
-c.scaleDataMaxEdit = uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMax, 'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-3*bh+1,bw/2,bh], 'Enable', 'Inactive');
-
-c.scaleNorm =       uicontrol('Parent', c.scaleFigure, 'Style', 'pushbutton', 'String', 'Normalize', 'Units', 'pixels', 'Position', [bp,psh-3*bh,1.1*bw,2*bh]);
-
-
-function closeRequestHide(src, ~)
+function closeRequestHide(src, data)
     set(src, 'Visible', 'Off');
 end
 
-function closeRequestMinimize(src, ~)
+function closeRequestMinimize(src, data)
 %     minfig(src, 1);
     
     ratio = [500 500];
@@ -227,7 +201,7 @@ c.automationPanel = uitabgroup('Parent', c.parent, 'Units', 'pixels', 'Position'
 
             
 % The following variables help construct the interface:
-c.tabs = [c.outputTab, c.joyTab, c.mouseKeyTab, c.saveTab, ...
+c.tabs = [c.outputTab, c.joyTab, c.mouseKeyTab, ...
           c.piezoTab, c.galvoTab, c.spectraTab, c.powerTab, ...
           c.autoTabC, c.autoTab, c.autoTabT, ...
           c.pleScanTab, c.pleSimpleTab, c.perotScanTab, ...
@@ -247,6 +221,8 @@ numLowerInside =    length(get(c.scanningTab, 'Children')) + length(get(c.automa
 %  tab.
 %  - makeControl(...) actually makes the button, using space(...) to find
 %  the proper hieght so previously-added buttons are not overlapped.
+%  specialList should be a cellarray (possibly empty) of other fields that
+%  need to be modified.
 function identifier = tabIdentifier(tab)
     if isnumeric(tab)
         identifier = tab;
@@ -269,10 +245,10 @@ function prevHeight = space(tab, position)
             rghtHeight(tabIdentifier(tab)) =    prevHeight + 1;
     end
     
-    prevHeight = ph-bp-space(identifier)*bh;
+    prevHeight = ph-bp-space(identifier)*bh
 end
 
-% Unfinished!
+% Style
 function control = makeControl(tab, style, position, label, value, active)
     identifier = tabIdentifier(tab);
     
@@ -401,17 +377,9 @@ end
     c.calibText =   uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Perform Calibration:', 'Position',[bp puh-bp-6*bh 2*bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
     c.microCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Micro','Position', [bp puh-bp-7*bh 2*bw bh]);
     c.piezoCalib =  uicontrol('Parent', c.mouseKeyTab, 'Style', 'pushbutton', 'String', 'Cal Piezo','Position', [bp puh-bp-8*bh 2*bw bh]);
-    c.calibStat =   uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
+    c.calibStat = uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
     
-% SAVE TAB ===========
-    c.saveBackgroundLabel  =  uicontrol('Parent', c.savetab, 'Style', 'text', 'String', 'Background Saving Directory: ', 'Position', [bp             puh-bp-3*bh bw bh],    'HorizontalAlignment', 'left');
-    c.saveBackgroundDirectory=uicontrol('Parent', c.savetab, 'Style', 'edit', c.directoryBackground,                    'Position', [bp             puh-bp-4*bh 3*bw/2 bh],  'HorizontalAlignment', 'left');
-    c.saveBackgroundChoose =  uicontrol('Parent', c.savetab, 'Style', 'pushbutton', 'String', 'Choose',       'Position', [2*bp+3*bw/4    puh-bp-4*bh bw/2 bh]);
-    
-    c.saveLabel  =  uicontrol('Parent', c.savetab, 'Style', 'text', 'String', 'Manual Saving Directory: ', 'Position', [bp             puh-bp-3*bh bw bh],    'HorizontalAlignment', 'left');
-    c.saveDirectory=uicontrol('Parent', c.savetab, 'Style', 'edit', c.directory,                    'Position', [bp             puh-bp-4*bh 3*bw/2 bh],  'HorizontalAlignment', 'left');
-    c.saveChoose =  uicontrol('Parent', c.savetab, 'Style', 'pushbutton', 'String', 'Choose',       'Position', [2*bp+3*bw/4    puh-bp-4*bh bw/2 bh]);
-    
+
 % GOTO TAB ==========
     c.gotoMLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Micrometers: ',   'Position', [bp plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
     c.gotoMXLabel = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp      plh-bp-4*bh bw/2 bh],         'HorizontalAlignment', 'right');
@@ -616,7 +584,7 @@ end
             c.autoNYRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 0,            'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);
             c.autoNYRMT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Max NY: ',   'Position', [2*bp+bw        plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
             c.autoNYRM =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 4,            'Position', [2*bp+3*bw/2    plhi-bp-k*bh bw/2 bh]);
-            k = k+1;
+            k = k+1;=
 
             c.autonRmT =   uicontrol('Parent', c.autoTab, 'Style', 'text', 'String', 'Min nx: ',     'Position', [bp         plhi-bp-k*bh bw/2 bh],         'HorizontalAlignment', 'right');
             c.autonRm =    uicontrol('Parent', c.autoTab, 'Style', 'edit', 'String', 1,             'Position', [bp+bw/2    plhi-bp-k*bh bw/2 bh]);

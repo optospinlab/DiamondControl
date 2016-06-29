@@ -24,7 +24,7 @@ function varargout = diamondControl(varargin)
     % Helper Global variables for UI construction
     global pw; global puh; global pmh; global plh; global bp; global bw; global bh; global gp;
     
-    % UI CALLBACKS ===========================================================
+    % UI CALLBACKS ========================================================
 %     set(c.parent, 'WindowKeyPressFcn', @figure_WindowKeyPressFcn);  % Interprets keypresses e.g. up/down arrow.
 %     set(c.parent, 'WindowKeyReleaseFcn', @figure_WindowKeyReleaseFcn);
     
@@ -40,14 +40,18 @@ function varargout = diamondControl(varargin)
     % round2 devices auto set calculation
     set(c.set_mark, 'Callback', @set_mark_Callback);  
 
-    % Calibration
+    % Calibration ---------------------------------------------------------
     set(c.microCalib, 'Callback', @microCalib_Callback);  
     set(c.piezoCalib, 'Callback', @piezoCalib_Callback);  
+    
+    % Saving --------------------------------------------------------------
+    set(c.saveChoose,           'Callback', @save_Callback);  
+    set(c.saveBackgroundChoose, 'Callback', @saveBackground_Callback);  
     
     % Goto Fields ---------------------------------------------------------
     set(c.gotoMX, 'Callback', @limit_Callback);                     % Limits the values of these uicontrols to be
     set(c.gotoMY, 'Callback', @limit_Callback);                     % within the safe/allowed limits of the devices
-    set(c.gotoPX, 'Callback', @limit_Callback);                     % they control. e.g. piezos are limited 0 -> 10 V.
+    set(c.gotoPX, 'Callback', @limit_Callback);                     % they control. e.g. piezos are limited 0 -> 50 um.
     set(c.gotoPY, 'Callback', @limit_Callback);
     set(c.gotoPZ, 'Callback', @limit_Callback);
     set(c.gotoGX, 'Callback', @limit_Callback);
@@ -63,7 +67,7 @@ function varargout = diamondControl(varargin)
     set(c.gotoPOptXY,  'Callback', @optXY_Callback);                % XY and Z opt use count-optimization techniques
     set(c.gotoPOptZ,  'Callback',  @optZ_Callback);
     set(c.gotoPOptAll,  'Callback',@optAll_Callback);
-    set(c.gotoPReset, 'Callback',  @resetPiezoXY_Callback);         % Resets the XY to [5 5], approaching from [0 0]
+    set(c.gotoPReset, 'Callback',  @resetPiezoXY_Callback);         % Resets the XY to [0 0], approaching from [-25 -25]
     set(c.gotoPTarget, 'Callback', @gotoTarget_Callback);           % Sets the fields to the current target
     
     set(c.gotoGButton, 'Callback', @gotoGalvo_Callback);            % GALVO GOTO controls - Goto button sends the galvos to the current fields
@@ -107,6 +111,9 @@ function varargout = diamondControl(varargin)
     set(c.piezoOptimizeX,  'Callback', @optX_Callback);
     set(c.piezoOptimizeY,  'Callback', @optY_Callback);
     set(c.piezoOptimizeZ,  'Callback', @optZ_Callback);
+    
+    set(c.piezoSwitchTo3DButton, 'Callback', @piezoSwitch3D_Callback);
+    set(c.piezo3DMenu, 'Callback', @piezoChange3DMenu_Callback);
     
     % Automation Fields ---------------------------------------------------
     set(c.autoV1X, 'Callback', @limit_Callback);                    % Same as the limit callbacks above
@@ -163,7 +170,7 @@ function varargout = diamondControl(varargin)
                                                                     % to autoproceed using a checkbox.
     set(c.autoSkip, 'Callback',  @autoSkip_Callback);
     
-    % Counter Fields -----------------------------------------
+    % Counter Fields ------------------------------------------------------
     set(c.counterButton, 'Callback',  @counterToggle);           
     
     % Spectra Fields (unfinished) -----------------------------------------
@@ -173,7 +180,7 @@ function varargout = diamondControl(varargin)
     set(c.globalSaveButton, 'Callback', @globalSave_Callback);
     set(c.powerButton, 'Callback', @power_Callback);
     
-    % PLE Fields
+    % PLE Fields ----------------------------------------------------------
     % set(c.automationPanel, 'SelectionChangedFcn',  @axesMode_Callback);
     % set(c.pleOnce, 'Callback',  @pleCall);
     set(c.pleCont, 'Callback',  @pleCall);
@@ -183,11 +190,24 @@ function varargout = diamondControl(varargin)
     set(c.pleSpeed, 'Callback',  @updateScanGraph_Callback);
     set(c.pleScans, 'Callback',  @updateScanGraph_Callback);
     
-    % Tracking Fields
-    set(c.start_newTrack,'Callback', @newTrack_Callback)
-    set(c.stop_newTrack,'Callback', @stopnewTrack_Callback)
+    % Tracking Fields -----------------------------------------------------
+    set(c.start_newTrack,'Callback', @newTrack_Callback);
+    set(c.stop_newTrack,'Callback', @stopnewTrack_Callback);
     
-    % Create the joystick object =====
+    % Scaling Fields ------------------------------------------------------
+    set(c.scaleNorm, 'Callback', @scaleNormalize_Callback);
+    
+    set(c.scaleMinSlid, 'Callback', @scaleSlider_Callback);
+    set(c.scaleMaxSlid, 'Callback', @scaleSlider_Callback);
+    
+    set(c.scaleMinEdit, 'Callback', @scaleEdit_Callback);
+    set(c.scaleMaxEdit, 'Callback', @scaleEdit_Callback);
+    
+    scaleSlider_Callback(c.scaleMinSlid, 0);
+    scaleSlider_Callback(c.scaleMaxSlid, 0);
+
+    
+    % Create the joystick object ==========================================
     try
         c.joy = vrjoystick(1);
         c.joystickInitiated = 1;
@@ -221,7 +241,7 @@ function varargout = diamondControl(varargin)
                         setPos();   % Change position of micrometers
                     end
 
-                    if daqChanged && c.daqInitiated  % If Z has been changed
+                    if daqChanged && c.daqInitiated  % e.g. if Z has been changed
                         daqOut();   % Change position of DAQ devices
                     end
 
@@ -233,9 +253,51 @@ function varargout = diamondControl(varargin)
             
 %             takeSpectrum_Callback(0, 0);
                     
-            pause(.1); % 60 Hz (should later make this run so we actually delay to 60 Hz)
+            pause(.1); % (should later make this run so we actually delay to 60 Hz)
 %             drawnow
         end
+    end
+
+
+    function str = returnPrefixString(num)
+        neg = sign(num);
+
+        pow = floor(log10(neg*num));
+        pow3 = round(pow/3);
+
+        switch pow3
+            case -4
+                prefix = 'p';
+            case -3
+                prefix = 'n';
+            case -2
+                prefix = 'u';
+            case -1
+                prefix = 'm';
+            case 0
+                prefix = '';
+            case 1
+                prefix = 'k';
+            case 2
+                prefix = 'M';
+            case 3
+                prefix = 'G';
+            case 4
+                prefix = 'T';
+            case 5
+                prefix = 'Y';
+            otherwise
+                prefix = [' x 10^' num2str(round(pow))];
+        end
+
+        if pow3 == 0
+            str = [num2str(num, '%03.2f') ' '];
+        else
+            str = [num2str(num*(10^(-3*round(pow/3)) ), '%03.2f') ' ' prefix];
+        end
+    end
+    function str = returnHzString(hz)
+        str = [returnPrefixString(hz) 'Hz'];
     end
 
     % INPUTS ==============================================================
@@ -737,38 +799,84 @@ function varargout = diamondControl(varargin)
 %         set(c.globalStopButton, 'Enable', 'on');
     end
     function globalSave_Callback(~,~)
+        globalSave(c.directory);
+    end
+    function globalSave(directory)
         clk = clock;
+        timestamp = [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3)) ' ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
         
-        timestamp =    [num2str(clk(1)) '_' num2str(clk(2)) '_' num2str(clk(3)) ' ' num2str(clk(4)) '-' num2str(clk(5)) '-' num2str(clk(6))];
+        data.micrometerLocation = c.micro;
         
         switch c.saveMode
             case {'piezo', 'galvo'} % Need to fix the image flipping!
-                type = c.saveMode;
-                xrange = c.saveX;
-                yrange = c.saveY;
-                data = c.saveD;
+                data.type =   c.saveMode;
+                data.xrange = c.saveX;
+                data.yrange = c.saveY;
+                data.data =   c.saveD;
+                data.center = [mean(xrange) mean(yrange)];
+                if strcmp(c.savemode, 'piezo')
+                    range =  c.piezoRange;
+                    speed =  c.piezoSpeed;
+                    pixels = c.piezoPixels;
+                else
+                    range =  c.galvoRange;
+                    speed =  c.galvoSpeed;
+                    pixels = c.galvoPixels;
+                end
                 
-%                 m = min(data);
+                m = min(min(data));
                 M = max(max(data));
                 
-                save(   [c.directory timestamp '_' c.saveMode '.mat'], 'xrange', 'yrange', 'data');
-                if M ~= 0
-                    imwrite(data./M, [c.directory timestamp '_' c.saveMode '.png']);
+                save(   [directory timestamp '_' c.saveMode '.mat'], 'data');
+                
+                fname = [directory timestamp '_' c.saveMode '.png'];
+                if M-m ~= 0
+                    imwrite((data-m)./(M-m), fname);
                 else
-                    imwrite(data, [c.directory timestamp '_' c.saveMode '.png']);
+                    imwrite((data-m),        fname);
+                end
+            case {'piezo3D'}
+                data.type = c.saveMode;
+                data.xrange = c.saveX;
+                data.yrange = c.saveY;
+                data.zrange = c.saveZ;
+                data.data = c.saveD3D;
+                data.center = [mean(xrange) mean(yrange)];
+                
+                save(   [directory timestamp '_' c.saveMode '.mat'], 'data');
+                
+                i = 1;
+                
+                for z=zrange
+                    data2D = data(:,:,i);
+                    
+                    m = min(min(data2D));
+                    M = max(max(data2D));
+                    
+                    fname = [directory timestamp '_' c.saveMode '_Layer_' num2str(i) '_of_' num2str(length(zrange)) '.png'];
+                    if M-m ~= 0
+                        imwrite((data2D-m)./(M-m), fname);
+                    else
+                        imwrite((data2D-m),        fname);
+                    end
+                    
+                    i = i+1;
                 end
             case {'spectrum', 'optscan'}
-                type = c.saveMode;
-                xdata = c.saveX;
-                ydata = c.saveY;
+                data.type = c.saveMode;
+                data.xrange = c.saveX;
+                data.data = c.saveY;
                 
-                save([c.directory timestamp '_' c.saveMode '.mat'], 'xdata', 'ydata');
-                savePlotPng(xdata, ydata, [c.directory timestamp '_' c.saveMode '.png']);
+                save([directory timestamp '_' c.saveMode '.mat'], 'data');
+                savePlotPng(xdata, ydata, [directory timestamp '_' c.saveMode '.png']);
             otherwise
                 display('Nothing to save...');
         end
-        
-        
+    end
+    function open_Callback(~,~)
+        if ~c.doing
+            fname = open();
+        end
     end
     function power_Callback(~,~)
         set(c.powerButton, 'Enable', 'off');
@@ -979,6 +1087,15 @@ function varargout = diamondControl(varargin)
             getCurrent();
             c.running = 1;
             c.newtrack_on = 0;
+            
+            choice = questdlg('You have restarted. Do you want to mechanically reset the micrometers? This involves returning to mechanical [0, 0].', 'Reset?', 'Yes', 'No', 'Yes');
+            
+            switch choice
+                case 'Yes'
+                    microInit_Callback(0,0);
+                case 'No'
+                    display('No reset chosen. You can reset manually in the Goto menu.');
+            end
 %         catch err
 %             display(err.message);
 %         end
@@ -1076,25 +1193,30 @@ function varargout = diamondControl(varargin)
         cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'HT4'); pause(0.5);
         cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
-        cmd(c.microXSerial, c.microXAddr,'OR'); pause(30);
+        cmd(c.microXSerial, c.microXAddr,'OR'); %pause(30);
+        
+        while c.running && c.microActual(1) ~= 0 % Not sure if this is the best choice; one could move away within a second of reaching zero.
+            pause(1)
+        end
         
         disp('X-Axis Back to Mech Zero...')
         
-        %GET BACK TO chip
-        cmd(c.microXSerial,c.microXAddr,'RS'); pause(5);
-        cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
-        cmd(c.microXSerial, c.microXAddr,'HT1'); pause(0.5);
-        cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
-        cmd(c.microXSerial, c.microXAddr,'OR'); pause(0.5);
-        cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(30);
-        
-        disp('Finished Reset Sequence')
-        disp('X-Axis should be at 22 mm \n')
-        disp(['X-Axis at:' num2str(c.microActual(1))])
-        
-        if(c.microActual(1)~=22000)
-            disp('There was an ERROR!!!')
-        end
+        %GET BACK TO chip (disabled 6/24/16 - it doesnt' make sense to go
+        %to an arbitrary posiiton)
+%         cmd(c.microXSerial,c.microXAddr,'RS'); pause(5);
+%         cmd(c.microXSerial, c.microXAddr,'PW1'); pause(0.5);
+%         cmd(c.microXSerial, c.microXAddr,'HT1'); pause(0.5);
+%         cmd(c.microXSerial, c.microXAddr,'PW0'); pause(5);
+%         cmd(c.microXSerial, c.microXAddr,'OR'); pause(0.5);
+%         cmd(c.microXSerial, c.microXAddr, ['PR' num2str(22)]); pause(30);
+%         
+%         disp('Finished Reset Sequence')
+%         disp('X-Axis should be at 22 mm \n')
+%         disp(['X-Axis at:' num2str(c.microActual(1))])
+%         
+%         if(c.microActual(1)~=22000)
+%             disp('There was an ERROR!!!')
+%         end
         
     end
     function rsty_Callback(~,~)
@@ -1104,25 +1226,30 @@ function varargout = diamondControl(varargin)
         cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'HT4'); pause(0.5);
         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
-        cmd(c.microYSerial, c.microYAddr,'OR'); pause(30);
+        cmd(c.microYSerial, c.microYAddr,'OR'); %pause(30);
+        
+        while c.running && c.microActual(2) ~= 0 % Not sure if this is the best choice; one could move away within a second of reaching zero.
+            pause(1)
+        end
         
         disp('Y-Axis Back to Mech Zero...')
         
-        %GET BACK TO chip
-        cmd(c.microYSerial, c.microXAddr,'RS'); pause(5);
-        cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
-        cmd(c.microYSerial, c.microYAddr,'HT1'); pause(0.5);
-        cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
-        cmd(c.microYSerial, c.microYAddr,'OR'); pause(0.5);
-        cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(30);
-        
-        disp('Finished Reset Sequence')
-        disp('Y-Axis should be at 22 mm \n')
-        disp(['Y-Axis at:' num2str(c.microActual(2))])
-        
-        if(c.microActual(2)~=22000)
-            disp('There was an ERROR!!!')
-        end
+        %GET BACK TO chip (disabled 6/24/16 - it doesnt' make sense to go
+        %to an arbitrary posiiton)
+%         cmd(c.microYSerial, c.microXAddr,'RS'); pause(5);
+%         cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
+%         cmd(c.microYSerial, c.microYAddr,'HT1'); pause(0.5);
+%         cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
+%         cmd(c.microYSerial, c.microYAddr,'OR'); pause(0.5);
+%         cmd(c.microYSerial, c.microYAddr, ['PR' num2str(22)]); pause(30);
+%         
+%         disp('Finished Reset Sequence')
+%         disp('Y-Axis should be at 22 mm \n')
+%         disp(['Y-Axis at:' num2str(c.microActual(2))])
+%         
+%         if(c.microActual(2)~=22000)
+%             disp('There was an ERROR!!!')
+%         end
     end
     % --- UI GETTING ------------------------------------------------------
     function getCurrent()
@@ -1140,6 +1267,12 @@ function varargout = diamondControl(varargin)
         set(c.piezoZZ, 'String', c.piezo(3));
     end
     % --- GOTO/SMOOTH OUT -------------------------------------------------
+    function um = piezoVtoUM(v)
+        um = 5*v - 25;
+    end
+    function v = piezoUMtoV(um)
+        v = (um + 25)/5;
+    end
     function goto_Callback(~, ~)
         % Set the micrometers to the XY values in the goto box
         c.micro = [str2double(get(c.gotoMX, 'String')) str2double(get(c.gotoMY, 'String'))];
@@ -1163,9 +1296,9 @@ function varargout = diamondControl(varargin)
                 set(c.gotoMX, 'String', c.micro(1));
                 set(c.gotoMY, 'String', c.micro(2));
             case c.gotoPTarget
-                set(c.gotoPX, 'String', c.piezo(1));
-                set(c.gotoPY, 'String', c.piezo(2));
-                set(c.gotoPZ, 'String', c.piezo(3));
+                set(c.gotoPX, 'String', piezoVtoUM(c.piezo(1)));
+                set(c.gotoPY, 'String', piezoVtoUM(c.piezo(2)));
+                set(c.gotoPZ, 'String', piezoVtoUM(c.piezo(3)));
             case c.gotoGTarget
                 set(c.gotoGX, 'String', c.galvo(1)*1000);
                 set(c.gotoGY, 'String', c.galvo(2)*1000);
@@ -1173,7 +1306,9 @@ function varargout = diamondControl(varargin)
     end
     function gotoPiezo_Callback(~, ~)
         % Sends the piezos to the location currently stored in the fields.
-        piezoOutSmooth([str2double(get(c.gotoPX, 'String')) str2double(get(c.gotoPY, 'String')) str2double(get(c.gotoPZ, 'String'))]);
+        piezoOutSmooth([piezoUMtoV(str2double(get(c.gotoPX, 'String')))...
+                        piezoUMtoV(str2double(get(c.gotoPY, 'String')))...
+                        piezoUMtoV(str2double(get(c.gotoPZ, 'String')))]);
     end
     function gotoGalvo_Callback(~, ~)
         % Sends the galvos to the location currently stored in the fields.
@@ -1297,8 +1432,33 @@ function varargout = diamondControl(varargin)
     end
     % --- RESETS ----------------------------------------------------------
     function resetMicro_Callback(~, ~)
-        c.micro = [0 0];
-        setPos();
+         % Old way - does not actually reset.
+%         c.micro = [0 0];
+%         setPos();
+
+        % New way - adapted from the x and y reset functions.
+        disp('Started micrometer reset sequence...')
+        
+        cmd(c.microYSerial,c.microYAddr,'RS');
+        cmd(c.microYSerial,c.microYAddr,'RS'); pause(5);
+        
+        cmd(c.microYSerial, c.microYAddr,'PW1');
+        cmd(c.microYSerial, c.microYAddr,'PW1'); pause(0.5);
+        
+        cmd(c.microYSerial, c.microYAddr,'HT4');
+        cmd(c.microYSerial, c.microYAddr,'HT4'); pause(0.5);
+        
+        cmd(c.microYSerial, c.microYAddr,'PW0');
+        cmd(c.microYSerial, c.microYAddr,'PW0'); pause(5);
+        
+        cmd(c.microYSerial, c.microYAddr,'OR');
+        cmd(c.microYSerial, c.microYAddr,'OR'); %pause(30);
+        
+        while c.running && c.microActual(1) ~= 0 && c.microActual(2) ~= 0 % Not sure if this is the best choice; one could move away within a second of reaching zero.
+            pause(1)
+        end
+        
+        disp('...Axes are back to mechanical zero.')
     end
     function resetPiezoXY_Callback(~, ~)
         piezoOutSmooth([0 0 c.piezo(3)]);   % Always approach from [0 0]
@@ -1513,29 +1673,43 @@ function varargout = diamondControl(varargin)
 
 %                 display('      plot');
 
-                mx = min(up(1:pixels));
-                Mx = max(up(1:pixels));
+%                 if axis >= 1 && axis <= 3
+%                     up = piezoVtoUM(up);
+%                 end
 
-                my = min(data);
-                My = max(data);
-                dy = My - my + 1;
+%                 mx = min(up(1:pixels));
+%                 Mx = max(up(1:pixels));
+% 
+%                 my = min(data);
+%                 My = max(data);
+%                 dy = My - my + 1;
                 
-                plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, My + dy/10], 'r', [center, center], [my - dy/10, My + dy/10], 'r:');
-                xlim(c.lowerAxes, [mx Mx]);
-                ylim(c.lowerAxes, [my - dy/10, My + dy/10]);
+                c.saveMode = 'optscan';
+                c.saveX = piezoVtoUM(up);
+                c.saveY = data;
+                c.saveBA = [center, fz];
+
+                
+%                 plot(c.lowerAxes, up(1:pixels), data, 'b', [fz, fz], [my - dy/10, My + dy/10], 'r', [center, center], [my - dy/10, My + dy/10], 'r:');
+%                 xlim(c.lowerAxes, [mx Mx]);
+%                 ylim(c.lowerAxes, [my - dy/10, My + dy/10]);
                 
                 switch axis
                     case 1
-                        title(c.lowerAxes, 'Piezo X');
+                        c.saveAxis = 'Piezo X';
                     case 2
-                        title(c.lowerAxes, 'Piezo Y');
+                        c.saveAxis = 'Piezo Y';
                     case 3
-                        title(c.lowerAxes, 'Piezo Z');
+                        c.saveAxis = 'Piezo Z';
                     case 4
-                        title(c.lowerAxes, 'Galvo X');
+                        c.saveAxis = 'Galvo X';
                     case 5
-                        title(c.lowerAxes, 'Galvo Y');
+                        c.saveAxis = 'Galvo Y';
                 end
+                
+                renderData()
+                
+%                 title(c.lowerAxes, name);
 
     %             m = min(min(data)); M = max(max(data));
     % 
@@ -1776,6 +1950,86 @@ function varargout = diamondControl(varargin)
         magn = 1000^m;
     end
 
+    % DATA FIGURE =========================================================
+    function renderData()
+        switch c.saveMode
+            case {'piezo', 'piezo3D', 'galvo'} % Need to fix the image flipping!
+                switch c.saveMode
+                    case 'galvo'
+                        strings = get(c.galvoC, 'string');
+                        curval = get(c.galvoC, 'value');
+                    case {'piezo', 'piezo3D'}
+                        strings = get(c.piezoC, 'string');
+                        curval = get(c.piezoC, 'value');
+                end
+                    if c.piezoEnable3D %&& strcmp(get(c.lowerAxes3D, 'Visible'),  'Off')
+                        [x, y, z] = meshgrid(c.saveX,c.saveY,c.saveZ);
+
+                        xslice=[]; 
+                        yslice=[];
+                        zslice=c.saveZ;
+
+                        h = slice(c.lowerAxes3D, x, y, z, c.saveD3D, xslice, yslice, zslice);
+                        set(h, 'FaceColor','interp');
+                        %set(h,'FaceAlpha','0.5');
+                        set(h, 'EdgeColor','none');
+
+                        title(c.lowerAxes3D, 'Piezo Scan 3D');
+
+                        set(c.lowerAxes3D, 'Ydir', 'reverse');
+                        xlim(c.lowerAxes3D, [c.saveX(1)      c.saveX(end)]);
+                        ylim(c.lowerAxes3D, [c.saveY(1)      c.saveY(end)]);
+                        clim(c.lowerAxes, [c.scaleMinSlid.Value, c.scaleMaxSlid.Value]);
+
+                        colormap(c.lowerAxes3D, strings{curval});
+                        view([-68 12]);
+                    end
+                    
+                    surf(c.lowerAxes, c.saveX, c.saveY, c.saveD, 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
+                    view(c.lowerAxes, 2);
+                    colormap(c.lowerAxes, strings{curval});
+%                         set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
+                    set(c.lowerAxes, 'Ydir', 'reverse');
+                    xlim(c.lowerAxes3D, [c.saveX(1)      c.saveX(end)]);
+                    ylim(c.lowerAxes3D, [c.saveY(1)      c.saveY(end)]);
+                    clim(c.lowerAxes, [c.scaleMinSlid.Value, c.scaleMaxSlid.Value]);
+            case {'spectrum', 'optscan'}
+                data.type = c.saveMode;
+                data.xrange = c.saveX;
+                data.data = c.saveY;
+                
+                switch c.saveMode
+                    case 'spectrum'
+                        plot(c.lowerAxes, c.saveX, c.saveY, 'b', [c.saveBA(2), c.saveBA(2)], [my - dy/10, My + dy/10], 'r', [c.saveBA(1), c.saveBA(1)], [my - dy/10, My + dy/10], 'r:');
+                    case 'optscan'
+                        plot(c.lowerAxes, c.saveX, c.saveY, 'b');
+                end
+                
+                mx = min(c.saveX);
+                Mx = max(c.saveX);
+
+                my = min(c.saveY);
+                My = max(c.saveY);
+                dy = My - my + 1;
+
+                xlim(c.lowerAxes, [mx Mx]);
+%                 ylim(c.lowerAxes, [my - dy/10, My + dy/10]);
+                ylim(c.lowerAxes, [c.scaleMinSlid.Value, c.scaleMaxSlid.Value]);
+                
+                switch c.saveMode
+                    case 'spectrum'
+                        title(c.lowerAxes, 'Spectrum');
+                    case 'optscan'
+                        title(c.lowerAxes, ['Optimize - ' c.saveName]);
+                end
+                
+                save([directory timestamp '_' c.saveMode '.mat'], 'data');
+                savePlotPng(xdata, ydata, [directory timestamp '_' c.saveMode '.png']);
+            otherwise
+                display('Nothing to save...');
+        end
+    end
+
     % PIEZOSCAN ===========================================================
     function [final, X, Y] = piezoScanXYFull(rangeUM, upspeedUM, pixels)
         if ~c.doing
@@ -1830,11 +2084,7 @@ function varargout = diamondControl(varargin)
                 set(c.piezoXX, 'String', '(scanning)');
                 set(c.piezoYY, 'String', '(scanning)');
 
-                yCopy = 0;
-
                 for y = up2
-                    yCopy = y;
-
                     daqOutQueueClever({up', y*ones(length(up2),1), NaN, NaN, NaN, NaN, NaN});
                     [out, times] = c.s.startForeground();
                     out = out(:,1);
@@ -1846,22 +2096,53 @@ function varargout = diamondControl(varargin)
 
                     final(i,:) = [diff(out(:,1)') mean(diff(times'))]./[diff(times') mean(diff(times'))];
 
-                    if i > 1
+                    if i > 1   % Equal needs testing
                         strings = get(c.piezoC, 'string');
                         curval = get(c.piezoC, 'value');
 
-                        surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
-                        view(c.lowerAxes, 2);
-                        colormap(c.lowerAxes, strings{curval});
-                        set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
-                        xlim(c.lowerAxes, [up(1)       up(end)]);
-                        ylim(c.lowerAxes, [up2(1)      up2(end)]);
-
-                        c.saveD = final;
-                        c.saveX = up;
-                        c.saveY = up2;
-                        c.saveMode = 'piezo';
+                        if c.piezoEnable3D %&& strcmp(get(c.lowerAxes3D, 'Visible'),  'Off')
+                            c.saveD3D(:,:,i) = final;
+                            c.saveMode = 'piezo3D';
+                
+%                             [x, y, z] = meshgrid(X,Y,Z);
+% 
+%                             xslice=[]; 
+%                             yslice=[];
+%                             zslice=Z;
+% 
+%                             h = slice(c.lowerAxes3D, x, y, z, c.saveD3D, xslice, yslice, zslice);
+%                             set(h, 'FaceColor','interp');
+%                             %set(h,'FaceAlpha','0.5');
+%                             set(h, 'EdgeColor','none');
+%                             
+%                             title(c.lowerAxes3D, 'Piezo Scan 3D');
+%                             
+%                             set(c.lowerAxes3D, 'Ydir', 'reverse');
+%                             xlim(c.lowerAxes3D, [up(1)       up(end)]);
+%                             ylim(c.lowerAxes3D, [up2(1)      up2(end)]);
+%                             
+%                             colormap(c.lowerAxes3D, strings{curval});
+%                             view([-68 12]);
+%                             
+%                             piezoPlot2D()
+                        else
+                            c.saveD = final;
+                            c.saveX = piezoVtoUM(up);
+                            c.saveY = piezoVtoUM(up2);
+                            c.saveZ = c.piezo(3);
+                            c.saveMode = 'piezo';
+                            
+%                             surf(c.lowerAxes, up(1:pixels), up2((1):(i)), final((1):(i),:), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
+%                             view(c.lowerAxes, 2);
+%                             colormap(c.lowerAxes, strings{curval});
+%     %                         set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
+%                             set(c.lowerAxes, 'Ydir', 'reverse');
+%                             xlim(c.lowerAxes, [up(1)       up(end)]);
+%                             ylim(c.lowerAxes, [up2(1)      up2(end)]);
+                        end
                     end
+                
+                    renderData()
 
                     i = i + 1;
 
@@ -1896,8 +2177,8 @@ function varargout = diamondControl(varargin)
             prev = c.piezo;
             ledSet(1);
 
-            start = (str2double(get(c.piezoZStart,   'String')) + 25)/5;
-            stop =  (str2double(get(c.piezoZStop,    'String')) + 25)/5;
+            start = piezoUMtoV(str2double(get(c.piezoZStart,   'String')));
+            stop =  piezoUMtoV(str2double(get(c.piezoZStop,    'String')));
             step =  str2double(get(c.piezoZStep,    'String'));
 
             if start < 0
@@ -1918,8 +2199,16 @@ function varargout = diamondControl(varargin)
 
 
             if step == 1
-                final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                piezoSwitchGraphTo3D_Callback(0);
+                
+                try
+                    final(:,:,1) = piezoScanXYFull(c.piezoRange, c.piezoSpeed, c.piezoPixels);
+                catch err
+                    display(err.message)
+                end
             else
+                piezoSwitchGraphTo3D_Callback(1);
+                
                 final = zeros(c.piezoPixels, c.piezoPixels, step);
 
                 i = 1;
@@ -1931,22 +2220,32 @@ function varargout = diamondControl(varargin)
                     i = i + 1;
                 end
 
+                c.saveD3D = final;
+                c.saveX = piezoVtoUM(X);
+                c.saveY = piezoVtoUM(Y);
+                c.saveZ = piezoVtoUM(Z);
+                c.saveMode = 'piezo3D';
+
                 % 3D GRAPH FINAL HERE!
                 % PLOT(final, X, Y, Z) (X Y Z are in volts)
 
-                figure;
-                    [x y z]=meshgrid(X,Y,Z);
-                    xslice=[]; yslice=[];
-                    zslice=Z;
+%                 figure;
+                
+                [x, y, z] = meshgrid(X,Y,Z);
+                
+                xslice=[]; 
+                yslice=[];
+                zslice=Z;
 
-                    h=slice(x,y,z,final,xslice,yslice,zslice);
-                    set(h,'FaceColor','interp');
-                    %set(h,'FaceAlpha','0.5');
-                    set(h,'EdgeColor','none');
+                h = slice(x, y, z, final, xslice, yslice, zslice);
+                set(h,'FaceColor','interp');
+                %set(h,'FaceAlpha','0.5');
+                set(h,'EdgeColor','none');
 
-                    colormap('copper');
-                    colorbar('vert');
-                    view([-68 12]);
+                strings = get(c.piezoC, 'string');
+                curval = get(c.piezoC, 'value');
+                colormap(c.lowerAxes, strings{curval});
+                view([-68 12]);
             end
 
             save('C:\Users\Tomasz\Dropbox\Diamond Room\Automation!\piezoScan.mat', 'final');
@@ -1954,6 +2253,74 @@ function varargout = diamondControl(varargin)
             ledSet(0);
             piezoOutSmooth(prev);
         end
+    end
+    function piezoEnable3D(is3D)
+        c.piezo3DEnabled = is3D;
+        if c.piezo3DEnabled
+            set(c.piezoSwitchTo3DButton,    'Visible',  'On');
+            set(c.piezo3DMenu,    'Visible',  'On');
+            set(c.piezo3DPlus,    'Visible',  'On');
+            set(c.piezo3DMinus,   'Visible',  'On');
+            piezoFillMenu(zlist)
+        else
+            set(c.piezoSwitchTo3DButton,    'Visible',  'Off');
+            set(c.piezo3DMenu,    'Visible',  'Off');
+            set(c.piezo3DPlus,    'Visible',  'Off');
+            set(c.piezo3DMinus,   'Visible',  'Off');
+        end
+    end
+    function piezoSwitch3D_Callback(~,~)
+        if strcmp(get(c.lowerAxes3D, 'Visible'),  'Off') && c.piezo3DEnabled
+            set(c.lowerAxes,                'Visible',  'Off');
+            set(c.lowerAxes3D,              'Visible',  'On');
+            set(c.globalSaveButton,         'String',   'Save 3D');
+            set(c.piezoSwitchTo3DButton,    'String',  'View 2D');
+            set(c.piezo3DMenu,    'Visible',  'Off');
+            set(c.piezo3DPlus,    'Visible',  'Off');
+            set(c.piezo3DMinus,   'Visible',  'Off');
+        else
+            set(c.lowerAxes3D,              'Visible',  'Off');
+            set(c.lowerAxes,                'Visible',  'On');
+            set(c.globalSaveButton,         'String',   'Save');
+            set(c.piezoSwitchTo3DButton,    'String',  'View 3D');
+            if c.piezo3DEnabled
+                set(c.piezo3DMenu,    'Visible',  'On');
+                set(c.piezo3DPlus,    'Visible',  'On');
+                set(c.piezo3DMinus,   'Visible',  'On');
+            end
+        end
+    end
+    function piezoChange3DMenu_Callback(~,~)
+        piezoPlot2D();
+    end
+    function piezoFillMenu(zlist)
+        array = cell(size(zlist));
+        
+        i = 1;
+        
+        for z = zlist
+            array{i} = num2str(piezoVtoUM(z));
+            i = i + 1;
+        end
+        
+        set(c.piezo3DMenu, 'String', array);
+    end
+    function piezoPlot2D()
+        strings = get(c.piezoC, 'string');
+        curval = get(c.piezoC, 'value');
+
+        layers = get(c.piezo3DMenu, 'string');
+        i = get(c.piezo3DMenu, 'value');
+        
+        title(c.lowerAxes, ['Piezo Scan - Layer ' num2str(i) ', ' layers{i} ' um']);
+        
+        surf(c.lowerAxes, c.saveX, c.saveY, c.saveD3D(:,:,i), 'EdgeColor', 'none'); %, 'HitTest', 'off');   % Display the graph on the backscan
+        view(c.lowerAxes, 2);
+        colormap(c.lowerAxes, strings{curval});
+%         set(c.lowerAxes, 'Xdir', 'reverse', 'Ydir', 'reverse');
+        set(c.lowerAxes, 'Ydir', 'reverse');
+        xlim(c.lowerAxes, [up(1)       up(end)]);
+        ylim(c.lowerAxes, [up2(1)      up2(end)]);
     end
 
     % GALVOSCAN ===========================================================
@@ -2070,6 +2437,7 @@ function varargout = diamondControl(varargin)
                     
                     xlim(c.lowerAxes, [up(end)/mvConv       up(1)/mvConv]);
                     ylim(c.lowerAxes, [up2(end)/mvConv      up2(1)/mvConv]);
+                    title(c.lowerAxes, ['Galvo Scan (' num2str(up(end)/mvConv) ':' num2str(up(1)/mvConv) ',' num2str(up2(end)/mvConv) ':' num2str(up2(1)/mvConv) ')']);
     %                 zlim(c.lowerAxes, [min(min(final(2:i, 2:end))) max(max(final(2:i, 2:end)))]);
     
                     c.saveD = final;
@@ -2518,11 +2886,11 @@ function varargout = diamondControl(varargin)
         
         if ~disableWarning
             if (c.piezo(1) ~= 5 || c.piezo(2) ~= 5) && (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
-                questdlg('The piezos are not set to [5,5] and the galvos are not set to [0,0]!', 'Warning!', 'Okay', 'Okay', 'Okay');
+                questdlg('The piezos are not set to [5,5] and the galvos are not set to [0,0]!', 'Warning!', 'Okay');
             elseif (c.piezo(1) ~= 5 || c.piezo(2) ~= 5)
-                questdlg('The piezos are not set to [5,5]!', 'Warning!', 'Okay', 'Okay', 'Okay');
+                questdlg('The piezos are not set to [5,5]!', 'Warning!', 'Okay');
             elseif (c.galvo(1) ~= 0 || c.galvo(2) ~= 0)
-                questdlg('The galvos are not set to [0,0]!', 'Warning!', 'Okay', 'Okay', 'Okay');
+                questdlg('The galvos are not set to [0,0]!', 'Warning!', 'Okay');
             end
         end
     end
@@ -3304,7 +3672,7 @@ function varargout = diamondControl(varargin)
             try
                 val = eval(get(hObject,'String'));
             catch err
-                display('err');
+                display(err.message);
                 val = 0;
             end
         end
@@ -3396,8 +3764,106 @@ function varargout = diamondControl(varargin)
             end
         end
     end
-    function bool = myIn(num, range)
-        bool = (num > range(1)) && (num < range(2));
+    function scaleEdit_Callback(src,~)
+        val = str2double(src.String);
+
+        if isnan(val)   % If it's NaN (if str2double didn't work), check if it's an equation
+            try
+                val = eval(src.String);
+            catch err
+                display(err.message);
+                val = 0;
+            end
+        end
+
+        if isnan(val)   % If it's still NaN, set to zero
+            val = 0;
+        end
+
+        switch src
+            case c.scaleMinEdit
+                c.scaleMinSlid.Value = val;
+                scaleSlider_Callback(c.scaleMinSlid, 0)
+            case c.scaleMaxEdit
+                c.scaleMaxSlid.Value = val;
+                scaleSlider_Callback(c.scaleMaxSlid, 0)
+        end
+    end
+    function scaleNormalize_Callback(~, ~)
+        c.scaleMinSlid.Value = str2double(c.scaleDataMinEdit.String);
+        c.scaleMinSlid.Max = c.scaleMinSlid.Value;
+
+        c.scaleMaxSlid.Value = str2double(c.scaleDataMaxEdit.String);
+        c.scaleMaxSlid.Max = c.scaleMaxSlid.Value;
+
+        scaleSlider_Callback(c.scaleMinSlid, 0);
+        scaleSlider_Callback(c.scaleMaxSlid, 0);
+    end
+    function scaleSlider_Callback(src, ~)
+        maxMagn = floor(log10(src.Max));
+
+        if src.Value <= 0
+            src.Value = 0;
+
+            switch src
+                case c.scaleMinSlid
+                    c.scaleMinEdit.String = 0;
+                case c.scaleMaxSlid
+                    c.scaleMaxEdit.String = 0;
+            end
+        else
+            magn = floor(log10(src.Value));
+
+    %         if magn ~= log10(src.Value)
+    %             magn = magn-1;
+    %         end
+
+            str = [num2str(src.Value/(10^magn), '%1.1f') 'e' num2str(magn)];
+
+            switch src
+                case c.scaleMinSlid
+                    c.scaleMinEdit.String = str;
+                case c.scaleMaxSlid
+                    c.scaleMaxEdit.String = str;
+            end
+
+            if magn+1 > maxMagn
+                switch src
+                    case c.scaleMinSlid
+                        c.scaleMinSlid.Max = 1.5*10^(magn+1);
+                    case c.scaleMaxSlid
+                        c.scaleMaxSlid.Max = 1.5*10^(magn+1);
+                end
+            end
+
+            if magn+1 < maxMagn
+                switch src
+                    case c.scaleMinSlid
+                        c.scaleMinSlid.Max = 1.5*10^(magn+1);
+                    case c.scaleMaxSlid
+                        c.scaleMaxSlid.Max = 1.5*10^(magn+1);
+                end
+            end
+        end
+        
+        if c.scaleMinSlid.Value > c.scaleMaxSlid.Value
+            switch src
+                case c.scaleMinSlid
+                    c.scaleMaxSlid.Value = c.scaleMinSlid.Value;
+                    scaleSlider_Callback(c.scaleMaxSlid.Value, 0);      % Possible recursion if careless?
+                case c.scaleMaxSlid
+                    c.scaleMinSlid.Value = c.scaleMaxSlid.Value;
+                    scaleSlider_Callback(c.scaleMaxSlid.Value, 0);
+            end
+        end
+    end
+    function save_Callback(~, ~)
+        [~, pathNorm] = uigetfile('*', 'Select the location for files to be saved via the Save button');
+        set(c.saveDirectory, 'String', pathNorm);
+    end
+    function saveBackground_Callback(~, ~)
+        [~, pathNorm] = uigetfile('*', 'Select the location for files to be saved in the background');
+        set(c.saveBackgroundDirectory, 'String', pathNorm);
     end
 
     % COUNTER =============================================================
@@ -3505,64 +3971,6 @@ function varargout = diamondControl(varargin)
             c.sp.queueOutputData([linspace(0,0,10)' linspace(0,0,10)']);
         end
     end
-%     function counter_Callback(hObject, ~)
-%         display('Counting started.');
-%         if hObject ~= 0 && get(hObject, 'Value') == 1
-%             c.lhC = timer;
-%             c.lhC.TasksToExecute = Inf;
-%             c.lhC.Period = 1/c.rateC;
-%             c.lhC.TimerFcn = @(~,~)counterListener;
-%             c.lhC.ExecutionMode = 'fixedSpacing';
-% %           c.lhC.StartDelay = 0;
-% %           c.lhC.StartFcn = [];
-% %         	c.lhC.StopFcn = [];
-% %         	c.lhC.ErrorFcn = [];
-% 
-%             c.dataC = zeros(1, c.lenC);
-%             c.iC = 0;
-%             c.isCounting = 1;
-%             c.prevCount = 0;
-%             
-%             start(c.lhC);
-%         elseif (hObject == 0 && get(c.counterButton, 'Value') == 1) || (hObject ~= 0 && get(hObject, 'Value') == 0)
-%             stop(c.lhC);
-%             delete(c.lhC);
-%             c.isCounting = 0;
-%         end
-%     end
-%     function counterListener(~, ~)
-% %         display('  Counting...');
-% %         c.sC.NumberOfScans = 8;
-%         
-%         c.dataC = circshift(c.dataC, [0 1]);
-%         
-%         try
-%             out = c.s.inputSingleScan();
-%         catch err
-%             out = 0;
-%             display(err);
-%             display('counter aquisiton failed');
-%         end
-%         
-%         c.dataC(1) = c.rateC*out - c.prevCount;
-%         
-%         c.prevCount = c.rateC*out;
-%         
-%         if c.iC < c.lenC
-%             c.iC = c.iC + 1;
-%         end
-%         
-%         cm = min(c.dataC(1:c.iC)); cM = max(c.dataC(1:c.iC)); cA = (cm + cM)/2; cO = .55*(cM - cm) + 1;
-%         
-%         if c.iC > 2
-%             plot(c.counterAxes, 1:c.iC, c.dataC(1:c.iC));
-%             set(c.counterAxes, 'ButtonDownFcn', @click_Callback);
-%             xlim(c.counterAxes, [1 c.lenC]);
-%             ylim(c.counterAxes, [cA - cO cA + cO]);
-%         end
-%         
-% %         c.iC = c.iC + 1;
-%     end
 
     % PLE! ================================================================
     function initPle()  % Unused
@@ -4402,17 +4810,6 @@ function varargout = diamondControl(varargin)
 
         out(n+1) = 0;
         wid(n+1) = 0;
-    end
-    function str = returnHzString(hz)
-        str = [num2str(round(hz/10000000)/100) ' GHz'];
-
-        if hz < 1000
-            str = [num2str(round(hz)) ' Hz'];
-        elseif hz < 1000000
-            str = [num2str(round(hz/10)/100) ' kHz'];
-        elseif hz < 1000000000
-            str = [num2str(round(hz/10000)/100) ' MHz'];
-        end
     end
     function pleSave_Callback(~,~)
 %         freqBase = c.freqBase;

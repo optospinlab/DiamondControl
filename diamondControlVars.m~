@@ -1,0 +1,244 @@
+function c = diamondControlVars()
+%UNTITLED2 Summary of this function goes here
+%   Detailed explanation goes here
+
+display('  Making Variables');
+
+% 'Global' Variables stored in the GUI object, in the style of Todd
+c.running = false;
+c.linAct = [0 0];
+c.pv = [];
+c.pc = [];
+c.len = 0;
+c.plottingFigure =  figure('Visible', 'off', 'tag', 'Diamond Control Plotting');
+c.plottingAxes =    axes('Parent', c.plottingFigure);
+
+c.saveMode = '';
+c.saveD = 0;
+c.saveD3D = 0;
+c.saveX = 0;
+c.saveY = 0;
+c.doing = false;    % Variable for when the program is doing something that should not be disturbed.
+
+c.keyUpp =  0;
+c.keyDwn =  0;
+c.keyFwd =  0;
+c.keyBck =  0;
+c.keyLft =  0;
+c.keyRgt =  0;
+
+% IO ======================================================================
+% Counter
+c.lhCA = 0;      % Empty variable for counter listener;
+c.lhCR = 0;
+
+c.counting = false;
+c.countPrev = -1;
+c.countPrevTime = -1;
+
+c.counterData = 0;
+c.counterMean = 0;
+c.counterStdP = 0;
+c.counterStdM = 0;
+
+c.counterDataH = 0;
+c.counterMeanH = 0;
+c.counterStdPH = 0;
+c.counterStdMH = 0;
+
+c.counterLength = 10;
+
+% Video
+c.vid = 0;              % Empty variable for video input
+
+% Joystick
+c.joy = 0;              % Empty variable for the joystick
+c.joystickInitiated = 0;
+% c.keyboardEnabled = 1;
+
+c.focusing = false;
+
+c.joyButtonPrev = [0 0 0 0 0 0 0 0 0 0 0 0];   % Empty lists
+c.joyPovPrev = [0 0];
+
+c.joyXDir = 1;
+c.joyYDir = -1;
+c.joyZDir = 1;
+
+c.joyXYPadding = .15;
+c.joyZPadding = .25;
+
+c.outputEnabled = 1;
+
+c.microInitiated = false;
+c.microStep = .080; % 80 nm
+
+c.micro =       [0 0];
+c.microActual = [0 0];
+c.microMin =    [-25000 -25000];
+c.microMax =    [25000 25000];
+
+c.microXSerial = 0;     % Empty variable for the X micrometer serial connection
+c.microXPort =  'COM5'; % This will be overwritten later (or should we define here?)
+c.microXAddr =  '1';
+
+c.microYSerial = 0;     % Empty variable for the Y micrometer serial connection
+c.microYPort =  'COM6'; % This will be overwritten later
+c.microYAddr =  '1';
+
+% Session for all daq devices
+c.s = 0; 
+c.daqInitiated = false;
+
+% Normalization DEVice and CHaNnel (unused)
+% c.devNorm =     'Dev1';         
+% c.chnNorm =     'ai6';
+% c.sn =          0;      % Empty variable for session.
+% c.normInit =    0;
+c.norm = 0;
+
+% SPCM DEVice and CHaNnel
+c.devSPCM =     'Dev1';         
+c.chnSPCM =     'ctr2';
+
+% Galvo DEVice and CHaNnels
+c.devGalvo =    'cDAQ1Mod1';	
+c.chnGalvoX =   'ao0';
+c.chnGalvoY =   'ao1';
+
+c.galvo =       [0 0];
+c.galvoBase =   [0 0];
+c.galvoMin =    [-5000 -5000];  % mV
+c.galvoMax =    [ 5000  5000];  % mV
+c.galvoStep =   .001;           % V
+
+% Z Peizo DEVice and CHaNnels
+c.devPiezo =    'Dev1';
+c.chnPiezoX =   'ao0';
+c.chnPiezoY =   'ao1';
+c.chnPiezoZ =   'ao2';
+
+c.piezo =       [0 0 0];
+c.piezoBase =   [0 0 0];
+c.piezoMin =    [0 0 0];
+c.piezoMax =    [50 50 50];
+c.piezoStep =   .025;
+
+% PLE DEVice and CHaNnels
+c.pleInitiated = false;
+c.devPleOut =   'cDAQ1Mod1';
+c.chnPerotOut = 'ao2';
+c.chnGrateOut = 'ao3';
+
+c.devPleDigitOut = 'Dev1';
+c.chnPleDigitOut = 'Port0/Line0';
+
+c.devPleIn =   'Dev1';
+c.chnPerotIn = 'ai2';
+c.chnSPCMPle = 'ctr1';
+c.chnNormIn =  'ai1';
+
+c.devLEDDigitOut = 'Dev1';
+c.chnLEDDigitOut = 'Port0/Line7';
+c.ledBlink = 0;
+c.ledState = 0;
+
+% PLE
+c.pleScanning = 0;
+c.output = 0;   % Badly-named variable to hold the DAQ output matrix when going between functions.
+c.ple = [0 0];
+% c.sPle = 0; % Broken due to matlab limitations.
+c.sp = 0;
+c.sd = 0;
+c.pleLh = 0;        % Empty variable for listener.
+
+c.FSR = 4.118;    % Change? An old measurement.
+c.freqBase = 0;   % From Wavemeter
+c.perotBase = 0;  % Original from FP
+c.freqPrev = 0;
+c.perotPrev = 0;
+
+c.perotMax = 10;  % Maximum Voltage to perot...
+c.grateMax = 10;  %  "       "   ...to grating.
+
+c.pleRate = 2^11;
+c.pleRateOld = 2^11;
+c.perotLength = 2^6;
+c.upScans = 30;
+c.downScans = 2;
+
+c.interval = c.perotLength + floor((c.pleRateOld - c.upScans*c.perotLength)/c.upScans);
+c.leftover = (c.pleRateOld - c.upScans*c.interval);
+
+c.firstPerotLength = 2^11; %2^10;
+c.fullPerotLength = 2500; %1250;
+
+c.up = true;
+c.grateCurr = 0;
+c.dGrateCurr = 2^-4;
+
+c.intervalCounter = 0;
+
+c.q = 1;
+c.qmax = 200;
+c.qmaxPle = 200;
+
+c.freqs = [];
+c.times = [];
+c.rfreqs = [];
+c.rtimes = [];
+
+% c.finalGraphX = zeros(1, c.firstPerotLength);       % Frequency
+% c.finalGraphY = zeros(1, c.firstPerotLength);       % Intensity
+% 
+% c.finalColorX = zeros(1,interval*upScans*qmax);
+% c.finalColorY = zeros(1,interval*upScans*qmax);
+% c.finalColorC = zeros(1,interval*upScans*qmax);
+% 
+% c.finalPerotColorX = zeros(firstPerotLength, qmax);
+% c.finalPerotColorY = zeros(firstPerotLength, qmax);
+
+c.finalGraphX = [];       % Frequency
+c.finalGraphY = [];       % Intensity
+
+c.finalColorX = [];
+c.finalColorY = [];
+c.finalColorC = [];
+
+c.finalPerotColorX = [];
+c.finalPerotColorY = [];
+
+c.perotIn = 0;
+c.perotInUp = 0;
+c.perotInDown = 0;
+c.grateIn = 0;
+c.grateInUp = 0;
+c.grateInDown = 0;
+c.pleIn = 0;
+
+% Galvos
+c.galvoRange =  10;     % um
+c.galvoRangeMax =  50;  % um    
+c.galvoSpeed =  10;     % um/sec
+c.galvoSpeedMax =  50;  % um/sec    
+c.galvoPixels =  50;    % pixels/side
+
+% Piezos
+c.piezoRange =  10;     % um
+c.piezoRangeMax = 50;   % um    
+c.piezoSpeed =  10;     % um/sec
+c.piezoSpeedMax =  50;  % um/sec    
+c.piezoPixels =  50;    % pixels/side
+
+% File Saving
+c.directory = 'C:\Users\Tomasz\Dropbox\Diamond Room\diamondControl\Backgro';
+c.directory = 'C:\Users\Tomasz\Dropbox\Diamond Room\diamondControl\';
+display('Files will be saved in:');
+display(['    ' c.directory]);
+c.autoFolder = 'Automation!';
+c.device = 'd_';
+c.set = 's_';
+
+
+end
+
