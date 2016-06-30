@@ -124,7 +124,7 @@ c.chnPiezoZ =   'ao2';
 c.piezo =       [0 0 0];
 c.piezoBase =   [0 0 0];
 c.piezoMin =    [0 0 0];
-c.piezoMax =    [50 50 50];
+c.piezoMax =    [10 10 10];
 c.piezoStep =   .025;
 
 % PLE DEVice and CHaNnels

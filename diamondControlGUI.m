@@ -17,6 +17,8 @@ psh = 3.5*bh;         % Scale figure height
 
 gp = 25;            % Graph  Padding
 
+c = diamondControlVars();
+
 if ~isempty(varargin)
     if length(varargin) == 1
         varargin = varargin{1};
@@ -68,8 +70,10 @@ c.counterFigure =   figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMin
 c.imageFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Image Figure', 'Name', 'Blue Image Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.pleFigure =       figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'PLE Figure', 'Name', 'PLE Figure', 'Toolbar', 'figure', 'Menubar', 'none');
 c.bluefbFigure =    figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Blue Disk Detection Figure', 'Name', 'Blue Disk Detection Figure', 'Toolbar', 'figure', 'Menubar', 'none');
-c.scaleFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'SizeChangedFcn', @resizeUISmall_Callback, 'tag', 'Scale Figure', 'Name', 'Scale Figure', 'Toolbar', 'figure', 'Menubar', 'none', 'Position', [screensize(1)-pw, 0, pw, puh+plh+2*bp+bh]);
+% c.scaleFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'Resize', 'off', 'tag', 'Scale Figure', 'Name', 'Scale Figure', 'Toolbar', 'figure', 'Menubar', 'none', 'Position', [screensize(1)-pw, 0, pw, puh+plh+2*bp+bh]);
 % minfig(c.pleFigure, 1); % ple figure starts minimized
+
+c.scaleFigure =     figure('Visible', 'Off', 'CloseRequestFcn', @closeRequestMinimize, 'Resize', 'off', 'tag', 'Scale Figure', 'Name', 'Scale Figure', 'Toolbar', 'none', 'Menubar', 'none', 'Resize', 'off', 'Position', [100, 100, pw, psh+2*bp+bh]);
 
 c.axesMode =    0;     % CURRENT -> 0:Regular, 1:PLE    OLD -> 0:Both, 1:Upper, 2:Lower 'Units', 'pixels', 
 c.upperAxes =   axes('Parent', c.upperFigure, 'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
@@ -78,26 +82,9 @@ c.lowerAxes3D = axes('Parent', c.lowerFigure, 'XLimMode', 'manual', 'YLimMode', 
 c.globalSaveButton =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'Save','Position', [bp bp bw bh]);
 c.piezoSwitchTo3DButton =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', 'View 3D','Position', [2*bp+bw bp bw bh], 'Visible', 'Off');
 c.piezo3DMenu =  uicontrol('Parent', c.lowerFigure, 'Style', 'popupmenu', 'String', 'View 3D','Position', [3*bp+2*bw bp bw bh], 'Visible', 'Off');
-c.piezo3DPlus =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', '+','Position', [4*bp+3*bw bp bw bh], 'Visible', 'Off', 'Callback', @piezo3DPlus_Callback);
-c.piezo3DMinus = uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', '-','Position', [5*bp+3*bw+bh bp bw bh], 'Visible', 'Off', 'Callback', @piezo3DPlus_Callback);
+c.piezo3DPlus =  uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', '+','Position', [4*bp+3*bw bp bh bh], 'Visible', 'Off');
+c.piezo3DMinus = uicontrol('Parent', c.lowerFigure, 'Style', 'pushbutton', 'String', '-','Position', [5*bp+3*bw+bh bp bh bh], 'Visible', 'Off');
 c.piezo3DEnabled = 0;
-
-function piezo3DPlus_Callback(src,~)
-    if src == c.piezo3DPlus
-        v = get(c.piezo3DMenu, 'Value') + 1;
-    else
-        v = get(c.piezo3DMenu, 'Value') - 1;
-    end
-    
-    if v < 1
-        v = length(get(c.piezo3DMenu, 'String'));
-    end
-    if v > length(get(c.piezo3DMenu, 'String'))
-        v = 1;
-    end
-    
-    set(c.piezo3DMenu, 'Value', v);
-end
 
 % AXES FOR VARIOUS FIGURES ==========
 c.imageAxes =   axes('Parent', c.imageFigure,  'XLimMode', 'manual', 'YLimMode', 'manual', 'Position', [0 0 1 1]); %, 'PickableParts', 'all');
@@ -117,25 +104,23 @@ c.pleAxesAll =  axes('Parent', c.pleFigure, 'XLimMode', 'manual', 'YLimMode', 'm
 defMin = '2.0e0';   % Default min and max values.
 defMax = '2.0e0';
 
-c.scaleFigure =     figure('Visible', 'On', 'tag', 'Scale Figure', 'Name', 'Scale Figure', 'Toolbar', 'none', 'Menubar', 'none', 'Resize', 'off', 'Position', [100, 100, pw, psh+2*bp+bh]);
-
 c.scaleMinText =    uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Min:', 'Units', 'pixels', 'Position', [bp,psh,bw/4,bh], 'HorizontalAlignment', 'right');
-c.scaleMinEdit =    uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMin, 'Units', 'pixels', 'Position', [2*bp+bw/4,psh+1,bw/2,bh]); %, 'Enable', 'Inactive');
-c.scaleMinSlid =    uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Value', str2double(defMin), 'Min', 0, 'Max', str2double(defMin), 'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh-1,5*bw/4,bh], 'SliderStep', [2/300, 2/30]); % Instert reasoning for 2/3
+c.scaleMinEdit =    uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMin, 'Units', 'pixels', 'Position', [2*bp+bw/4,psh,bw/2,bh]); %, 'Enable', 'Inactive');
+c.scaleMinSlid =    uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Value', str2double(defMin), 'Min', 0, 'Max', str2double(defMin), 'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh,5*bw/4,bh], 'SliderStep', [2/300, 2/30]); % Instert reasoning for 2/3
 
 c.scaleMaxText =    uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Max:', 'Units', 'pixels', 'Position', [bp,psh-bh,bw/4,bh], 'HorizontalAlignment', 'right');
-c.scaleMaxEdit =    uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMax, 'Units', 'pixels', 'Position', [2*bp+bw/4,psh-bh+1,bw/2,bh]); %, 'Enable', 'Inactive');
-c.scaleMaxSlid =    uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Value', str2double(defMax), 'Min', 0, 'Max', str2double(defMax), 'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh-bh-1,5*bw/4,bh], 'SliderStep', [2/300, 2/30]);
+c.scaleMaxEdit =    uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMax, 'Units', 'pixels', 'Position', [2*bp+bw/4,psh-bh,bw/2,bh]); %, 'Enable', 'Inactive');
+c.scaleMaxSlid =    uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Value', str2double(defMax), 'Min', 0, 'Max', str2double(defMax), 'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh-bh,5*bw/4,bh], 'SliderStep', [2/300, 2/30]);
 % uicontrol('Parent', c.scaleFigure, 'Style', 'slider', 'Units', 'pixels', 'Position', [bp,psh,bw,bh]);
 
 c.scaleDataMinText = uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Data Min:', 'Units', 'pixels', 'Position', [2*bp+bw,psh-2*bh,bw/2,bh], 'HorizontalAlignment', 'right');
-c.scaleDataMinEdit = uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMin, 'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-2*bh+1,bw/2,bh], 'Enable', 'Inactive');
+c.scaleDataMinEdit = uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMin, 'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-2*bh,bw/2,bh], 'Enable', 'Inactive');
 
 c.scaleDataMaxText = uicontrol('Parent', c.scaleFigure, 'Style', 'text', 'String', 'Data Max:', 'Units', 'pixels', 'Position', [2*bp+bw,psh-3*bh,bw/2,bh], 'HorizontalAlignment', 'right');
-c.scaleDataMaxEdit = uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMax, 'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-3*bh+1,bw/2,bh], 'Enable', 'Inactive');
+c.scaleDataMaxEdit = uicontrol('Parent', c.scaleFigure, 'Style', 'edit', 'String', defMax, 'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-3*bh,bw/2,bh], 'Enable', 'Inactive');
 
-c.scaleNorm =       uicontrol('Parent', c.scaleFigure, 'Style', 'pushbutton', 'String', 'Normalize', 'Units', 'pixels', 'Position', [bp,psh-3*bh,1.1*bw,2*bh]);
-
+c.scaleNormAuto =    uicontrol('Parent', c.scaleFigure, 'Value', 1, 'Style', 'checkbox',   'String', 'Auto Normalize', 'Units', 'pixels', 'Position', [bp,psh-2*bh,1.1*bw,bh]);
+c.scaleNorm =        uicontrol('Parent', c.scaleFigure, 'Style', 'pushbutton', 'String', 'Normalize', 'Units', 'pixels', 'Position', [bp,psh-3*bh,1.1*bw,bh]);
 
 function closeRequestHide(src, ~)
     set(src, 'Visible', 'Off');
@@ -148,6 +133,10 @@ function closeRequestMinimize(src, ~)
 
     if src == c.imageFigure || src == c.bluefbFigure
         ratio = [640 480];
+    end
+    if src == c.scaleFigure
+        pos = get(src, 'Position');
+        ratio = [pos(3) pos(4)];
     end
     
     set(src, 'Position', [100 100 ratio(1) ratio(2)]);
@@ -247,129 +236,164 @@ numLowerInside =    length(get(c.scanningTab, 'Children')) + length(get(c.automa
 %  tab.
 %  - makeControl(...) actually makes the button, using space(...) to find
 %  the proper hieght so previously-added buttons are not overlapped.
-function identifier = tabIdentifier(tab)
-    if isnumeric(tab)
-        identifier = tab;
-    else
-        identifier = dot((c.tabs == tab)*1, 1:length(c.tabs));
-    end
-end
-
-function prevHeight = space(tab, position)
-    switch position
-        case 'left'
-            prevHeight = leftHeight(tabIdentifier(tab));
-            leftHeight(tabIdentifier(tab)) =    prevHeight + 1;
-        case 'right'
-            prevHeight = rghtHeight(tabIdentifier(tab));
-            rghtHeight(tabIdentifier(tab)) =    prevHeight + 1;
-        otherwise
-            prevHeight = max(leftHeight(tabIdentifier(tab)), rghtHeight(tabIdentifier(tab)));
-            leftHeight(tabIdentifier(tab)) =    prevHeight + 1;
-            rghtHeight(tabIdentifier(tab)) =    prevHeight + 1;
-    end
-    
-    prevHeight = ph-bp-space(identifier)*bh;
-end
-
-% Unfinished!
-function control = makeControl(tab, style, position, label, value, active)
-    identifier = tabIdentifier(tab);
-    
-    if identifier <= numUpper
-        ph = puh;
-    elseif identifier <= numUpper + numLowerInside
-        ph = plhi;
-    else
-        ph = plh;
-    end
-    
-    switch style
-        case 'edit'
-            hgt = ph-bp-space(identifier, position)*bh;
-            
-            switch position
-                case 'left'
-                    positionArray =         [2*bp+bw/2    hgt   bw/2    bh];
-                    positionArrayLabel =    [1*bp         hgt   bw/2    bh];
-                case 'right'
-                    positionArray =         [4*bp+3*bw/2  hgt   bw/2    bh];
-                    positionArrayLabel =    [3*bp+bw      hgt   bw/2    bh];
-                otherwise  % centered
-                    positionArray =         [3*bp+bw      hgt   bw/2    bh];
-                    positionArrayLabel =    [2*bp+bw/2    hgt   bw/2    bh];
-            end
-
-            labelH =  uicontrol('Parent', tab, 'Style', 'text', 'String', label, 'Position', positionArrayLabel,    'HorizontalAlignment', 'right');
-            control = uicontrol('Parent', tab, 'Style', 'edit', 'String', value, 'Position', positionArray,         'Enable', active);
-            
-        case {'text', 'checkbox'}
-            hgt = ph-bp-space(identifier, position)*bh;
-            
-            switch position
-                case 'left'
-                    positionArray =     [bp         hgt bw bh];
-                case 'right'
-                    positionArray =     [3*bp+bw    hgt bw bh];
-                otherwise  % centered
-                    positionArray =     [bp         hgt 2*bw bh];
-            end
-            
-            if strcmp(position, 'center')
-                uicontrol('Parent', tab, 'Style', style, 'String', label, 'Position', positionArray,    'HorizontalAlignment', 'center');
-            else
-                uicontrol('Parent', tab, 'Style', style, 'String', label, 'Position', positionArray,    'HorizontalAlignment', 'left');
-            end
-            
-        case 'button'
-            hgt = ph-bp-space(identifier, position)*bh;
-            
-            switch position
-                case 'left'
-                    positionArray =     [bp         hgt bw bh];
-                case 'right'
-                    positionArray =     [3*bp+bw    hgt bw bh];
-                case 'widecentered'
-                    positionArray =     [bp         hgt 2*bw bh];
-                otherwise  % centered
-                    positionArray =     [2*bp+bw/2  hgt bw bh];
-            end
-
-            control = uicontrol('Parent', tab, 'Style', style, 'String', value, 'Position', positionArray,  'Enable', active);     
-    end
-end
+% function identifier = tabIdentifier(tab)
+%     if isnumeric(tab)
+%         identifier = tab;
+%     else
+%         identifier = dot((c.tabs == tab)*1, 1:length(c.tabs));
+%     end
+% end
+% 
+% function prevHeight = space(tab, position)
+%     identifier = tabIdentifier(tab);
+%         
+%     switch position
+%         case 'left'
+%             prevHeight = leftHeight(identifier);
+%             leftHeight(identifier) =    prevHeight + 1;
+%         case 'right'
+%             prevHeight = rghtHeight(identifier);
+%             rghtHeight(identifier) =    prevHeight + 1;
+%         otherwise
+%             prevHeight = max(leftHeight(tabIdentifier(tab)), rghtHeight(tabIdentifier(tab)));
+%             leftHeight(identifier) =    prevHeight + 1;
+%             rghtHeight(identifier) =    prevHeight + 1;
+%     end
+%     
+%     if identifier <= numUpper
+%         ph = puh;
+%     elseif identifier <= numUpper + numLowerInside
+%         ph = plhi;
+%     else
+%         ph = plh;
+%     end
+%     
+%     prevHeight = ph-bp-prevHeight*bh;
+% end
+% 
+% % Unfinished!
+% function control = makeControl(tab, style, position, label, value, active)
+%     identifier = tabIdentifier(tab);
+%     
+%     if identifier <= numUpper
+%         ph = puh;
+%     elseif identifier <= numUpper + numLowerInside
+%         ph = plhi;
+%     else
+%         ph = plh;
+%     end
+%     
+%     switch style
+%         case 'edit'
+%             hgt = ph-bp-space(identifier, position)*bh;
+%             
+%             switch position
+%                 case 'left'
+%                     positionArray =         [2*bp+bw/2    hgt   bw/2    bh];
+%                     positionArrayLabel =    [1*bp         hgt   bw/2    bh];
+%                 case 'right'
+%                     positionArray =         [4*bp+3*bw/2  hgt   bw/2    bh];
+%                     positionArrayLabel =    [3*bp+bw      hgt   bw/2    bh];
+%                 otherwise  % centered
+%                     positionArray =         [3*bp+bw      hgt   bw/2    bh];
+%                     positionArrayLabel =    [2*bp+bw/2    hgt   bw/2    bh];
+%             end
+% 
+%             labelH =  uicontrol('Parent', tab, 'Style', 'text', 'String', label, 'Position', positionArrayLabel,    'HorizontalAlignment', 'right');
+%             control = uicontrol('Parent', tab, 'Style', 'edit', 'String', value, 'Position', positionArray,         'Enable', active);
+%             
+%         case {'text', 'checkbox'}
+%             hgt = ph-bp-space(identifier, position)*bh;
+%             
+%             switch position
+%                 case 'left'
+%                     positionArray =     [bp         hgt bw bh];
+%                 case 'right'
+%                     positionArray =     [3*bp+bw    hgt bw bh];
+%                 otherwise  % centered
+%                     positionArray =     [bp         hgt 2*bw bh];
+%             end
+%             
+%             if strcmp(position, 'center')
+%                 control = uicontrol('Parent', tab, 'Style', style, 'String', label, 'Position', positionArray,    'HorizontalAlignment', 'center');
+%             else
+%                 control = uicontrol('Parent', tab, 'Style', style, 'String', label, 'Position', positionArray,    'HorizontalAlignment', 'left');
+%             end
+%             
+%         case 'button'
+%             hgt = ph-bp-space(identifier, position)*bh;
+%             
+%             switch position
+%                 case 'left'
+%                     positionArray =     [bp         hgt bw bh];
+%                 case 'right'
+%                     positionArray =     [3*bp+bw    hgt bw bh];
+%                 case 'widecentered'
+%                     positionArray =     [bp         hgt 2*bw bh];
+%                 otherwise  % centered
+%                     positionArray =     [2*bp+bw/2  hgt bw bh];
+%             end
+% 
+%             control = uicontrol('Parent', tab, 'Style', style, 'String', value, 'Position', positionArray,  'Enable', active);     
+%     end
+% end
 
 % OUTPUT TAB ==========  
-% Right Column ---------
-    c.microText =   makeControl(c.outputTab, 'text', 'left', 'Micrometers:');
-    set(c.microText, 'ForegroundColor', 'red');
-    c.microXX =     makeControl(c.outputTab, 'edit', 'left', 'X (um):', 'N/A', 'inactive');
-    c.microYY =     makeControl(c.outputTab, 'edit', 'left', 'Y (um):', 'N/A', 'inactive');
-    
-    space(c.outputTab, 'left');
-    c.galvoText =   makeControl(c.outputTab, 'text', 'left', 'Galvos:');
-    set(c.microText, 'ForegroundColor', 'red');
-    c.microXX =     makeControl(c.outputTab, 'edit', 'left', 'X (um):', 'N/A', 'inactive');
-    c.microYY =     makeControl(c.outputTab, 'edit', 'left', 'Y (um):', 'N/A', 'inactive');
+     c.microText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Micrometers:', 'Position',[bp      puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
+     c.microXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (um): ',   'Position', [bp       puh-bp-4*bh bw/2 bh],	'HorizontalAlignment', 'right');
+     c.microXX =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [bp+bw/2  puh-bp-4*bh bw/2 bh],  'Enable', 'inactive');
+     c.microYLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Y (um): ',   'Position', [bp       puh-bp-5*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.microYY =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [bp+bw/2  puh-bp-5*bh bw/2 bh],  'Enable', 'inactive');
      
-% Left Column ---------
-    c.piezoText =   makeControl(c.outputTab, 'text', 'right', 'Piezos:');
-    set(c.piezoText, 'ForegroundColor', 'red');
-    c.piezoXX =     makeControl(c.outputTab, 'edit', 'right', 'X (um):', 'N/A', 'inactive');
-    c.piezoYY =     makeControl(c.outputTab, 'edit', 'right', 'Y (um):', 'N/A', 'inactive');
-    c.piezoZZ =     makeControl(c.outputTab, 'edit', 'right', 'Z (um):', 'N/A', 'inactive');
-
-    space(c.outputTab, 'right');
-    space(c.outputTab, 'right');
-    space(c.outputTab, 'right');
-%     c.m_zero='';
-%     c.setText =     uicontrol('Parent', c.outputTab, 'Style', 'text','String', 'Set: ',   'Position',  [2*bp+2*bw/2 puh-bp-8*bh bw/2 bh],  'HorizontalAlignment', 'right');
-%     c.set_no =      uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-8*bh bw/2 bh],  'Enable', 'inactive');
-%     c.set_mark =    uicontrol('Parent', c.outputTab, 'Style', 'pushbutton', 'String', 'Mark [0,0]','Position', [2*bp+3*bw/2 puh-bp-9*bh bw/2 bh],'ForegroundColor', 'magenta');
-
-    c.set_no =      makeControl(c.outputTab, 'edit', 'right', 'Set:', 'N/A', 'inactive');
-    c.set_mark =    makeControl(c.outputTab, 'button', 'right', 'Mark [0,0]');
-    set(c.set_mark, 'ForegroundColor', 'magenta');
+     c.piezoText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Piezos:', 'Position',    [2*bp+2*bw/2 puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
+     c.piezoZLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Z (um): ',   'Position',  [2*bp+2*bw/2 puh-bp-4*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.piezoZZ =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-4*bh bw/2 bh],  'Enable', 'inactive');
+     c.piezoXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (um): ',   'Position',  [2*bp+2*bw/2 puh-bp-5*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.piezoXX =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-5*bh bw/2 bh],  'Enable', 'inactive');
+     c.piezoYLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Y (um): ',   'Position',  [2*bp+2*bw/2 puh-bp-6*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.piezoYY =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-6*bh bw/2 bh],  'Enable', 'inactive');
+     
+     c.galvoText =   uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Galvos:', 'Position',    [bp       puh-bp-7*bh bw bh],	'HorizontalAlignment', 'left', 'ForegroundColor', 'red');
+     c.galvoXLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'X (mV): ',   'Position', [bp       puh-bp-8*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.galvoXX =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [bp+bw/2  puh-bp-8*bh bw/2 bh],  'Enable', 'inactive');
+     c.galvoYLabel = uicontrol('Parent', c.outputTab, 'Style', 'text', 'String', 'Y (mV): ',   'Position', [bp       puh-bp-9*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.galvoYY =     uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [bp+bw/2  puh-bp-9*bh bw/2 bh],  'Enable', 'inactive');
+     
+     c.m_zero='';
+     c.setText =     uicontrol('Parent', c.outputTab, 'Style', 'text','String', 'Set: ',   'Position',  [2*bp+2*bw/2 puh-bp-8*bh bw/2 bh],  'HorizontalAlignment', 'right');
+     c.set_no =      uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-8*bh bw/2 bh],  'Enable', 'inactive');
+     c.set_mark =    uicontrol('Parent', c.outputTab, 'Style', 'pushbutton', 'String', 'Mark [0,0]','Position', [2*bp+3*bw/2 puh-bp-9*bh bw/2 bh],'ForegroundColor', 'magenta');
+  
+% % Right Column ---------
+%     c.microText =   makeControl(c.outputTab, 'text', 'left', 'Micrometers:');
+%     set(c.microText, 'ForegroundColor', 'red');
+%     c.microXX =     makeControl(c.outputTab, 'edit', 'left', 'X (um):', 'N/A', 'inactive');
+%     c.microYY =     makeControl(c.outputTab, 'edit', 'left', 'Y (um):', 'N/A', 'inactive');
+%     
+%     space(c.outputTab, 'left');
+%     c.galvoText =   makeControl(c.outputTab, 'text', 'left', 'Galvos:');
+%     set(c.microText, 'ForegroundColor', 'red');
+%     c.microXX =     makeControl(c.outputTab, 'edit', 'left', 'X (um):', 'N/A', 'inactive');
+%     c.microYY =     makeControl(c.outputTab, 'edit', 'left', 'Y (um):', 'N/A', 'inactive');
+%      
+% % Left Column ---------
+%     c.piezoText =   makeControl(c.outputTab, 'text', 'right', 'Piezos:');
+%     set(c.piezoText, 'ForegroundColor', 'red');
+%     c.piezoXX =     makeControl(c.outputTab, 'edit', 'right', 'X (um):', 'N/A', 'inactive');
+%     c.piezoYY =     makeControl(c.outputTab, 'edit', 'right', 'Y (um):', 'N/A', 'inactive');
+%     c.piezoZZ =     makeControl(c.outputTab, 'edit', 'right', 'Z (um):', 'N/A', 'inactive');
+% 
+%     space(c.outputTab, 'right');
+%     space(c.outputTab, 'right');
+%     space(c.outputTab, 'right');
+% %     c.m_zero='';
+% %     c.setText =     uicontrol('Parent', c.outputTab, 'Style', 'text','String', 'Set: ',   'Position',  [2*bp+2*bw/2 puh-bp-8*bh bw/2 bh],  'HorizontalAlignment', 'right');
+% %     c.set_no =      uicontrol('Parent', c.outputTab, 'Style', 'edit', 'String', 'N/A',        'Position', [2*bp+3*bw/2 puh-bp-8*bh bw/2 bh],  'Enable', 'inactive');
+% %     c.set_mark =    uicontrol('Parent', c.outputTab, 'Style', 'pushbutton', 'String', 'Mark [0,0]','Position', [2*bp+3*bw/2 puh-bp-9*bh bw/2 bh],'ForegroundColor', 'magenta');
+% 
+%     c.set_no =      makeControl(c.outputTab, 'edit', 'right', 'Set:', 'N/A', 'inactive');
+%     c.set_mark =    makeControl(c.outputTab, 'button', 'right', 'Mark [0,0]');
+%     set(c.set_mark, 'ForegroundColor', 'magenta');
 
 % JOY TAB ===========
     c.joyModeText = uicontrol('Parent', c.joyTab, 'Style', 'text', 'String', 'Mode:', 'Position',[bp puh-bp-3*bh bw bh],	'HorizontalAlignment', 'left');
@@ -404,13 +428,13 @@ end
     c.calibStat =   uicontrol('Parent', c.mouseKeyTab, 'Style', 'text', 'String', 'Staus: Idle', 'Position',[bp puh-bp-9*bh 2*bw bh],	'HorizontalAlignment', 'center');
     
 % SAVE TAB ===========
-    c.saveBackgroundLabel  =  uicontrol('Parent', c.savetab, 'Style', 'text', 'String', 'Background Saving Directory: ', 'Position', [bp             puh-bp-3*bh bw bh],    'HorizontalAlignment', 'left');
-    c.saveBackgroundDirectory=uicontrol('Parent', c.savetab, 'Style', 'edit', c.directoryBackground,                    'Position', [bp             puh-bp-4*bh 3*bw/2 bh],  'HorizontalAlignment', 'left');
-    c.saveBackgroundChoose =  uicontrol('Parent', c.savetab, 'Style', 'pushbutton', 'String', 'Choose',       'Position', [2*bp+3*bw/4    puh-bp-4*bh bw/2 bh]);
+    c.saveBackgroundLabel  =  uicontrol('Parent', c.saveTab, 'Style', 'text', 'String', 'Background Saving Directory: ', 'Position', [bp             puh-bp-3*bh 2*bw bh],    'HorizontalAlignment', 'left');
+    c.saveBackgroundDirectory=uicontrol('Parent', c.saveTab, 'Style', 'edit', 'String', c.directoryBackground,           'Position', [bp             puh-bp-4*bh 3*bw/2 bh],  'HorizontalAlignment', 'left');
+    c.saveBackgroundChoose =  uicontrol('Parent', c.saveTab, 'Style', 'pushbutton', 'String', 'Choose',       'Position', [2*bp+3*bw/2    puh-bp-4*bh bw/2 bh]);
     
-    c.saveLabel  =  uicontrol('Parent', c.savetab, 'Style', 'text', 'String', 'Manual Saving Directory: ', 'Position', [bp             puh-bp-3*bh bw bh],    'HorizontalAlignment', 'left');
-    c.saveDirectory=uicontrol('Parent', c.savetab, 'Style', 'edit', c.directory,                    'Position', [bp             puh-bp-4*bh 3*bw/2 bh],  'HorizontalAlignment', 'left');
-    c.saveChoose =  uicontrol('Parent', c.savetab, 'Style', 'pushbutton', 'String', 'Choose',       'Position', [2*bp+3*bw/4    puh-bp-4*bh bw/2 bh]);
+    c.saveLabel  =  uicontrol('Parent', c.saveTab, 'Style', 'text', 'String', 'Manual Saving Directory: ', 'Position', [bp             puh-bp-5*bh 2*bw bh],    'HorizontalAlignment', 'left');
+    c.saveDirectory=uicontrol('Parent', c.saveTab, 'Style', 'edit', 'String', c.directory,                 'Position', [bp             puh-bp-6*bh 3*bw/2 bh],  'HorizontalAlignment', 'left');
+    c.saveChoose =  uicontrol('Parent', c.saveTab, 'Style', 'pushbutton', 'String', 'Choose',       'Position', [2*bp+3*bw/2    puh-bp-6*bh bw/2 bh]);
     
 % GOTO TAB ==========
     c.gotoMLabel  = uicontrol('Parent', c.gotoTab, 'Style', 'text', 'String', 'Micrometers: ',   'Position', [bp plh-bp-3*bh bw bh],         'HorizontalAlignment', 'left');
